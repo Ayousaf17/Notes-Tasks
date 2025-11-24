@@ -53,7 +53,7 @@ const App: React.FC = () => {
   ]);
   
   const [projects, setProjects] = useState<Project[]>([
-      { id: 'p1', title: 'V2 Redesign', icon: '🎨', createdAt: new Date() },
+      { id: 'p1', title: 'V2 Redesign', icon: '🎨', createdAt: new Date(), financials: { budget: 5000, collected: 0, currency: 'USD', status: 'UNPAID' } },
       { id: 'p2', title: 'Marketing Launch', icon: '🚀', createdAt: new Date() },
       { id: 'p3', title: 'Backend Migration', icon: '⚙️', createdAt: new Date() }
   ]);
@@ -261,8 +261,50 @@ const App: React.FC = () => {
     setCurrentView(ViewMode.DOCUMENTS);
   };
 
-  const handleToggleIntegration = (id: string) => {
+  // --- Connection Handler ---
+  const handleToggleIntegration = async (id: string, apiKey?: string) => {
+      // 1. Toggle State
       setIntegrations(prev => prev.map(i => i.id === id ? { ...i, connected: !i.connected } : i));
+      
+      // 2. Logic Injection based on ID
+      const now = new Date();
+      const isConnecting = !integrations.find(i => i.id === id)?.connected;
+
+      if (isConnecting && id === 'google') {
+          // INJECT: Mock Google Calendar Events
+          const events: Task[] = [
+              { id: 'g1', projectId: 'p1', title: 'Client Meeting: Sync', status: TaskStatus.TODO, priority: TaskPriority.MEDIUM, dueDate: now, assignee: 'Google', createdAt: now, updatedAt: now, externalType: 'GOOGLE_CALENDAR' },
+              { id: 'g2', projectId: 'p1', title: 'Team Standup', status: TaskStatus.TODO, priority: TaskPriority.LOW, dueDate: new Date(now.getTime() + 86400000), assignee: 'Google', createdAt: now, updatedAt: now, externalType: 'GOOGLE_CALENDAR' }
+          ];
+          setTasks(prev => [...prev, ...events]);
+      } 
+      else if (!isConnecting && id === 'google') {
+          // REMOVE: Mock Events
+          setTasks(prev => prev.filter(t => t.externalType !== 'GOOGLE_CALENDAR'));
+      }
+
+      else if (isConnecting && id === 'stripe') {
+          // INJECT: Payment Data into V2 Redesign Project
+          setProjects(prev => prev.map(p => {
+              if (p.title === 'V2 Redesign') {
+                  return { 
+                      ...p, 
+                      financials: { 
+                          budget: 5000, 
+                          collected: 3570, // "Payment In"
+                          currency: 'USD', 
+                          status: 'PARTIAL',
+                          lastTransactionDate: new Date()
+                      }
+                  };
+              }
+              return p;
+          }));
+      }
+      else if (!isConnecting && id === 'stripe') {
+          // RESET: Financials
+          setProjects(prev => prev.map(p => p.title === 'V2 Redesign' ? { ...p, financials: { budget: 5000, collected: 0, currency: 'USD', status: 'UNPAID' } } : p));
+      }
   };
   
   const handleNavigate = (type: 'document' | 'task', id: string) => {

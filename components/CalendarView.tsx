@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, Cloud } from 'lucide-react';
 import { Task, TaskPriority, TaskStatus } from '../types';
 
 interface CalendarViewProps {
@@ -43,8 +43,11 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onSelectTask,
     setCurrentDate(new Date(year, month + 1, 1));
   };
 
-  const getPriorityColor = (p?: TaskPriority) => {
-    switch(p) {
+  const getPriorityColor = (task: Task) => {
+    if (task.externalType === 'GOOGLE_CALENDAR') {
+        return 'bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200 border-blue-200 dark:border-blue-800 hover:bg-blue-200 dark:hover:bg-blue-900/70';
+    }
+    switch(task.priority) {
         case TaskPriority.HIGH: return 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-red-100 dark:border-red-900/50 hover:border-red-200';
         case TaskPriority.MEDIUM: return 'bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 border-orange-100 dark:border-orange-900/50 hover:border-orange-200';
         case TaskPriority.LOW: return 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-100 dark:border-blue-900/50 hover:border-blue-200';
@@ -69,9 +72,10 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onSelectTask,
   }, [tasks, month, year]);
 
   // Drag Handlers
-  const handleDragStart = (e: React.DragEvent, taskId: string) => {
-    setDraggedTaskId(taskId);
-    e.dataTransfer.setData('taskId', taskId);
+  const handleDragStart = (e: React.DragEvent, task: Task) => {
+    if (task.externalType) return; // Prevent dragging external events
+    setDraggedTaskId(task.id);
+    e.dataTransfer.setData('taskId', task.id);
     e.dataTransfer.effectAllowed = 'move';
     // Visual tweak
     const el = e.currentTarget as HTMLElement;
@@ -179,18 +183,19 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onSelectTask,
                         {dayTasks.map(task => (
                             <div 
                                 key={task.id}
-                                draggable="true"
-                                onDragStart={(e) => handleDragStart(e, task.id)}
+                                draggable={!task.externalType}
+                                onDragStart={(e) => handleDragStart(e, task)}
                                 onDragEnd={handleDragEnd}
-                                onClick={(e) => { e.stopPropagation(); onSelectTask && onSelectTask(task.id); }}
+                                onClick={(e) => { e.stopPropagation(); if (!task.externalType) onSelectTask && onSelectTask(task.id); }}
                                 className={`
-                                    cursor-pointer active:cursor-grabbing text-left px-2 py-1.5 rounded text-[10px] font-medium border truncate w-full transition-transform hover:scale-[1.02] shadow-sm 
-                                    ${getPriorityColor(task.priority)} 
+                                    cursor-pointer text-left px-2 py-1.5 rounded text-[10px] font-medium border truncate w-full transition-transform hover:scale-[1.02] shadow-sm flex items-center gap-1.5
+                                    ${getPriorityColor(task)} 
                                     ${task.status === TaskStatus.DONE ? 'opacity-50 line-through grayscale' : ''}
                                 `}
                                 title={task.title}
                             >
-                                {task.title}
+                                {task.externalType === 'GOOGLE_CALENDAR' && <Cloud className="w-3 h-3 shrink-0" />}
+                                <span className="truncate">{task.title}</span>
                             </div>
                         ))}
                     </div>

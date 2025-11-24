@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Task, Document, Project, TaskPriority, TaskStatus } from '../types';
 import { geminiService } from '../services/geminiService';
-import { Sparkles, Calendar, ArrowRight, Volume2, StopCircle, FileText } from 'lucide-react';
+import { Sparkles, Calendar, ArrowRight, Volume2, StopCircle, FileText, CreditCard, TrendingUp, Check } from 'lucide-react';
 
 interface DashboardViewProps {
   tasks: Task[];
@@ -58,6 +58,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
       }).slice(0, 4);
   }, [documents]);
+
+  // Filter for active financials
+  const activeFinancialProjects = useMemo(() => {
+      return projects.filter(p => p.financials && p.financials.status !== 'UNPAID');
+  }, [projects]);
 
   useEffect(() => {
       if (focusList.length > 0 && !briefing) {
@@ -171,8 +176,49 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 </div>
             </div>
 
-            {/* Recent & Actions */}
+            {/* Sidebar: Financials & Actions */}
             <div className="space-y-12">
+                
+                {/* Financial Health (Visible if Stripe Connected) */}
+                {activeFinancialProjects.length > 0 && (
+                    <div className="space-y-6">
+                        <h2 className="text-[10px] font-bold text-gray-900 dark:text-white uppercase tracking-[0.2em] border-b border-gray-100 dark:border-gray-800 pb-4">Financial Health</h2>
+                        <div className="space-y-4">
+                            {activeFinancialProjects.map(p => (
+                                <div key={p.id} className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4 border border-gray-100 dark:border-gray-700/50">
+                                    <div className="flex items-center justify-between mb-3">
+                                        <div className="flex items-center gap-2">
+                                            <CreditCard className="w-4 h-4 text-gray-400" />
+                                            <span className="text-xs font-bold uppercase text-gray-500 dark:text-gray-400">{p.title}</span>
+                                        </div>
+                                        <span className="text-[10px] bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
+                                            <TrendingUp className="w-3 h-3" /> INFLOW
+                                        </span>
+                                    </div>
+                                    <div className="flex items-end justify-between">
+                                        <div>
+                                            <p className="text-xs text-gray-400 mb-0.5">Collected</p>
+                                            <p className="text-xl font-serif font-medium text-gray-900 dark:text-white">
+                                                ${p.financials?.collected.toLocaleString()}
+                                            </p>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-xs text-gray-400 mb-0.5">Proposal Value</p>
+                                            <p className="text-sm font-medium text-gray-500 dark:text-gray-400 line-through decoration-gray-300 dark:decoration-gray-600">
+                                                ${p.financials?.budget.toLocaleString()}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between text-[10px] text-gray-400">
+                                        <span>Synced via Stripe</span>
+                                        <span className="flex items-center gap-1"><Check className="w-3 h-3" /> Verified</span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
                 <div className="space-y-6">
                     <h2 className="text-[10px] font-bold text-gray-900 dark:text-white uppercase tracking-[0.2em] border-b border-gray-100 dark:border-gray-800 pb-4">Jump Back In</h2>
                     <div className="space-y-1">
