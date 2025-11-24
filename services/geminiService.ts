@@ -543,5 +543,25 @@ export const geminiService = {
       } catch (error) {
           return { output: "I encountered an error while working on this task.", type: 'text', timestamp: new Date() };
       }
+  },
+
+  /**
+   * Phase 7: Analyze Stale Task
+   * Suggests what to do with a task that has been stuck for a while.
+   */
+  async analyzeStaleTask(taskTitle: string, daysStuck: number): Promise<string> {
+      if (!apiKey) return "Review this task manually.";
+
+      try {
+          const response = await ai.models.generateContent({
+              model: MODEL_NAME,
+              contents: `The user has a task "${taskTitle}" that has been 'In Progress' for ${daysStuck} days.
+              Suggest a 1-sentence recommended action to unblock it.
+              Options: Delegate to AI, Break it down, or Delete it if irrelevant.`
+          });
+          return response.text || "Consider breaking this task down.";
+      } catch (e) {
+          return "Consider reviewing this task.";
+      }
   }
 };

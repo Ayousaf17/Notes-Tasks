@@ -10,6 +10,7 @@ import { ContextSidebar } from './components/ContextSidebar';
 import { InboxView } from './components/InboxView';
 import { GraphView } from './components/GraphView';
 import { DashboardView } from './components/DashboardView'; 
+import { ReviewWizard } from './components/ReviewWizard';
 import { ViewMode, Document, Task, TaskStatus, ProjectPlan, TaskPriority, ChatMessage, Project, InboxItem, InboxAction, AgentRole } from './types';
 import { Sparkles, Bot, Command, Plus } from 'lucide-react';
 import { geminiService } from './services/geminiService';
@@ -34,13 +35,30 @@ const App: React.FC = () => {
   const [activeDocId, setActiveDocId] = useState<string | null>('1');
   
   // Tasks State (Linked to ProjectId)
+  // Mocking dates to simulate an "old" task for the review protocol
+  const now = new Date();
+  const fiveDaysAgo = new Date(now.getTime() - (5 * 24 * 60 * 60 * 1000));
+  const tenDaysAgo = new Date(now.getTime() - (10 * 24 * 60 * 60 * 1000));
+
   const [tasks, setTasks] = useState<Task[]>([
-    { id: 't1', projectId: 'p1', title: 'Explore the system', status: TaskStatus.IN_PROGRESS, description: 'Try creating a new project', assignee: 'Me', priority: TaskPriority.HIGH, dueDate: new Date(), dependencies: [] },
-    { id: 't2', projectId: 'p2', title: 'Draft Press Release', status: TaskStatus.TODO, description: 'Announce the launch', assignee: 'Alice', priority: TaskPriority.MEDIUM, dueDate: new Date(), dependencies: [] }
+    { 
+        id: 't1', projectId: 'p1', title: 'Explore the system', status: TaskStatus.IN_PROGRESS, description: 'Try creating a new project', assignee: 'Me', priority: TaskPriority.HIGH, dueDate: new Date(), dependencies: [], 
+        createdAt: fiveDaysAgo, updatedAt: fiveDaysAgo 
+    },
+    { 
+        id: 't2', projectId: 'p2', title: 'Draft Press Release', status: TaskStatus.TODO, description: 'Announce the launch', assignee: 'Alice', priority: TaskPriority.MEDIUM, dueDate: new Date(), dependencies: [],
+        createdAt: now, updatedAt: now
+    },
+    {
+        id: 't3', projectId: 'p2', title: 'Update Website Assets', status: TaskStatus.IN_PROGRESS, description: 'Get new banners from design team.', assignee: 'Me', priority: TaskPriority.LOW, dueDate: tenDaysAgo, dependencies: [],
+        createdAt: tenDaysAgo, updatedAt: tenDaysAgo // This should trigger the "Stuck" logic in ReviewWizard (older than 7 days if logic matches)
+    }
   ]);
 
   // Inbox State
-  const [inboxItems, setInboxItems] = useState<InboxItem[]>([]);
+  const [inboxItems, setInboxItems] = useState<InboxItem[]>([
+      { id: 'i1', content: 'Remember to call client about the Q3 budget adjustment', type: 'text', status: 'pending', createdAt: new Date() }
+  ]);
   
   // Chat State
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
@@ -124,7 +142,9 @@ const App: React.FC = () => {
       dueDate: new Date(),
       assignee: t.assignee || 'Unassigned',
       priority: t.priority || TaskPriority.MEDIUM,
-      dependencies: []
+      dependencies: [],
+      createdAt: new Date(),
+      updatedAt: new Date()
     }));
     setTasks(prev => [...prev, ...finalTasks]);
     return finalTasks;
@@ -132,7 +152,11 @@ const App: React.FC = () => {
 
   // Task Updaters
   const updateTask = (id: string, updates: Partial<Task>) => {
-      setTasks(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
+      setTasks(prev => prev.map(t => t.id === id ? { ...t, ...updates, updatedAt: new Date() } : t));
+  };
+
+  const handleDeleteTask = (id: string) => {
+      setTasks(prev => prev.filter(t => t.id !== id));
   };
 
   const handleUpdateTaskStatus = (id: string, status: TaskStatus) => updateTask(id, { status });
@@ -217,7 +241,9 @@ const App: React.FC = () => {
         dueDate: new Date(),
         assignee: t.assignee || 'Unassigned',
         priority: t.priority || TaskPriority.MEDIUM,
-        dependencies: []
+        dependencies: [],
+        createdAt: new Date(),
+        updatedAt: new Date()
     }));
     setTasks(prev => [...prev, ...newTasks]);
 
@@ -281,7 +307,9 @@ const App: React.FC = () => {
               priority: action.data.priority || TaskPriority.MEDIUM,
               assignee: 'Unassigned',
               dueDate: new Date(),
-              dependencies: []
+              dependencies: [],
+              createdAt: new Date(),
+              updatedAt: new Date()
           };
           setTasks(prev => [...prev, newTask]);
       } else if (action.actionType === 'create_document') {
@@ -348,7 +376,8 @@ const App: React.FC = () => {
           <div className="flex items-center space-x-2 text-sm">
              <span className="font-semibold text-gray-900">
                  {currentView === ViewMode.HOME ? 'Dashboard' : 
-                  currentView === ViewMode.INBOX ? 'Inbox' : activeProject.title}
+                  currentView === ViewMode.INBOX ? 'Inbox' : 
+                  currentView === ViewMode.REVIEW ? 'Review Protocol' : activeProject.title}
              </span>
              <span className="text-gray-300">/</span>
              <span className="text-gray-500">
@@ -356,7 +385,8 @@ const App: React.FC = () => {
                   currentView === ViewMode.BOARD ? 'Task Board' : 
                   currentView === ViewMode.GRAPH ? 'Knowledge Graph' : 
                   currentView === ViewMode.INBOX ? 'Brain Dump' : 
-                  currentView === ViewMode.HOME ? 'Daily Pulse' : 'Timeline'}
+                  currentView === ViewMode.HOME ? 'Daily Pulse' : 
+                  currentView === ViewMode.REVIEW ? 'Cleanup' : 'Timeline'}
              </span>
           </div>
           <div className="flex items-center space-x-3">
@@ -389,6 +419,7 @@ const App: React.FC = () => {
                         projects={projects}
                         userName="User"
                         onNavigate={handleNavigate}
+                        onStartReview={() => setCurrentView(ViewMode.REVIEW)}
                     />
                 ) : currentView === ViewMode.INBOX ? (
                     <InboxView 
@@ -404,6 +435,18 @@ const App: React.FC = () => {
                         }}
                         onDeleteItem={handleDeleteInboxItem}
                         projects={projects}
+                    />
+                ) : currentView === ViewMode.REVIEW ? (
+                    <ReviewWizard 
+                        inboxItems={inboxItems}
+                        tasks={tasks}
+                        projects={projects}
+                        onProcessInboxItem={handleProcessInboxItem}
+                        onDeleteInboxItem={handleDeleteInboxItem}
+                        onDeleteTask={handleDeleteTask}
+                        onUpdateTaskStatus={handleUpdateTaskStatus}
+                        onUpdateTaskAssignee={handleUpdateTaskAssignee}
+                        onClose={() => setCurrentView(ViewMode.HOME)}
                     />
                 ) : currentView === ViewMode.DOCUMENTS && activeDocument ? (
                     <DocumentEditor 

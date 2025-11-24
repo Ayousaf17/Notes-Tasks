@@ -10,6 +10,7 @@ interface DashboardViewProps {
   projects: Project[];
   userName: string;
   onNavigate: (type: 'document' | 'task', id: string) => void;
+  onStartReview: () => void;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({ 
@@ -17,7 +18,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     documents, 
     projects, 
     userName, 
-    onNavigate 
+    onNavigate,
+    onStartReview
 }) => {
   const [briefing, setBriefing] = useState<string | null>(null);
   const [loadingBriefing, setLoadingBriefing] = useState(false);
@@ -199,8 +201,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                          <button onClick={() => {}} className="w-full text-left px-3 py-2 bg-white rounded-lg text-xs font-medium text-indigo-700 hover:bg-indigo-600 hover:text-white transition-colors shadow-sm">
                             + New Project
                          </button>
-                         <button onClick={() => {}} className="w-full text-left px-3 py-2 bg-white rounded-lg text-xs font-medium text-indigo-700 hover:bg-indigo-600 hover:text-white transition-colors shadow-sm">
-                            + Review Inbox
+                         <button onClick={onStartReview} className="w-full text-left px-3 py-2 bg-white rounded-lg text-xs font-medium text-indigo-700 hover:bg-indigo-600 hover:text-white transition-colors shadow-sm flex items-center justify-between group">
+                            <span>+ Review Inbox</span>
+                            <Sparkles className="w-3.5 h-3.5 text-indigo-400 group-hover:text-indigo-200" />
                          </button>
                     </div>
                 </div>

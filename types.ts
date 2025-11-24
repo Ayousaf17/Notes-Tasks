@@ -6,6 +6,7 @@ export enum ViewMode {
   CALENDAR = 'CALENDAR',
   GRAPH = 'GRAPH',
   INBOX = 'INBOX',
+  REVIEW = 'REVIEW',
 }
 
 export interface Project {
@@ -62,6 +63,9 @@ export interface Task {
   dependencies?: string[]; 
   linkedDocumentId?: string;
   
+  createdAt: Date;
+  updatedAt: Date;
+
   // NEW: Agent State
   agentStatus?: 'idle' | 'working' | 'completed' | 'failed';
   agentResult?: AgentResult;
