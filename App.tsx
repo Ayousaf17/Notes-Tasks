@@ -9,13 +9,14 @@ import { CommandPalette } from './components/CommandPalette';
 import { ContextSidebar } from './components/ContextSidebar';
 import { InboxView } from './components/InboxView';
 import { GraphView } from './components/GraphView';
+import { DashboardView } from './components/DashboardView'; // NEW
 import { ViewMode, Document, Task, TaskStatus, ProjectPlan, TaskPriority, ChatMessage, Project, InboxItem, InboxAction } from './types';
 import { Sparkles, Bot, Command, Plus } from 'lucide-react';
 import { geminiService } from './services/geminiService';
 
 const App: React.FC = () => {
   // --- State ---
-  const [currentView, setCurrentView] = useState<ViewMode>(ViewMode.DOCUMENTS);
+  const [currentView, setCurrentView] = useState<ViewMode>(ViewMode.HOME); // Default to HOME
   
   // Projects State
   const [projects, setProjects] = useState<Project[]>([
@@ -316,14 +317,16 @@ const App: React.FC = () => {
         <header className="h-14 border-b border-gray-50 flex items-center justify-between px-6 bg-white/50 backdrop-blur-sm shrink-0 z-20">
           <div className="flex items-center space-x-2 text-sm">
              <span className="font-semibold text-gray-900">
-                 {currentView === ViewMode.INBOX ? 'Inbox' : activeProject.title}
+                 {currentView === ViewMode.HOME ? 'Dashboard' : 
+                  currentView === ViewMode.INBOX ? 'Inbox' : activeProject.title}
              </span>
              <span className="text-gray-300">/</span>
              <span className="text-gray-500">
                  {currentView === ViewMode.DOCUMENTS ? (activeDocument?.title || 'Documents') : 
                   currentView === ViewMode.BOARD ? 'Task Board' : 
                   currentView === ViewMode.GRAPH ? 'Knowledge Graph' : 
-                  currentView === ViewMode.INBOX ? 'Brain Dump' : 'Timeline'}
+                  currentView === ViewMode.INBOX ? 'Brain Dump' : 
+                  currentView === ViewMode.HOME ? 'Daily Pulse' : 'Timeline'}
              </span>
           </div>
           <div className="flex items-center space-x-3">
@@ -349,7 +352,15 @@ const App: React.FC = () => {
         <div className="flex-1 overflow-hidden relative bg-white flex">
             {/* Main View */}
             <div className="flex-1 flex flex-col overflow-hidden">
-                {currentView === ViewMode.INBOX ? (
+                {currentView === ViewMode.HOME ? (
+                    <DashboardView 
+                        tasks={tasks}
+                        documents={documents}
+                        projects={projects}
+                        userName="User"
+                        onNavigate={handleNavigate}
+                    />
+                ) : currentView === ViewMode.INBOX ? (
                     <InboxView 
                         items={inboxItems}
                         onAddItem={handleAddInboxItem}
@@ -431,6 +442,8 @@ const App: React.FC = () => {
                 ? activeDocument?.content 
                 : currentView === ViewMode.INBOX
                 ? `Inbox Items: ${inboxItems.map(i => i.content).join(', ')}`
+                : currentView === ViewMode.HOME
+                ? `Dashboard View. High Priority Tasks: ${tasks.filter(t => t.priority === TaskPriority.HIGH).length}`
                 : `Active Project: ${activeProject.title}\nTasks:\n${projectTasks.map(t => `- ${t.title} (${t.status})`).join('\n')}`
             }
             onProjectPlanCreated={handleProjectPlanCreated}

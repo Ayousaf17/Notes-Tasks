@@ -1,9 +1,10 @@
 
 export enum ViewMode {
+  HOME = 'HOME', // NEW
   DOCUMENTS = 'DOCUMENTS',
   BOARD = 'BOARD',
   CALENDAR = 'CALENDAR',
-  GRAPH = 'GRAPH', // NEW
+  GRAPH = 'GRAPH',
   INBOX = 'INBOX',
 }
 

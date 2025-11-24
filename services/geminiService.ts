@@ -467,5 +467,30 @@ export const geminiService = {
     } catch (error) {
         return `# ${taskTitle}\n\n`;
     }
-  }
+  },
+
+  /**
+   * Generates a daily briefing based on tasks and context
+   */
+  async generateDailyBriefing(userName: string, context: string): Promise<string> {
+    if (!apiKey) return `Good morning, ${userName}. Here is your overview.`;
+
+    try {
+      const response = await ai.models.generateContent({
+        model: MODEL_NAME,
+        contents: `You are the Aasani OS personal assistant.
+        User: ${userName}.
+        Current Date: ${new Date().toDateString()}.
+        
+        Work Context (Overdue, Due Today, High Priority):
+        ${context}
+        
+        Generate a concise, friendly, and motivating "Daily Briefing" (max 3 sentences). 
+        Highlight the most critical item. Start with a greeting.`,
+      });
+      return response.text || "Ready to start the day.";
+    } catch (e) {
+      return "Unable to generate briefing.";
+    }
+  },
 };

@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { FileText, Layout, Calendar, Settings, Plus, Cloud, Command, Briefcase, Folder, Inbox, Network } from 'lucide-react';
+import { FileText, Layout, Calendar, Settings, Plus, Cloud, Command, Briefcase, Folder, Inbox, Network, Home } from 'lucide-react';
 import { ViewMode, Document, Project } from '../types';
 
 interface SidebarProps {
@@ -45,6 +45,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Global Navigation */}
       <div className="px-3 mb-4 space-y-0.5">
           <button
+            onClick={() => { onChangeView(ViewMode.HOME); }}
+            className={`w-full flex items-center space-x-3 px-3 py-1.5 rounded transition-all duration-200 text-sm ${
+                currentView === ViewMode.HOME
+                ? 'bg-gray-200 text-black font-medium'
+                : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'
+            }`}
+          >
+              <Home className="w-4 h-4" />
+              <span>Home</span>
+          </button>
+          
+          <button
             onClick={() => { onChangeView(ViewMode.INBOX); }}
             className={`w-full flex items-center space-x-3 px-3 py-1.5 rounded transition-all duration-200 text-sm ${
                 currentView === ViewMode.INBOX
@@ -69,10 +81,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     key={project.id}
                     onClick={() => {
                         onSelectProject(project.id);
-                        if (currentView === ViewMode.INBOX) onChangeView(ViewMode.DOCUMENTS); // Switch out of inbox if selecting project
+                        // If we are in global views (Home/Inbox), switch to Docs when clicking a project
+                        // If we are in project views (Board/Cal), stay there but switch data
+                        if (currentView === ViewMode.HOME || currentView === ViewMode.INBOX) {
+                            onChangeView(ViewMode.DOCUMENTS);
+                        }
                     }}
                     className={`w-full flex items-center justify-between px-3 py-1.5 rounded text-sm transition-colors group ${
-                        activeProjectId === project.id && currentView !== ViewMode.INBOX
+                        activeProjectId === project.id && currentView !== ViewMode.INBOX && currentView !== ViewMode.HOME
                         ? 'bg-white shadow-sm ring-1 ring-gray-200 text-black font-medium' 
                         : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'
                     }`}
@@ -81,7 +97,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           <span className="text-xs">{project.icon || '📂'}</span>
                           <span className="truncate">{project.title}</span>
                       </div>
-                      {activeProjectId === project.id && currentView !== ViewMode.INBOX && <div className="w-1.5 h-1.5 rounded-full bg-black"></div>}
+                      {activeProjectId === project.id && currentView !== ViewMode.INBOX && currentView !== ViewMode.HOME && <div className="w-1.5 h-1.5 rounded-full bg-black"></div>}
                   </button>
               ))}
           </div>
