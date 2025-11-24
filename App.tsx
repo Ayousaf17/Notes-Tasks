@@ -14,7 +14,7 @@ import { ReviewWizard } from './components/ReviewWizard';
 import { TaskDetailModal } from './components/TaskDetailModal';
 import { IntegrationsModal } from './components/IntegrationsModal';
 import { ViewMode, Document, Task, TaskStatus, ProjectPlan, TaskPriority, ChatMessage, Project, InboxItem, InboxAction, AgentRole, Integration } from './types';
-import { Sparkles, Command, Plus, Menu, Cloud, MessageSquare, CreditCard, Database } from 'lucide-react';
+import { Sparkles, Command, Plus, Menu, Cloud, MessageSquare } from 'lucide-react';
 import { geminiService } from './services/geminiService';
 
 const App: React.FC = () => {
@@ -47,13 +47,10 @@ const App: React.FC = () => {
       { id: 'chatgpt', name: 'ChatGPT', description: 'Connect GPT-4o for advanced reasoning.', icon: MessageSquare, connected: false, category: 'AI' },
       { id: 'claude', name: 'Claude', description: 'Anthropic\'s Claude 3.5 Sonnet model.', icon: MessageSquare, connected: false, category: 'AI' },
       { id: 'perplexity', name: 'Perplexity', description: 'Real-time web search and sourcing.', icon: MessageSquare, connected: false, category: 'AI' },
-      { id: 'stripe', name: 'Stripe', description: 'Payment processing and financial data.', icon: CreditCard, connected: false, category: 'Finance' },
-      { id: 'quickbooks', name: 'QuickBooks', description: 'Accounting and bookkeeping sync.', icon: Database, connected: false, category: 'Finance' },
-      { id: 'relay', name: 'Relay', description: 'Banking and cash flow management.', icon: Database, connected: false, category: 'Finance' },
   ]);
   
   const [projects, setProjects] = useState<Project[]>([
-      { id: 'p1', title: 'V2 Redesign', icon: '🎨', createdAt: new Date(), financials: { budget: 5000, collected: 0, currency: 'USD', status: 'UNPAID' } },
+      { id: 'p1', title: 'V2 Redesign', icon: '🎨', createdAt: new Date() },
       { id: 'p2', title: 'Marketing Launch', icon: '🚀', createdAt: new Date() },
       { id: 'p3', title: 'Backend Migration', icon: '⚙️', createdAt: new Date() }
   ]);
@@ -282,29 +279,6 @@ const App: React.FC = () => {
           // REMOVE: Mock Events
           setTasks(prev => prev.filter(t => t.externalType !== 'GOOGLE_CALENDAR'));
       }
-
-      else if (isConnecting && id === 'stripe') {
-          // INJECT: Payment Data into V2 Redesign Project
-          setProjects(prev => prev.map(p => {
-              if (p.title === 'V2 Redesign') {
-                  return { 
-                      ...p, 
-                      financials: { 
-                          budget: 5000, 
-                          collected: 3570, // "Payment In"
-                          currency: 'USD', 
-                          status: 'PARTIAL',
-                          lastTransactionDate: new Date()
-                      }
-                  };
-              }
-              return p;
-          }));
-      }
-      else if (!isConnecting && id === 'stripe') {
-          // RESET: Financials
-          setProjects(prev => prev.map(p => p.title === 'V2 Redesign' ? { ...p, financials: { budget: 5000, collected: 0, currency: 'USD', status: 'UNPAID' } } : p));
-      }
   };
   
   const handleNavigate = (type: 'document' | 'task', id: string) => {
@@ -387,7 +361,6 @@ const App: React.FC = () => {
     return context;
   };
 
-  const allAssignees = Array.from(new Set(tasks.map(t => t.assignee || 'Unassigned')));
   const selectedTask = tasks.find(t => t.id === selectedTaskId);
 
   return (

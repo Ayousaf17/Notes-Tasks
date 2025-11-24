@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { X, Cloud, CreditCard, MessageSquare, Database, Check, Loader2, Lock, ChevronRight, AlertCircle } from 'lucide-react';
+import { X, Cloud, MessageSquare, Check, Loader2, Lock, AlertCircle } from 'lucide-react';
 import { Integration } from '../types';
 
 interface IntegrationsModalProps {
@@ -22,7 +22,8 @@ export const IntegrationsModal: React.FC<IntegrationsModalProps> = ({
 
   if (!isOpen) return null;
 
-  const categories = Array.from(new Set(integrations.map(i => i.category)));
+  // Productivity Focus: Cloud & AI Only
+  const categories = ['Cloud', 'AI'];
 
   const handleConnectClick = (integration: Integration) => {
       if (integration.connected) {
@@ -36,7 +37,7 @@ export const IntegrationsModal: React.FC<IntegrationsModalProps> = ({
           setActiveConfigId(integration.id);
           setApiKeyInput('');
       } else {
-          // Simulate OAuth for Cloud/Finance
+          // Simulate OAuth for Cloud
           setLoadingId(integration.id);
           setTimeout(() => {
               onToggleIntegration(integration.id);
@@ -69,7 +70,7 @@ export const IntegrationsModal: React.FC<IntegrationsModalProps> = ({
               <Cloud className="w-6 h-6 text-black dark:text-white" />
               Connect Cloud
             </h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Manage your connected apps and services.</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Supercharge your workspace with AI and Cloud Sync.</p>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-black dark:hover:text-white transition-colors p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full">
             <X className="w-5 h-5" />
@@ -78,16 +79,15 @@ export const IntegrationsModal: React.FC<IntegrationsModalProps> = ({
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-8 bg-gray-50/50 dark:bg-gray-950/50">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-12">
+          <div className="grid grid-cols-1 gap-y-12">
             {categories.map(category => (
                 <div key={category} className="space-y-4">
                     <h3 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest flex items-center gap-2">
                         {category === 'Cloud' && <Cloud className="w-3 h-3" />}
                         {category === 'AI' && <MessageSquare className="w-3 h-3" />}
-                        {category === 'Finance' && <CreditCard className="w-3 h-3" />}
                         {category}
                     </h3>
-                    <div className="space-y-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {integrations.filter(i => i.category === category).map(integration => {
                             const isConfiguring = activeConfigId === integration.id;
                             const isLoading = loadingId === integration.id;

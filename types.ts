@@ -12,21 +12,12 @@ export enum ViewMode {
   GLOBAL_CALENDAR = 'GLOBAL_CALENDAR'
 }
 
-export interface ProjectFinancials {
-  budget: number;
-  collected: number;
-  currency: string;
-  status: 'UNPAID' | 'PARTIAL' | 'PAID';
-  lastTransactionDate?: Date;
-}
-
 export interface Project {
   id: string;
   title: string;
   icon?: string; // e.g. "🚀"
   description?: string;
   createdAt: Date;
-  financials?: ProjectFinancials;
 }
 
 export interface Document {
@@ -83,7 +74,7 @@ export interface Task {
   agentResult?: AgentResult;
 
   // NEW: External Integration
-  externalType?: 'GOOGLE_CALENDAR' | 'STRIPE_INVOICE';
+  externalType?: 'GOOGLE_CALENDAR';
 }
 
 export interface InboxItem {
@@ -147,7 +138,7 @@ export interface Integration {
   description: string;
   icon: any; // Lucide icon
   connected: boolean;
-  category: 'Cloud' | 'AI' | 'Finance' | 'Productivity';
+  category: 'Cloud' | 'AI' | 'Productivity';
   config?: {
     apiKey?: string;
     requiresAuth?: boolean;
