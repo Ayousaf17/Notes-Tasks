@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useMemo } from 'react';
 import { Task, Document, Project, TaskPriority, TaskStatus } from '../types';
 import { geminiService } from '../services/geminiService';
@@ -103,13 +102,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       <div className="max-w-5xl mx-auto space-y-12">
         
         {/* Minimal Daily Pulse */}
-        <div className="py-8">
-            <div className="flex justify-between items-center mb-4">
-                <p className="text-sm font-medium text-gray-400 uppercase tracking-widest">Daily Pulse</p>
+        <div className="py-12">
+            <div className="flex justify-between items-center mb-6">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-[0.2em]">Daily Pulse</p>
                 {briefing && (
                     <button 
                         onClick={toggleSpeech}
-                        className={`p-2 rounded-full transition-colors ${isSpeaking ? 'bg-black text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                        className={`p-2 rounded-full transition-colors ${isSpeaking ? 'bg-black text-white' : 'bg-gray-50 text-gray-400 hover:text-black hover:bg-gray-100'}`}
                         title={isSpeaking ? "Stop" : "Listen to Briefing"}
                     >
                         {isSpeaking ? <StopCircle className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
@@ -119,11 +118,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             
             {loadingBriefing ? (
                 <div className="animate-pulse space-y-4">
-                    <div className="h-8 bg-gray-100 rounded w-1/2"></div>
-                    <div className="h-8 bg-gray-100 rounded w-3/4"></div>
+                    <div className="h-6 bg-gray-50 rounded w-1/2"></div>
+                    <div className="h-6 bg-gray-50 rounded w-3/4"></div>
                 </div>
             ) : (
-                <h1 className="text-4xl md:text-5xl font-light text-gray-900 leading-tight tracking-tight">
+                <h1 className="text-3xl md:text-4xl font-serif font-normal text-gray-800 leading-snug tracking-wide">
                     {briefing}
                 </h1>
             )}
@@ -134,7 +133,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             {/* Focus List */}
             <div className="lg:col-span-2 space-y-6">
                 <div className="flex items-baseline justify-between border-b border-gray-100 pb-2">
-                    <h2 className="text-lg font-medium text-gray-900">Focus</h2>
+                    <h2 className="text-sm font-medium text-gray-900 uppercase tracking-widest">Focus</h2>
                     <span className="text-xs text-gray-400">{focusList.length} items</span>
                 </div>
 
@@ -143,19 +142,18 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         <div 
                             key={task.id}
                             onClick={() => onNavigate('task', task.id)}
-                            className="group py-4 border-b border-gray-50 flex items-start gap-4 cursor-pointer hover:bg-gray-50/50 transition-colors"
+                            className="group py-5 border-b border-gray-50 flex items-start gap-4 cursor-pointer hover:bg-gray-50/30 transition-colors"
                         >
-                            <div className={`mt-1 w-4 h-4 rounded-sm border flex items-center justify-center flex-shrink-0 ${
-                                task.priority === TaskPriority.HIGH ? 'border-gray-900' : 'border-gray-300'
+                            <div className={`mt-1.5 w-3 h-3 rounded-full border flex items-center justify-center flex-shrink-0 ${
+                                task.priority === TaskPriority.HIGH ? 'border-gray-900 bg-gray-900' : 'border-gray-300'
                             }`}>
-                                {task.priority === TaskPriority.HIGH && <div className="w-2 h-2 bg-black rounded-[1px]" />}
                             </div>
                             <div className="flex-1 min-w-0">
-                                <h3 className="text-base text-gray-900 group-hover:text-black transition-colors truncate font-light">
+                                <h3 className="text-lg text-gray-800 group-hover:text-black transition-colors truncate font-light">
                                     {task.title}
                                 </h3>
-                                <div className="flex items-center gap-3 mt-1 text-xs text-gray-400">
-                                    <span>{getProjectName(task.projectId)}</span>
+                                <div className="flex items-center gap-3 mt-1.5 text-xs text-gray-400">
+                                    <span className="font-medium tracking-wide">{getProjectName(task.projectId)}</span>
                                     {task.dueDate && (
                                         <span className="flex items-center gap-1">
                                             <Calendar className="w-3 h-3" />
@@ -164,30 +162,30 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                                     )}
                                 </div>
                             </div>
-                            <ArrowRight className="w-4 h-4 text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity" />
+                            <ArrowRight className="w-4 h-4 text-gray-200 opacity-0 group-hover:opacity-100 transition-opacity" />
                         </div>
                     )) : (
-                        <div className="py-8 text-gray-400 font-light">No urgent tasks.</div>
+                        <div className="py-8 text-gray-400 font-light italic">No urgent tasks assigned for today.</div>
                     )}
                 </div>
             </div>
 
             {/* Recent & Actions */}
-            <div className="space-y-10">
+            <div className="space-y-12">
                 <div className="space-y-4">
-                    <h2 className="text-lg font-medium text-gray-900 border-b border-gray-100 pb-2">Jump Back In</h2>
-                    <div className="space-y-0">
+                    <h2 className="text-sm font-medium text-gray-900 uppercase tracking-widest border-b border-gray-100 pb-2">Jump Back In</h2>
+                    <div className="space-y-2">
                         {recentDocs.length > 0 ? recentDocs.map((doc) => (
                             <div 
                                 key={doc.id}
                                 onClick={() => onNavigate('document', doc.id)}
-                                className="group py-3 flex items-start gap-3 cursor-pointer"
+                                className="group py-3 flex items-start gap-3 cursor-pointer hover:bg-gray-50 rounded-lg px-2 -mx-2 transition-colors"
                             >
-                                <FileText className="w-4 h-4 text-gray-400 mt-0.5" />
+                                <FileText className="w-4 h-4 text-gray-300 mt-0.5" />
                                 <div className="min-w-0">
-                                    <h4 className="text-sm text-gray-600 group-hover:text-black transition-colors truncate">{doc.title}</h4>
+                                    <h4 className="text-sm text-gray-600 group-hover:text-black transition-colors truncate font-medium">{doc.title}</h4>
                                     <p className="text-[10px] text-gray-400 mt-0.5">
-                                        {new Date(doc.updatedAt).toLocaleDateString()}
+                                        Edited {new Date(doc.updatedAt).toLocaleDateString()}
                                     </p>
                                 </div>
                             </div>
@@ -198,10 +196,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 </div>
 
                 <div className="space-y-3">
-                     <button onClick={() => {}} className="w-full text-left px-4 py-3 border border-gray-200 rounded hover:border-black transition-colors text-sm font-medium text-gray-600 hover:text-black">
-                        New Project
+                     <button onClick={() => {}} className="w-full text-left px-5 py-3 border border-gray-200 rounded-lg hover:border-black transition-colors text-sm font-medium text-gray-600 hover:text-black bg-white">
+                        + New Project
                      </button>
-                     <button onClick={onStartReview} className="w-full text-left px-4 py-3 bg-black text-white rounded hover:bg-gray-800 transition-colors text-sm font-medium flex items-center justify-between">
+                     <button onClick={onStartReview} className="w-full text-left px-5 py-3 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors text-sm font-medium flex items-center justify-between shadow-lg shadow-gray-200">
                         <span>Review Inbox</span>
                         <Sparkles className="w-3.5 h-3.5" />
                      </button>

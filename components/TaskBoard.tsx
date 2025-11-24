@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { Task, TaskStatus, TaskPriority, AgentRole } from '../types';
 import { Plus, Filter, X, ArrowUpDown, User, Flag, Link as LinkIcon, AlertCircle, CheckCircle, Sparkles, Loader2, Bot, ChevronDown, ChevronUp, GripVertical, CheckSquare, Square, Calendar, MoreHorizontal, Paperclip } from 'lucide-react';
@@ -15,6 +14,7 @@ interface TaskBoardProps {
   onAddTasks: (tasks: Partial<Task>[]) => void;
   onPromoteTask: (taskId: string) => void;
   onNavigate: (type: 'document' | 'task', id: string) => void;
+  onSelectTask?: (taskId: string) => void;
 }
 
 type SortOption = 'NONE' | 'PRIORITY_DESC' | 'DUE_DATE_ASC';
@@ -29,7 +29,8 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
     contextString,
     onAddTasks,
     onPromoteTask,
-    onNavigate
+    onNavigate,
+    onSelectTask
 }) => {
   const [assigneeFilter, setAssigneeFilter] = useState<string>('ALL');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
@@ -119,7 +120,6 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
       setDraggedTaskId(taskId);
       e.dataTransfer.setData('taskId', taskId);
       e.dataTransfer.effectAllowed = 'move';
-      // Add a class to body to indicate dragging
       document.body.style.cursor = 'grabbing';
   };
 
@@ -130,7 +130,7 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
   };
 
   const handleDragOver = (e: React.DragEvent, status: string) => {
-      e.preventDefault(); // Necessary to allow dropping
+      e.preventDefault(); 
       if (activeDropZone !== status) {
           setActiveDropZone(status);
       }
@@ -145,15 +145,6 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
       setDraggedTaskId(null);
       setActiveDropZone(null);
       document.body.style.cursor = 'default';
-  };
-
-  const getPriorityColor = (p?: TaskPriority) => {
-      switch(p) {
-          case TaskPriority.HIGH: return 'bg-red-50 text-red-600';
-          case TaskPriority.MEDIUM: return 'bg-orange-50 text-orange-600';
-          case TaskPriority.LOW: return 'bg-blue-50 text-blue-600';
-          default: return 'bg-gray-100 text-gray-600';
-      }
   };
 
   return (
@@ -216,13 +207,14 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
                                         draggable
                                         onDragStart={(e) => handleDragStart(e, task.id)}
                                         onDragEnd={handleDragEnd}
+                                        onClick={() => onSelectTask && onSelectTask(task.id)}
                                         className={`group relative bg-white border border-gray-200 p-4 rounded-lg shadow-sm hover:shadow-md transition-all cursor-grab active:cursor-grabbing flex flex-col gap-3 ${blocked ? 'opacity-70 bg-gray-50' : ''} ${isDragging ? 'opacity-50 ring-2 ring-indigo-400 rotate-2 scale-95 z-50' : 'hover:-translate-y-0.5'}`}
                                     >
-                                        <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity text-gray-300">
+                                        <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity text-gray-300 pointer-events-none">
                                             <GripVertical className="w-4 h-4" />
                                         </div>
 
-                                        <div className="flex flex-col gap-1">
+                                        <div className="flex flex-col gap-1 pointer-events-none">
                                             <div className="flex justify-between items-start">
                                                 <span className="text-sm text-gray-900 leading-snug font-medium line-clamp-2 pr-6">{task.title}</span>
                                             </div>
@@ -230,14 +222,14 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
                                         </div>
 
                                         {isAgentWorking && (
-                                            <div className="flex items-center gap-2 text-[10px] text-purple-600 bg-purple-50 px-2 py-1 rounded-md self-start">
+                                            <div className="flex items-center gap-2 text-[10px] text-purple-600 bg-purple-50 px-2 py-1 rounded-md self-start pointer-events-none">
                                                 <Loader2 className="w-3 h-3 animate-spin" />
                                                 <span>AI Working...</span>
                                             </div>
                                         )}
 
                                         {/* Meta Row */}
-                                        <div className="flex items-center justify-between pt-2 mt-auto border-t border-gray-50">
+                                        <div className="flex items-center justify-between pt-2 mt-auto border-t border-gray-50" onClick={(e) => e.stopPropagation()}>
                                              <div className="flex items-center gap-2">
                                                  {/* Assignee Avatar */}
                                                  <div className="relative group/assignee" title={task.assignee || 'Unassigned'}>
@@ -265,7 +257,7 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
 
                                                  {/* Due Date */}
                                                  {task.dueDate && (
-                                                     <div className="flex items-center gap-1 text-[10px] text-gray-400 font-medium">
+                                                     <div className="flex items-center gap-1 text-[10px] text-gray-400 font-medium cursor-default">
                                                          <Calendar className="w-3 h-3" />
                                                          <span>{new Date(task.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
                                                      </div>
@@ -290,7 +282,7 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
 
       {/* Dependency Modal */}
       {dependencyModalTask && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/50 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-white/50 backdrop-blur-sm">
               <div className="bg-white p-0 rounded-lg shadow-2xl border border-gray-100 w-full max-w-sm animate-in zoom-in-95 overflow-hidden">
                   <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-white">
                       <h3 className="font-semibold text-gray-900 text-sm">Dependencies for "{dependencyModalTask.title}"</h3>
@@ -325,7 +317,7 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
 
       {/* Suggestions Modal */}
       {isReviewingSuggestions && (
-           <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/80 backdrop-blur-sm">
+           <div className="fixed inset-0 z-[60] flex items-center justify-center bg-white/80 backdrop-blur-sm">
               <div className="bg-white p-6 rounded-lg shadow-xl border border-gray-100 w-full max-w-md animate-in zoom-in-95">
                    <h3 className="font-medium text-sm mb-4">Suggested Tasks</h3>
                    <div className="space-y-2 mb-6 max-h-96 overflow-y-auto">

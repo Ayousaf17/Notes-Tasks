@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { ChatMessage, Attachment, ProjectPlan } from '../types';
 import { Send, X, Bot, Paperclip, Mic, Loader2, FileText, Sparkles, Music } from 'lucide-react';
@@ -71,19 +70,18 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
       };
 
       mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' }); // Webm is standard for MediaRecorder
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' }); 
         const reader = new FileReader();
         reader.readAsDataURL(audioBlob);
         reader.onloadend = () => {
           const base64String = (reader.result as string).split(',')[1];
            const newAttachment: Attachment = {
-              mimeType: 'audio/webm', // Gemini supports audio/webm
+              mimeType: 'audio/webm',
               data: base64String,
               name: 'Voice Note'
            };
            setAttachments(prev => [...prev, newAttachment]);
         };
-        // Stop tracks to release mic
         stream.getTracks().forEach(track => track.stop());
       };
 
@@ -121,7 +119,6 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
     setAttachments([]);
     setLoading(true);
 
-    // Heuristic: Trigger structured generation for plans, projects, meetings, or task extraction
     const lowerInput = currentInput.toLowerCase();
     const isStructuredRequest = 
         lowerInput.includes('plan') || 
@@ -132,7 +129,6 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
 
     if (isStructuredRequest && (currentAttachments.length > 0 || currentInput.length > 15)) {
         setIsAnalysingPlan(true);
-        // Special Mode: Generate Project Plan / Meeting Summary
         const plan = await geminiService.generateProjectPlan(currentInput || "Analyze this content and extract tasks", currentAttachments);
         
         if (plan) {
@@ -155,13 +151,11 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
         }
         setIsAnalysingPlan(false);
     } else {
-        // Standard Chat
         const history = messages.map(m => ({
             role: m.role,
             parts: [{ text: m.text }]
         }));
         
-        // Inject context if available
         const prompt = contextData && messages.length < 3
             ? `Context from current view: ${contextData}\n\nUser: ${currentInput}` 
             : currentInput;
@@ -201,7 +195,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
         {messages.map((msg) => (
           <div key={msg.id} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
              <div className={`max-w-[90%] ${msg.role === 'user' ? 'text-right' : 'text-left'}`}>
-                {/* Attachments Bubble */}
+                {/* Attachments */}
                 {msg.attachments && msg.attachments.length > 0 && (
                     <div className="mb-2 flex flex-wrap gap-2 justify-end">
                         {msg.attachments.map((att, i) => (
@@ -222,7 +216,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                     {msg.text}
                 </div>
                 <div className="text-[10px] text-gray-300 mt-1 px-1">
-                    {msg.role === 'user' ? 'You' : 'Nexus AI'}
+                    {msg.role === 'user' ? 'You' : 'Aasani'}
                 </div>
             </div>
           </div>
@@ -248,18 +242,13 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
 
       {/* Input Area */}
       <div className="p-4 bg-white border-t border-gray-50">
-        
-        {/* Attachment Preview */}
         {attachments.length > 0 && (
             <div className="flex space-x-2 mb-3 overflow-x-auto">
                 {attachments.map((att, idx) => (
                     <div key={idx} className="relative group flex items-center space-x-2 bg-gray-50 px-3 py-2 rounded-lg border border-gray-100">
                         {att.mimeType.startsWith('audio/') ? <Music className="w-4 h-4 text-gray-500" /> : <FileText className="w-4 h-4 text-gray-500" />}
                         <span className="text-xs text-gray-600 truncate max-w-[120px]">{att.name || 'Attachment'}</span>
-                        <button 
-                            onClick={() => setAttachments(attachments.filter((_, i) => i !== idx))}
-                            className="ml-2 text-gray-400 hover:text-red-500"
-                        >
+                        <button onClick={() => setAttachments(attachments.filter((_, i) => i !== idx))} className="ml-2 text-gray-400 hover:text-red-500">
                             <X className="w-3 h-3" />
                         </button>
                     </div>
@@ -267,37 +256,27 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
             </div>
         )}
 
-        <div className="relative flex items-end gap-2 bg-gray-50 rounded-xl p-2 border border-transparent focus-within:border-gray-200 focus-within:bg-white transition-all">
-            {/* Upload Button */}
-            <button 
-                onClick={() => fileInputRef.current?.click()}
-                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded-lg transition-colors"
-                title="Upload File"
-            >
-                <Paperclip className="w-4 h-4" />
-            </button>
-            <input 
-                type="file" 
-                ref={fileInputRef} 
-                className="hidden" 
-                onChange={handleFileSelect}
-                accept="image/*,application/pdf,text/plain,audio/*" 
-            />
+        <div className="bg-gray-50 rounded-2xl p-1.5 flex items-end gap-1 border border-transparent focus-within:border-gray-200 focus-within:bg-white transition-all shadow-sm">
+            
+            {/* Left Actions */}
+            <div className="flex gap-1 pb-0.5">
+                <button 
+                    onClick={() => fileInputRef.current?.click()}
+                    className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded-xl transition-colors"
+                >
+                    <Paperclip className="w-4 h-4" />
+                </button>
+                <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileSelect} accept="image/*,application/pdf,text/plain,audio/*" />
 
-            {/* Mic Button */}
-            <button 
-                onClick={isRecording ? stopRecording : startRecording}
-                className={`p-2 rounded-lg transition-all ${
-                    isRecording 
-                    ? 'bg-red-100 text-red-600 animate-pulse' 
-                    : 'text-gray-400 hover:text-gray-600 hover:bg-gray-200'
-                }`}
-                title="Record Voice"
-            >
-                <Mic className="w-4 h-4" />
-            </button>
+                <button 
+                    onClick={isRecording ? stopRecording : startRecording}
+                    className={`p-2 rounded-xl transition-all ${isRecording ? 'bg-red-100 text-red-600 animate-pulse' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-200'}`}
+                >
+                    <Mic className="w-4 h-4" />
+                </button>
+            </div>
 
-            {/* Text Input */}
+            {/* Input */}
             <textarea
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
@@ -307,8 +286,8 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                         handleSend();
                     }
                 }}
-                placeholder="Type, or upload meeting audio..."
-                className="flex-1 bg-transparent border-none focus:ring-0 resize-none text-sm max-h-32 py-2 px-1 placeholder-gray-400 text-gray-800"
+                placeholder="Message Aasani..."
+                className="flex-1 bg-transparent border-none focus:ring-0 resize-none text-sm max-h-32 py-2.5 px-1 placeholder-gray-400 text-gray-800"
                 rows={1}
             />
             
@@ -316,7 +295,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
             <button 
                 onClick={handleSend}
                 disabled={(!input.trim() && attachments.length === 0) || loading}
-                className="p-2 bg-black text-white rounded-lg hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors mb-0.5"
+                className="p-2 bg-black text-white rounded-xl hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors mb-0.5"
             >
                 {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
             </button>
