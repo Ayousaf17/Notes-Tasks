@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Task, Document, Project, TaskPriority, TaskStatus } from '../types';
 import { geminiService } from '../services/geminiService';
-import { Sparkles, Calendar, CheckCircle, Clock, FileText, ArrowRight, Sun, Layout, AlertCircle } from 'lucide-react';
+import { Sparkles, Calendar, ArrowRight, Clock, FileText, CheckCircle } from 'lucide-react';
 
 interface DashboardViewProps {
   tasks: Task[];
@@ -24,8 +24,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const [briefing, setBriefing] = useState<string | null>(null);
   const [loadingBriefing, setLoadingBriefing] = useState(false);
 
-  // --- Aggregate Data ---
-
   const todaysTasks = useMemo(() => {
       const today = new Date();
       return tasks.filter(t => {
@@ -42,14 +40,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       return tasks.filter(t => t.priority === TaskPriority.HIGH && t.status !== TaskStatus.DONE);
   }, [tasks]);
 
-  // Combine for focus list (unique)
   const focusList = useMemo(() => {
       const combined = [...todaysTasks];
       highPriorityTasks.forEach(t => {
           if (!combined.find(c => c.id === t.id)) combined.push(t);
       });
       return combined.sort((a, b) => {
-           // Sort by Due Date (Asc), then Priority
            const dateA = a.dueDate ? new Date(a.dueDate).getTime() : Number.MAX_SAFE_INTEGER;
            const dateB = b.dueDate ? new Date(b.dueDate).getTime() : Number.MAX_SAFE_INTEGER;
            return dateA - dateB;
@@ -62,150 +58,116 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       }).slice(0, 4);
   }, [documents]);
 
-  // --- Effects ---
-
   useEffect(() => {
-      // Generate briefing on mount if we have data
       if (focusList.length > 0 && !briefing) {
           setLoadingBriefing(true);
           const context = focusList.map(t => `- Task: ${t.title} (Due: ${t.dueDate ? new Date(t.dueDate).toDateString() : 'No Date'}, Priority: ${t.priority})`).join('\n');
-          
           geminiService.generateDailyBriefing(userName, context).then(res => {
               setBriefing(res);
               setLoadingBriefing(false);
           });
       } else if (focusList.length === 0 && !briefing) {
-           setBriefing(`Good morning, ${userName}. Your schedule is clear today. It's a great time to focus on deep work or planning.`);
+           setBriefing(`Good morning. You have a clear schedule today.`);
       }
-  }, [focusList, userName]); // Run once mostly
+  }, [focusList, userName]);
 
   const getProjectName = (id: string) => projects.find(p => p.id === id)?.title || 'Unknown Project';
 
   return (
-    <div className="flex-1 h-full bg-slate-50 overflow-y-auto p-4 md:p-8 font-sans">
-      <div className="max-w-5xl mx-auto space-y-8">
+    <div className="flex-1 h-full bg-white overflow-y-auto p-8 font-sans">
+      <div className="max-w-5xl mx-auto space-y-12">
         
-        {/* Hero Section */}
-        <div className="relative overflow-hidden rounded-2xl bg-black text-white shadow-xl p-6 md:p-8">
-            <div className="relative z-10">
-                <div className="flex items-center gap-2 text-gray-400 mb-4 text-xs font-bold uppercase tracking-wider">
-                    <Sun className="w-4 h-4" />
-                    <span>Daily Pulse</span>
+        {/* Minimal Daily Pulse */}
+        <div className="py-8">
+            <p className="text-sm font-medium text-gray-400 uppercase tracking-widest mb-4">Daily Pulse</p>
+            {loadingBriefing ? (
+                <div className="animate-pulse space-y-4">
+                    <div className="h-8 bg-gray-100 rounded w-1/2"></div>
+                    <div className="h-8 bg-gray-100 rounded w-3/4"></div>
                 </div>
-                {loadingBriefing ? (
-                    <div className="animate-pulse space-y-3 max-w-2xl">
-                        <div className="h-4 bg-white/20 rounded w-1/3"></div>
-                        <div className="h-6 bg-white/20 rounded w-3/4"></div>
-                    </div>
-                ) : (
-                    <div className="max-w-3xl">
-                        <h1 className="text-xl md:text-2xl font-light leading-relaxed font-serif text-white">
-                            "{briefing}"
-                        </h1>
-                    </div>
-                )}
-            </div>
+            ) : (
+                <h1 className="text-4xl md:text-5xl font-light text-gray-900 leading-tight tracking-tight">
+                    {briefing}
+                </h1>
+            )}
         </div>
 
-        {/* Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
             
-            {/* Left Col: Focus List */}
+            {/* Focus List */}
             <div className="lg:col-span-2 space-y-6">
-                <div className="flex items-center justify-between">
-                    <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                        <CheckCircle className="w-5 h-5 text-gray-400" />
-                        My Focus
-                    </h2>
-                    <span className="text-xs text-gray-500 bg-white px-2 py-1 rounded border shadow-sm">
-                        {focusList.length} Items Pending
-                    </span>
+                <div className="flex items-baseline justify-between border-b border-gray-100 pb-2">
+                    <h2 className="text-lg font-medium text-gray-900">Focus</h2>
+                    <span className="text-xs text-gray-400">{focusList.length} items</span>
                 </div>
 
-                <div className="space-y-3">
+                <div className="space-y-0">
                     {focusList.length > 0 ? focusList.map(task => (
                         <div 
                             key={task.id}
                             onClick={() => onNavigate('task', task.id)}
-                            className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all cursor-pointer group flex items-start gap-4"
+                            className="group py-4 border-b border-gray-50 flex items-start gap-4 cursor-pointer hover:bg-gray-50/50 transition-colors"
                         >
-                            <div className={`mt-1 w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
-                                task.priority === TaskPriority.HIGH ? 'border-red-100 bg-red-50 text-red-600' : 'border-gray-200 bg-gray-50 text-gray-400'
+                            <div className={`mt-1 w-4 h-4 rounded-sm border flex items-center justify-center flex-shrink-0 ${
+                                task.priority === TaskPriority.HIGH ? 'border-gray-900' : 'border-gray-300'
                             }`}>
-                                {task.priority === TaskPriority.HIGH && <AlertCircle className="w-3 h-3" />}
+                                {task.priority === TaskPriority.HIGH && <div className="w-2 h-2 bg-black rounded-[1px]" />}
                             </div>
                             <div className="flex-1 min-w-0">
-                                <h3 className="text-sm font-medium text-gray-900 group-hover:text-indigo-600 transition-colors truncate">
+                                <h3 className="text-base text-gray-900 group-hover:text-black transition-colors truncate font-light">
                                     {task.title}
                                 </h3>
-                                <div className="flex items-center gap-3 mt-1.5">
-                                    <span className="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded">
-                                        {getProjectName(task.projectId)}
-                                    </span>
+                                <div className="flex items-center gap-3 mt-1 text-xs text-gray-400">
+                                    <span>{getProjectName(task.projectId)}</span>
                                     {task.dueDate && (
-                                        <span className="flex items-center gap-1 text-[10px] text-gray-400">
+                                        <span className="flex items-center gap-1">
                                             <Calendar className="w-3 h-3" />
                                             {new Date(task.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                                         </span>
                                     )}
                                 </div>
                             </div>
-                            <div className="opacity-0 group-hover:opacity-100 transition-opacity self-center">
-                                <ArrowRight className="w-4 h-4 text-gray-300" />
-                            </div>
+                            <ArrowRight className="w-4 h-4 text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity" />
                         </div>
                     )) : (
-                        <div className="bg-white p-8 rounded-xl border border-gray-100 border-dashed text-center text-gray-400">
-                            <Sparkles className="w-8 h-8 mx-auto mb-2 text-yellow-400 opacity-50" />
-                            <p>No urgent tasks. You're all caught up!</p>
-                        </div>
+                        <div className="py-8 text-gray-400 font-light">No urgent tasks.</div>
                     )}
                 </div>
             </div>
 
-            {/* Right Col: Jump Back In */}
-            <div className="space-y-6">
-                <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                    <Clock className="w-5 h-5 text-gray-400" />
-                    Jump Back In
-                </h2>
-                
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                    {recentDocs.length > 0 ? recentDocs.map((doc, i) => (
-                        <div 
-                            key={doc.id}
-                            onClick={() => onNavigate('document', doc.id)}
-                            className={`p-4 hover:bg-gray-50 cursor-pointer transition-colors group ${i !== recentDocs.length - 1 ? 'border-b border-gray-50' : ''}`}
-                        >
-                            <div className="flex items-start gap-3">
-                                <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
-                                    <FileText className="w-4 h-4" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <h4 className="text-sm font-medium text-gray-800 truncate group-hover:text-blue-600">{doc.title}</h4>
+            {/* Recent & Actions */}
+            <div className="space-y-10">
+                <div className="space-y-4">
+                    <h2 className="text-lg font-medium text-gray-900 border-b border-gray-100 pb-2">Jump Back In</h2>
+                    <div className="space-y-0">
+                        {recentDocs.length > 0 ? recentDocs.map((doc) => (
+                            <div 
+                                key={doc.id}
+                                onClick={() => onNavigate('document', doc.id)}
+                                className="group py-3 flex items-start gap-3 cursor-pointer"
+                            >
+                                <FileText className="w-4 h-4 text-gray-400 mt-0.5" />
+                                <div className="min-w-0">
+                                    <h4 className="text-sm text-gray-600 group-hover:text-black transition-colors truncate">{doc.title}</h4>
                                     <p className="text-[10px] text-gray-400 mt-0.5">
-                                        Edited {new Date(doc.updatedAt).toLocaleDateString()} • {getProjectName(doc.projectId)}
+                                        {new Date(doc.updatedAt).toLocaleDateString()}
                                     </p>
                                 </div>
                             </div>
-                        </div>
-                    )) : (
-                         <div className="p-6 text-center text-xs text-gray-400">No recent documents.</div>
-                    )}
+                        )) : (
+                             <div className="text-xs text-gray-400 py-2">No recent documents.</div>
+                        )}
+                    </div>
                 </div>
 
-                {/* Quick Actions */}
-                <div className="bg-indigo-50 rounded-xl p-4 border border-indigo-100">
-                    <h3 className="text-xs font-bold text-indigo-800 uppercase tracking-wide mb-3">Quick Actions</h3>
-                    <div className="space-y-2">
-                         <button onClick={() => {}} className="w-full text-left px-3 py-2 bg-white rounded-lg text-xs font-medium text-indigo-700 hover:bg-indigo-600 hover:text-white transition-colors shadow-sm">
-                            + New Project
-                         </button>
-                         <button onClick={onStartReview} className="w-full text-left px-3 py-2 bg-white rounded-lg text-xs font-medium text-indigo-700 hover:bg-indigo-600 hover:text-white transition-colors shadow-sm flex items-center justify-between group">
-                            <span>+ Review Inbox</span>
-                            <Sparkles className="w-3.5 h-3.5 text-indigo-400 group-hover:text-indigo-200" />
-                         </button>
-                    </div>
+                <div className="space-y-3">
+                     <button onClick={() => {}} className="w-full text-left px-4 py-3 border border-gray-200 rounded hover:border-black transition-colors text-sm font-medium text-gray-600 hover:text-black">
+                        New Project
+                     </button>
+                     <button onClick={onStartReview} className="w-full text-left px-4 py-3 bg-black text-white rounded hover:bg-gray-800 transition-colors text-sm font-medium flex items-center justify-between">
+                        <span>Review Inbox</span>
+                        <Sparkles className="w-3.5 h-3.5" />
+                     </button>
                 </div>
             </div>
 
