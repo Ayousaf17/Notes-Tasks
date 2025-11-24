@@ -1,5 +1,6 @@
+
 import React from 'react';
-import { FileText, Layout, Calendar, Settings, Plus, Cloud, Command, Briefcase, Folder } from 'lucide-react';
+import { FileText, Layout, Calendar, Settings, Plus, Cloud, Command, Briefcase, Folder, Inbox } from 'lucide-react';
 import { ViewMode, Document, Project } from '../types';
 
 interface SidebarProps {
@@ -41,6 +42,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <span className="font-semibold text-gray-900 tracking-tight">Aasani OS</span>
       </div>
 
+      {/* Global Navigation */}
+      <div className="px-3 mb-4 space-y-0.5">
+          <button
+            onClick={() => { onChangeView(ViewMode.INBOX); }}
+            className={`w-full flex items-center space-x-3 px-3 py-1.5 rounded transition-all duration-200 text-sm ${
+                currentView === ViewMode.INBOX
+                ? 'bg-gray-200 text-black font-medium'
+                : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'
+            }`}
+          >
+              <Inbox className="w-4 h-4" />
+              <span>Inbox</span>
+          </button>
+      </div>
+
       {/* Projects Section (OS Level) */}
       <div className="px-3 mb-6">
           <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-3 mb-2 flex justify-between items-center">
@@ -51,10 +67,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
               {projects.map(project => (
                   <button
                     key={project.id}
-                    onClick={() => onSelectProject(project.id)}
+                    onClick={() => {
+                        onSelectProject(project.id);
+                        if (currentView === ViewMode.INBOX) onChangeView(ViewMode.DOCUMENTS); // Switch out of inbox if selecting project
+                    }}
                     className={`w-full flex items-center justify-between px-3 py-1.5 rounded text-sm transition-colors group ${
-                        activeProjectId === project.id 
-                        ? 'bg-gray-200 text-black font-medium' 
+                        activeProjectId === project.id && currentView !== ViewMode.INBOX
+                        ? 'bg-white shadow-sm ring-1 ring-gray-200 text-black font-medium' 
                         : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'
                     }`}
                   >
@@ -62,7 +81,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           <span className="text-xs">{project.icon || '📂'}</span>
                           <span className="truncate">{project.title}</span>
                       </div>
-                      {activeProjectId === project.id && <div className="w-1.5 h-1.5 rounded-full bg-black"></div>}
+                      {activeProjectId === project.id && currentView !== ViewMode.INBOX && <div className="w-1.5 h-1.5 rounded-full bg-black"></div>}
                   </button>
               ))}
           </div>
@@ -76,7 +95,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           onClick={() => onChangeView(ViewMode.DOCUMENTS)}
           className={`w-full flex items-center space-x-3 px-3 py-1.5 rounded transition-all duration-200 text-sm ${
             currentView === ViewMode.DOCUMENTS && !activeDocumentId
-              ? 'bg-white shadow-sm ring-1 ring-gray-100 text-gray-900 font-medium'
+              ? 'text-gray-900 font-medium'
               : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
           }`}
         >
@@ -87,7 +106,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           onClick={() => onChangeView(ViewMode.BOARD)}
           className={`w-full flex items-center space-x-3 px-3 py-1.5 rounded transition-all duration-200 text-sm ${
             currentView === ViewMode.BOARD
-              ? 'bg-white shadow-sm ring-1 ring-gray-100 text-gray-900 font-medium'
+              ? 'text-gray-900 font-medium'
               : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
           }`}
         >
@@ -98,7 +117,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           onClick={() => onChangeView(ViewMode.CALENDAR)}
           className={`w-full flex items-center space-x-3 px-3 py-1.5 rounded transition-all duration-200 text-sm ${
             currentView === ViewMode.CALENDAR
-              ? 'bg-white shadow-sm ring-1 ring-gray-100 text-gray-900 font-medium'
+              ? 'text-gray-900 font-medium'
               : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
           }`}
         >

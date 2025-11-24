@@ -1,7 +1,9 @@
+
 export enum ViewMode {
   DOCUMENTS = 'DOCUMENTS',
   BOARD = 'BOARD',
   CALENDAR = 'CALENDAR',
+  INBOX = 'INBOX', // NEW
 }
 
 export interface Project {
@@ -43,6 +45,27 @@ export interface Task {
   dueDate?: Date;
   priority?: TaskPriority;
   dependencies?: string[]; // IDs of tasks this task depends on
+}
+
+export interface InboxItem {
+  id: string;
+  content: string;
+  type: 'text' | 'audio';
+  status: 'pending' | 'processed';
+  createdAt: Date;
+  processedResult?: InboxAction; // Store the AI suggestion
+}
+
+export interface InboxAction {
+  actionType: 'create_task' | 'create_document';
+  targetProjectId: string;
+  data: {
+    title: string;
+    description?: string; // For Tasks
+    content?: string;     // For Docs
+    priority?: TaskPriority;
+  };
+  reasoning: string;
 }
 
 export interface ChatMessage {

@@ -1,5 +1,6 @@
+
 import { GoogleGenAI, Type, Schema } from "@google/genai";
-import { Task, TaskStatus, TaskPriority, ProjectPlan, Attachment } from "../types";
+import { Task, TaskStatus, TaskPriority, ProjectPlan, Attachment, Project, InboxAction } from "../types";
 
 const apiKey = process.env.API_KEY;
 const ai = new GoogleGenAI({ apiKey: apiKey || 'dummy_key' });
@@ -76,6 +77,59 @@ export const geminiService = {
       } catch (error) {
           console.error("Gemini Workspace Query Error:", error);
           return "Error querying workspace.";
+      }
+  },
+
+  /**
+   * Analyzes an Inbox Item and decides where it goes
+   */
+  async organizeInboxItem(content: string, projects: Project[]): Promise<InboxAction | null> {
+      if (!apiKey) return null;
+
+      const projectContext = projects.map(p => `ID: ${p.id}, Title: ${p.title}`).join('\n');
+
+      try {
+          const response = await ai.models.generateContent({
+              model: MODEL_NAME,
+              contents: `Analyze this raw note from the user's inbox and decide if it should be a 'create_task' or 'create_document'. 
+              Then, assign it to the most relevant Project ID from the list below. If no project fits, pick the 'General' or first project.
+              
+              User Note: "${content}"
+              
+              Available Projects:
+              ${projectContext}
+              
+              Return a JSON object describing the action.`,
+              config: {
+                  responseMimeType: "application/json",
+                  responseSchema: {
+                      type: Type.OBJECT,
+                      properties: {
+                          actionType: { type: Type.STRING, enum: ['create_task', 'create_document'] },
+                          targetProjectId: { type: Type.STRING, description: "The ID of the project this belongs to" },
+                          reasoning: { type: Type.STRING, description: "Why you chose this project/action" },
+                          data: {
+                              type: Type.OBJECT,
+                              properties: {
+                                  title: { type: Type.STRING },
+                                  description: { type: Type.STRING, description: "For tasks, a brief description" },
+                                  content: { type: Type.STRING, description: "For documents, the body content" },
+                                  priority: { type: Type.STRING, enum: [TaskPriority.HIGH, TaskPriority.MEDIUM, TaskPriority.LOW] }
+                              },
+                              required: ["title"]
+                          }
+                      },
+                      required: ["actionType", "targetProjectId", "data", "reasoning"]
+                  }
+              }
+          });
+
+          const jsonStr = response.text;
+          if (!jsonStr) return null;
+          return JSON.parse(jsonStr) as InboxAction;
+      } catch (error) {
+          console.error("Gemini Inbox Sort Error:", error);
+          return null;
       }
   },
 

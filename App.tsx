@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { DocumentEditor } from './components/DocumentEditor';
@@ -6,7 +7,8 @@ import { AIChatSidebar } from './components/AIChatSidebar';
 import { CalendarView } from './components/CalendarView';
 import { CommandPalette } from './components/CommandPalette';
 import { ContextSidebar } from './components/ContextSidebar';
-import { ViewMode, Document, Task, TaskStatus, ProjectPlan, TaskPriority, ChatMessage, Project } from './types';
+import { InboxView } from './components/InboxView';
+import { ViewMode, Document, Task, TaskStatus, ProjectPlan, TaskPriority, ChatMessage, Project, InboxItem, InboxAction } from './types';
 import { Sparkles, Bot, Command, Plus } from 'lucide-react';
 
 const App: React.FC = () => {
@@ -33,6 +35,9 @@ const App: React.FC = () => {
     { id: 't1', projectId: 'p1', title: 'Explore the system', status: TaskStatus.IN_PROGRESS, description: 'Try creating a new project', assignee: 'Me', priority: TaskPriority.HIGH, dueDate: new Date(), dependencies: [] },
     { id: 't2', projectId: 'p2', title: 'Draft Press Release', status: TaskStatus.TODO, description: 'Announce the launch', assignee: 'Alice', priority: TaskPriority.MEDIUM, dueDate: new Date(), dependencies: [] }
   ]);
+
+  // Inbox State
+  const [inboxItems, setInboxItems] = useState<InboxItem[]>([]);
   
   // Chat State
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
@@ -190,6 +195,72 @@ const App: React.FC = () => {
       setIsCommandPaletteOpen(false);
   };
 
+  // --- Inbox Handlers ---
+  const handleAddInboxItem = (content: string, type: 'text' | 'audio') => {
+      const newItem: InboxItem = {
+          id: Date.now().toString(),
+          content,
+          type,
+          status: 'pending',
+          createdAt: new Date()
+      };
+      setInboxItems(prev => [newItem, ...prev]);
+  };
+
+  const handleDeleteInboxItem = (id: string) => {
+      setInboxItems(prev => prev.filter(i => i.id !== id));
+  };
+
+  const handleProcessInboxItem = (itemId: string, action: InboxAction) => {
+      // 1. Apply Action
+      if (action.actionType === 'create_task') {
+          const newTask: Task = {
+              id: Date.now().toString(),
+              projectId: action.targetProjectId,
+              title: action.data.title,
+              description: action.data.description || '',
+              status: TaskStatus.TODO,
+              priority: action.data.priority || TaskPriority.MEDIUM,
+              assignee: 'Unassigned',
+              dueDate: new Date(),
+              dependencies: []
+          };
+          setTasks(prev => [...prev, newTask]);
+      } else if (action.actionType === 'create_document') {
+           const newDoc: Document = {
+              id: Date.now().toString(),
+              projectId: action.targetProjectId,
+              title: action.data.title,
+              content: action.data.content || '# ' + action.data.title,
+              tags: ['Inbox Processed'],
+              updatedAt: new Date()
+           };
+           setDocuments(prev => [...prev, newDoc]);
+      }
+
+      // 2. Update Inbox Item Status
+      setInboxItems(prev => prev.map(item => {
+          if (item.id === itemId) {
+              // If we just applied the suggestion, remove it from list or mark processed
+              return { ...item, status: 'processed' };
+          }
+          if (item.id === itemId && !item.processedResult) {
+               // If this was just the AI returning a suggestion (but not applying yet)
+               // The UI component handles the display, but here we store the suggestion
+               // NOTE: In this implementation, the UI calls this method ONLY when Applying.
+               // For saving the suggestion, we'd need a separate handler or modify this one.
+               // Let's assume the UI calls a separate setter for suggestions, OR we treat this as "Apply".
+          }
+          return item;
+      }).filter(i => i.status !== 'processed')); // Remove processed items for clean inbox
+  };
+  
+  // This helper is for when the AI just suggests, but user hasn't confirmed
+  const handleStoreInboxSuggestion = (itemId: string, action: InboxAction) => {
+      setInboxItems(prev => prev.map(item => item.id === itemId ? { ...item, processedResult: action } : item));
+  };
+
+
   const activeDocument = documents.find(d => d.id === activeDocId);
 
   // Combine context for AI
@@ -225,9 +296,15 @@ const App: React.FC = () => {
         {/* OS Header */}
         <header className="h-14 border-b border-gray-50 flex items-center justify-between px-6 bg-white/50 backdrop-blur-sm shrink-0 z-20">
           <div className="flex items-center space-x-2 text-sm">
-             <span className="font-semibold text-gray-900">{activeProject.title}</span>
+             <span className="font-semibold text-gray-900">
+                 {currentView === ViewMode.INBOX ? 'Inbox' : activeProject.title}
+             </span>
              <span className="text-gray-300">/</span>
-             <span className="text-gray-500">{currentView === ViewMode.DOCUMENTS ? (activeDocument?.title || 'Documents') : currentView === ViewMode.BOARD ? 'Task Board' : 'Timeline'}</span>
+             <span className="text-gray-500">
+                 {currentView === ViewMode.DOCUMENTS ? (activeDocument?.title || 'Documents') : 
+                  currentView === ViewMode.BOARD ? 'Task Board' : 
+                  currentView === ViewMode.INBOX ? 'Brain Dump' : 'Timeline'}
+             </span>
           </div>
           <div className="flex items-center space-x-3">
              <button 
@@ -252,7 +329,27 @@ const App: React.FC = () => {
         <div className="flex-1 overflow-hidden relative bg-white flex">
             {/* Main View */}
             <div className="flex-1 flex flex-col overflow-hidden">
-                {currentView === ViewMode.DOCUMENTS && activeDocument ? (
+                {currentView === ViewMode.INBOX ? (
+                    <InboxView 
+                        items={inboxItems}
+                        onAddItem={handleAddInboxItem}
+                        onProcessItem={(id, action) => {
+                             // This is a dual-purpose handler in UI:
+                             // If action passed immediately, we store it as suggestion first?
+                             // OR if confirmation button clicked, we apply.
+                             
+                             // Check if the item already has this result stored (meaning it's a confirmation click)
+                             const item = inboxItems.find(i => i.id === id);
+                             if (item && item.processedResult) {
+                                 handleProcessInboxItem(id, action);
+                             } else {
+                                 handleStoreInboxSuggestion(id, action);
+                             }
+                        }}
+                        onDeleteItem={handleDeleteInboxItem}
+                        projects={projects}
+                    />
+                ) : currentView === ViewMode.DOCUMENTS && activeDocument ? (
                     <DocumentEditor 
                         document={activeDocument}
                         allDocuments={documents} // Pass all for linking across projects
@@ -310,6 +407,8 @@ const App: React.FC = () => {
             contextData={
                 currentView === ViewMode.DOCUMENTS 
                 ? activeDocument?.content 
+                : currentView === ViewMode.INBOX
+                ? `Inbox Items: ${inboxItems.map(i => i.content).join(', ')}`
                 : `Active Project: ${activeProject.title}\nTasks:\n${projectTasks.map(t => `- ${t.title} (${t.status})`).join('\n')}`
             }
             onProjectPlanCreated={handleProjectPlanCreated}
