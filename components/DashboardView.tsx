@@ -84,28 +84,25 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       <div className="max-w-5xl mx-auto space-y-8">
         
         {/* Hero Section */}
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-700 text-white shadow-xl p-8">
+        <div className="relative overflow-hidden rounded-2xl bg-black text-white shadow-xl p-8">
             <div className="relative z-10">
-                <div className="flex items-center gap-2 text-indigo-200 mb-2 text-xs font-bold uppercase tracking-wider">
+                <div className="flex items-center gap-2 text-gray-400 mb-4 text-xs font-bold uppercase tracking-wider">
                     <Sun className="w-4 h-4" />
                     <span>Daily Pulse</span>
                 </div>
                 {loadingBriefing ? (
-                    <div className="animate-pulse space-y-2 max-w-2xl">
-                        <div className="h-6 bg-white/20 rounded w-1/3"></div>
-                        <div className="h-4 bg-white/20 rounded w-2/3"></div>
+                    <div className="animate-pulse space-y-3 max-w-2xl">
+                        <div className="h-4 bg-white/20 rounded w-1/3"></div>
+                        <div className="h-6 bg-white/20 rounded w-3/4"></div>
                     </div>
                 ) : (
                     <div className="max-w-3xl">
-                        <h1 className="text-2xl md:text-3xl font-light leading-relaxed font-serif">
+                        <h1 className="text-xl md:text-2xl font-light leading-relaxed font-serif text-white">
                             "{briefing}"
                         </h1>
                     </div>
                 )}
             </div>
-            {/* Decor */}
-            <div className="absolute top-0 right-0 -mt-10 -mr-10 w-64 h-64 bg-white/10 rounded-full blur-3xl"></div>
-            <div className="absolute bottom-0 left-0 -mb-10 -ml-10 w-40 h-40 bg-purple-500/20 rounded-full blur-2xl"></div>
         </div>
 
         {/* Content Grid */}
