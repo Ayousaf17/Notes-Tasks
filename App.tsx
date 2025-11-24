@@ -310,11 +310,8 @@ const App: React.FC = () => {
       const isConnecting = !integrations.find(i => i.id === id)?.connected;
 
       if (isConnecting && id === 'google') {
-          // INJECT: Mock Google Calendar Events (Not saved to DB intentionally)
-          const events: Task[] = [
-              { id: 'g1', projectId: 'p1', title: 'Client Meeting: Sync', status: TaskStatus.TODO, priority: TaskPriority.MEDIUM, dueDate: now, assignee: 'Google', createdAt: now, updatedAt: now, externalType: 'GOOGLE_CALENDAR' },
-              { id: 'g2', projectId: 'p1', title: 'Team Standup', status: TaskStatus.TODO, priority: TaskPriority.LOW, dueDate: new Date(now.getTime() + 86400000), assignee: 'Google', createdAt: now, updatedAt: now, externalType: 'GOOGLE_CALENDAR' }
-          ];
+          // Fetch Mock Google Calendar Events
+          const events = await dataService.fetchGoogleEvents();
           setTasks(prev => [...prev, ...events]);
       } 
       else if (!isConnecting && id === 'google') {

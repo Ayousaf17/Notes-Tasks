@@ -111,5 +111,51 @@ export const dataService = {
     if (updates.tags !== undefined) dbUpdates.tags = updates.tags;
 
     await supabase.from('documents').update(dbUpdates).eq('id', docId);
+  },
+
+  async fetchGoogleEvents(): Promise<Task[]> {
+    // Simulation: In a real app, this would call Google Calendar API via a secure backend proxy
+    const now = new Date();
+    const tomorrow = new Date(now.getTime() + 86400000);
+    const nextWeek = new Date(now.getTime() + 7 * 86400000);
+
+    return [
+        { 
+            id: 'g_cal_1', 
+            projectId: '', // External items don't belong to an internal project 
+            title: 'Client Meeting: Q3 Review', 
+            status: TaskStatus.TODO, 
+            priority: TaskPriority.HIGH, 
+            dueDate: now, 
+            assignee: 'Google Calendar', 
+            externalType: 'GOOGLE_CALENDAR',
+            createdAt: now, 
+            updatedAt: now 
+        },
+        { 
+            id: 'g_cal_2', 
+            projectId: '', 
+            title: 'Team Sync', 
+            status: TaskStatus.TODO, 
+            priority: TaskPriority.MEDIUM, 
+            dueDate: tomorrow, 
+            assignee: 'Google Calendar', 
+            externalType: 'GOOGLE_CALENDAR',
+            createdAt: now, 
+            updatedAt: now 
+        },
+        { 
+            id: 'g_cal_3', 
+            projectId: '', 
+            title: 'Product Demo', 
+            status: TaskStatus.TODO, 
+            priority: TaskPriority.HIGH, 
+            dueDate: nextWeek, 
+            assignee: 'Google Calendar', 
+            externalType: 'GOOGLE_CALENDAR',
+            createdAt: now, 
+            updatedAt: now 
+        }
+    ];
   }
 };
