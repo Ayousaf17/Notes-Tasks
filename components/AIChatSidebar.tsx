@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { ChatMessage, Attachment, ProjectPlan } from '../types';
 import { Send, X, Bot, Paperclip, Mic, Loader2, FileText, Sparkles, Music } from 'lucide-react';
@@ -183,7 +184,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
       <div className="p-5 border-b border-gray-50 flex items-center justify-between bg-white">
         <div className="flex items-center space-x-2">
           <div className="w-2 h-2 bg-black rounded-full animate-pulse" />
-          <span className="font-medium text-gray-900 text-sm tracking-tight">Assistant</span>
+          <span className="font-medium text-gray-900 text-sm tracking-tight">Aasani</span>
         </div>
         <button onClick={onClose} className="text-gray-400 hover:text-black transition-colors">
           <X className="w-4 h-4" />
@@ -241,7 +242,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
       </div>
 
       {/* Input Area */}
-      <div className="p-4 bg-white border-t border-gray-50">
+      <div className="p-4 bg-white border-t border-gray-50 pb-6">
         {attachments.length > 0 && (
             <div className="flex space-x-2 mb-3 overflow-x-auto">
                 {attachments.map((att, idx) => (
@@ -256,13 +257,14 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
             </div>
         )}
 
-        <div className="bg-gray-50 rounded-2xl p-1.5 flex items-end gap-1 border border-transparent focus-within:border-gray-200 focus-within:bg-white transition-all shadow-sm">
+        <div className="bg-gray-50/80 rounded-full px-2 py-1.5 flex items-center gap-2 border border-transparent focus-within:border-gray-200 focus-within:bg-white transition-all shadow-sm">
             
             {/* Left Actions */}
-            <div className="flex gap-1 pb-0.5">
+            <div className="flex items-center gap-1 pl-1">
                 <button 
                     onClick={() => fileInputRef.current?.click()}
-                    className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded-xl transition-colors"
+                    className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded-full transition-colors"
+                    title="Attach file"
                 >
                     <Paperclip className="w-4 h-4" />
                 </button>
@@ -270,32 +272,33 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
 
                 <button 
                     onClick={isRecording ? stopRecording : startRecording}
-                    className={`p-2 rounded-xl transition-all ${isRecording ? 'bg-red-100 text-red-600 animate-pulse' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-200'}`}
+                    className={`p-2 rounded-full transition-all ${isRecording ? 'bg-red-100 text-red-600 animate-pulse' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-200'}`}
+                    title={isRecording ? "Stop recording" : "Record voice note"}
                 >
                     <Mic className="w-4 h-4" />
                 </button>
             </div>
 
             {/* Input */}
-            <textarea
+            <input
+                type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
+                    if (e.key === 'Enter') {
                         e.preventDefault();
                         handleSend();
                     }
                 }}
-                placeholder="Message Aasani..."
-                className="flex-1 bg-transparent border-none focus:ring-0 resize-none text-sm max-h-32 py-2.5 px-1 placeholder-gray-400 text-gray-800"
-                rows={1}
+                placeholder="Ask Aasani..."
+                className="flex-1 bg-transparent border-none focus:ring-0 text-sm py-2 px-1 placeholder-gray-400 text-gray-800"
             />
             
             {/* Send Button */}
             <button 
                 onClick={handleSend}
                 disabled={(!input.trim() && attachments.length === 0) || loading}
-                className="p-2 bg-black text-white rounded-xl hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors mb-0.5"
+                className="p-2 bg-gray-200 text-gray-500 rounded-full hover:bg-black hover:text-white disabled:opacity-30 disabled:hover:bg-gray-200 disabled:hover:text-gray-500 transition-colors"
             >
                 {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
             </button>

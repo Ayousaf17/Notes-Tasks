@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState, useMemo } from 'react';
 import { Task, Document, Project, TaskPriority, TaskStatus } from '../types';
 import { geminiService } from '../services/geminiService';
@@ -122,7 +123,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     <div className="h-6 bg-gray-50 rounded w-3/4"></div>
                 </div>
             ) : (
-                <h1 className="text-3xl md:text-4xl font-serif font-normal text-gray-800 leading-snug tracking-wide">
+                <h1 className="text-2xl md:text-3xl font-serif font-light text-gray-900 leading-normal tracking-wide">
                     {briefing}
                 </h1>
             )}

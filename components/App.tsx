@@ -11,6 +11,7 @@ import { InboxView } from './components/InboxView';
 import { GraphView } from './components/GraphView';
 import { DashboardView } from './components/DashboardView'; 
 import { ReviewWizard } from './components/ReviewWizard';
+import { TaskDetailModal } from './components/TaskDetailModal';
 import { ViewMode, Document, Task, TaskStatus, ProjectPlan, TaskPriority, ChatMessage, Project, InboxItem, InboxAction, AgentRole } from './types';
 import { Sparkles, Command, Plus, Menu } from 'lucide-react';
 import { geminiService } from './services/geminiService';
@@ -56,6 +57,7 @@ const App: React.FC = () => {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isGoogleConnected, setIsGoogleConnected] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
   useEffect(() => {
       const handleKeyDown = (e: KeyboardEvent) => {
@@ -147,6 +149,7 @@ const App: React.FC = () => {
 
   const handleDeleteTask = (id: string) => {
       setTasks(prev => prev.filter(t => t.id !== id));
+      if (selectedTaskId === id) setSelectedTaskId(null);
   };
 
   const handleUpdateTaskStatus = (id: string, status: TaskStatus) => updateTask(id, { status });
@@ -189,7 +192,6 @@ const App: React.FC = () => {
   };
 
   const handleProjectPlanCreated = (plan: ProjectPlan) => {
-    // 1. Create New Project automatically for this plan
     const newProject: Project = {
         id: Date.now().toString(),
         title: plan.projectTitle || 'New AI Project',
@@ -198,7 +200,6 @@ const App: React.FC = () => {
     };
     setProjects(prev => [...prev, newProject]);
     
-    // 2. Create Overview Document in that project
     const newDoc: Document = {
         id: Date.now().toString(),
         projectId: newProject.id,
@@ -209,14 +210,13 @@ const App: React.FC = () => {
     };
     setDocuments(prev => [...prev, newDoc]);
     
-    // 3. Create Tasks
     const newTasks: Task[] = plan.tasks.map(t => ({
         id: Date.now().toString() + Math.random(),
         projectId: newProject.id,
         title: t.title || 'New Task',
         description: t.description,
         status: (t.status as TaskStatus) || TaskStatus.TODO,
-        dueDate: (t as any).dueDate ? new Date((t as any).dueDate) : undefined, // Map extracted date
+        dueDate: (t as any).dueDate ? new Date((t as any).dueDate) : undefined,
         assignee: t.assignee || 'Unassigned',
         priority: t.priority || TaskPriority.MEDIUM,
         dependencies: [],
@@ -225,7 +225,6 @@ const App: React.FC = () => {
     }));
     setTasks(prev => [...prev, ...newTasks]);
 
-    // 4. Switch Context to the new Project
     setActiveProjectId(newProject.id);
     setActiveDocId(newDoc.id);
     setCurrentView(ViewMode.DOCUMENTS);
@@ -249,6 +248,8 @@ const App: React.FC = () => {
           if (task) {
               setActiveProjectId(task.projectId);
               setCurrentView(ViewMode.BOARD);
+              // Optionally select it too
+              setSelectedTaskId(id);
           }
       }
       setIsCommandPaletteOpen(false);
@@ -312,6 +313,9 @@ const App: React.FC = () => {
     if (recentChats) context += `Recent Chat History:\n${recentChats}`;
     return context;
   };
+
+  const allAssignees = Array.from(new Set(tasks.map(t => t.assignee || 'Unassigned')));
+  const selectedTask = tasks.find(t => t.id === selectedTaskId);
 
   return (
     <div className="flex h-screen w-full bg-white overflow-hidden font-sans text-gray-900">
@@ -377,11 +381,27 @@ const App: React.FC = () => {
                         <p className="text-sm">Select or create a page</p>
                     </div>
                 ) : currentView === ViewMode.BOARD || currentView === ViewMode.GLOBAL_BOARD ? (
-                    <TaskBoard tasks={tasksToDisplay} onUpdateTaskStatus={handleUpdateTaskStatus} onUpdateTaskAssignee={handleUpdateTaskAssignee} onUpdateTaskDueDate={handleUpdateTaskDueDate} onUpdateTaskPriority={handleUpdateTaskPriority} onUpdateTaskDependencies={handleUpdateTaskDependencies} contextString={getContextForTaskBoard()} onAddTasks={handleExtractTasks} onPromoteTask={handlePromoteTask} onNavigate={handleNavigate} />
+                    <TaskBoard 
+                      tasks={tasksToDisplay} 
+                      onUpdateTaskStatus={handleUpdateTaskStatus} 
+                      onUpdateTaskAssignee={handleUpdateTaskAssignee} 
+                      onUpdateTaskDueDate={handleUpdateTaskDueDate} 
+                      onUpdateTaskPriority={handleUpdateTaskPriority} 
+                      onUpdateTaskDependencies={handleUpdateTaskDependencies} 
+                      contextString={getContextForTaskBoard()} 
+                      onAddTasks={handleExtractTasks} 
+                      onPromoteTask={handlePromoteTask} 
+                      onNavigate={handleNavigate} 
+                      onSelectTask={setSelectedTaskId}
+                    />
                 ) : currentView === ViewMode.GRAPH ? (
                     <GraphView documents={projectDocs} tasks={projectTasks} onNavigate={handleNavigate} />
                 ) : (
-                    <CalendarView tasks={tasksToDisplay} onSelectTask={(id) => { const t = tasks.find(t => t.id === id); if(t) alert(`Task: ${t.title}`); }} />
+                    <CalendarView 
+                      tasks={tasksToDisplay} 
+                      onSelectTask={setSelectedTaskId} 
+                      onUpdateTaskDueDate={handleUpdateTaskDueDate}
+                    />
                 )}
             </div>
             
@@ -402,6 +422,18 @@ const App: React.FC = () => {
         />
 
         <CommandPalette isOpen={isCommandPaletteOpen} onClose={() => setIsCommandPaletteOpen(false)} documents={documents} tasks={tasks} projects={projects} onNavigate={handleNavigate} onCreateDocument={handleCreateDocument} onChangeView={setCurrentView} onSelectProject={setActiveProjectId} />
+
+        {/* Task Details Modal */}
+        {selectedTask && (
+            <TaskDetailModal 
+                task={selectedTask}
+                isOpen={!!selectedTask}
+                onClose={() => setSelectedTaskId(null)}
+                onUpdate={updateTask}
+                onDelete={handleDeleteTask}
+                users={['Me', 'Alice', 'Bob', 'Charlie']}
+            />
+        )}
 
       </main>
     </div>

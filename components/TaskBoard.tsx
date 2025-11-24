@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { Task, TaskStatus, TaskPriority, AgentRole } from '../types';
 import { Plus, Filter, X, ArrowUpDown, User, Flag, Link as LinkIcon, AlertCircle, CheckCircle, Sparkles, Loader2, Bot, ChevronDown, ChevronUp, GripVertical, CheckSquare, Square, Calendar, MoreHorizontal, Paperclip } from 'lucide-react';
@@ -150,7 +151,7 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
   return (
     <div className="flex-1 flex flex-col h-full bg-white font-sans">
       {/* Header Controls */}
-      <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between shrink-0 bg-white">
+      <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between shrink-0 bg-white sticky top-0 z-20">
         <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 text-sm text-gray-500">
                 <Filter className="w-4 h-4 text-gray-400" />
@@ -188,8 +189,8 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
                         onDragOver={(e) => handleDragOver(e, col.id)}
                         onDrop={(e) => handleDrop(e, col.id)}
                     >
-                        {/* Column Header */}
-                        <div className="flex items-center justify-between px-1 py-3 mb-2">
+                        {/* Column Header (Sticky) */}
+                        <div className="flex items-center justify-between px-1 py-3 mb-2 sticky top-0 z-10 bg-gray-50/95 backdrop-blur-sm rounded-b-lg">
                             <h3 className="text-sm font-semibold text-gray-700">{col.label}</h3>
                             <span className="text-xs font-medium text-gray-400">{colTasks.length}</span>
                         </div>
