@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { Task, TaskStatus, TaskPriority, AgentRole } from '../types';
-import { Plus, Filter, X, ArrowUpDown, User, Flag, Link as LinkIcon, AlertCircle, CheckCircle, Sparkles, Loader2, Bot, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Filter, X, ArrowUpDown, User, Flag, Link as LinkIcon, AlertCircle, CheckCircle, Sparkles, Loader2, Bot, ChevronDown, ChevronUp, GripVertical, CheckSquare, Square, Calendar, MoreHorizontal, Paperclip } from 'lucide-react';
 import { geminiService } from '../services/geminiService';
 
 interface TaskBoardProps {
@@ -42,7 +42,10 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
   const [suggestedTasks, setSuggestedTasks] = useState<Partial<Task>[]>([]);
   const [isReviewingSuggestions, setIsReviewingSuggestions] = useState(false);
   const [selectedSuggestionIndices, setSelectedSuggestionIndices] = useState<Set<number>>(new Set());
-  const [expandedResultTaskId, setExpandedResultTaskId] = useState<string | null>(null);
+  
+  // Drag and Drop State
+  const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
+  const [activeDropZone, setActiveDropZone] = useState<string | null>(null);
 
   const columns = [
     { id: TaskStatus.TODO, label: 'To Do' },
@@ -111,14 +114,56 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
       setDependencyModalTask({ ...dependencyModalTask, dependencies: newDeps });
   };
 
+  // Drag Handlers
+  const handleDragStart = (e: React.DragEvent, taskId: string) => {
+      setDraggedTaskId(taskId);
+      e.dataTransfer.setData('taskId', taskId);
+      e.dataTransfer.effectAllowed = 'move';
+      // Add a class to body to indicate dragging
+      document.body.style.cursor = 'grabbing';
+  };
+
+  const handleDragEnd = () => {
+      setDraggedTaskId(null);
+      setActiveDropZone(null);
+      document.body.style.cursor = 'default';
+  };
+
+  const handleDragOver = (e: React.DragEvent, status: string) => {
+      e.preventDefault(); // Necessary to allow dropping
+      if (activeDropZone !== status) {
+          setActiveDropZone(status);
+      }
+  };
+
+  const handleDrop = (e: React.DragEvent, status: string) => {
+      e.preventDefault();
+      const taskId = e.dataTransfer.getData('taskId');
+      if (taskId) {
+          onUpdateTaskStatus(taskId, status as TaskStatus);
+      }
+      setDraggedTaskId(null);
+      setActiveDropZone(null);
+      document.body.style.cursor = 'default';
+  };
+
+  const getPriorityColor = (p?: TaskPriority) => {
+      switch(p) {
+          case TaskPriority.HIGH: return 'bg-red-50 text-red-600';
+          case TaskPriority.MEDIUM: return 'bg-orange-50 text-orange-600';
+          case TaskPriority.LOW: return 'bg-blue-50 text-blue-600';
+          default: return 'bg-gray-100 text-gray-600';
+      }
+  };
+
   return (
     <div className="flex-1 flex flex-col h-full bg-white font-sans">
       {/* Header Controls */}
-      <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+      <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between shrink-0 bg-white">
         <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 text-sm text-gray-500">
-                <Filter className="w-4 h-4" />
-                <select value={assigneeFilter} onChange={(e) => setAssigneeFilter(e.target.value)} className="bg-transparent border-none text-sm focus:ring-0 p-0 cursor-pointer hover:text-black">
+                <Filter className="w-4 h-4 text-gray-400" />
+                <select value={assigneeFilter} onChange={(e) => setAssigneeFilter(e.target.value)} className="bg-transparent border-none text-sm focus:ring-0 p-0 cursor-pointer hover:text-black font-medium">
                     <option value="ALL">All Assignees</option>
                     <option value="Unassigned">Unassigned</option>
                     <option value="AI_AGENTS">AI Agents</option>
@@ -131,7 +176,7 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
         </div>
 
         <div className="flex items-center gap-4">
-             <button onClick={handleSuggestTasks} disabled={isSuggesting} className="flex items-center gap-2 text-sm text-purple-600 hover:text-purple-800 disabled:opacity-50">
+             <button onClick={handleSuggestTasks} disabled={isSuggesting} className="flex items-center gap-2 text-sm text-purple-600 hover:text-purple-800 disabled:opacity-50 transition-colors">
                 {isSuggesting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
                 <span>Suggest Tasks</span>
             </button>
@@ -139,65 +184,103 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
       </div>
 
       {/* Board */}
-      <div className="flex-1 overflow-x-auto p-6">
-        <div className="flex gap-8 h-full">
+      <div className="flex-1 overflow-x-auto p-6 bg-gray-50/50">
+        <div className="flex gap-6 h-full min-w-max">
             {columns.map(col => {
                 const colTasks = filteredAndSortedTasks.filter(t => t.status === col.id);
+                const isActiveDrop = activeDropZone === col.id;
+                
                 return (
-                    <div key={col.id} className="w-80 flex-shrink-0 flex flex-col h-full">
-                        <div className="flex items-center justify-between mb-4 px-1">
-                            <span className="text-sm font-medium text-gray-900">{col.label}</span>
-                            <span className="text-xs text-gray-400">{colTasks.length}</span>
+                    <div 
+                        key={col.id} 
+                        className={`w-80 flex-shrink-0 flex flex-col h-full rounded-xl transition-all duration-200 ${isActiveDrop ? 'bg-indigo-50/50' : 'bg-transparent'}`}
+                        onDragOver={(e) => handleDragOver(e, col.id)}
+                        onDrop={(e) => handleDrop(e, col.id)}
+                    >
+                        {/* Column Header */}
+                        <div className="flex items-center justify-between px-1 py-3 mb-2">
+                            <h3 className="text-sm font-semibold text-gray-700">{col.label}</h3>
+                            <span className="text-xs font-medium text-gray-400">{colTasks.length}</span>
                         </div>
-                        <div className="flex-1 overflow-y-auto space-y-3 pb-10">
+                        
+                        {/* Task List */}
+                        <div className="flex-1 overflow-y-auto px-1 pb-4 space-y-3">
                             {colTasks.map(task => {
                                 const blocked = isTaskBlocked(task);
                                 const isAgentWorking = task.agentStatus === 'working';
+                                const isDragging = draggedTaskId === task.id;
+
                                 return (
-                                    <div key={task.id} className={`group bg-white border border-gray-200 p-4 rounded-md hover:border-gray-400 transition-colors flex flex-col gap-2 ${blocked ? 'opacity-70' : ''}`}>
-                                        <div className="flex justify-between items-start">
-                                            <span className="text-sm text-gray-900 leading-snug font-medium">{task.title}</span>
-                                            {task.priority === TaskPriority.HIGH && <div className="w-1.5 h-1.5 bg-black rounded-full flex-shrink-0 mt-1.5" />}
+                                    <div 
+                                        key={task.id} 
+                                        draggable
+                                        onDragStart={(e) => handleDragStart(e, task.id)}
+                                        onDragEnd={handleDragEnd}
+                                        className={`group relative bg-white border border-gray-200 p-4 rounded-lg shadow-sm hover:shadow-md transition-all cursor-grab active:cursor-grabbing flex flex-col gap-3 ${blocked ? 'opacity-70 bg-gray-50' : ''} ${isDragging ? 'opacity-50 ring-2 ring-indigo-400 rotate-2 scale-95 z-50' : 'hover:-translate-y-0.5'}`}
+                                    >
+                                        <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity text-gray-300">
+                                            <GripVertical className="w-4 h-4" />
                                         </div>
-                                        
-                                        {task.description && <p className="text-xs text-gray-500 line-clamp-2">{task.description}</p>}
+
+                                        <div className="flex flex-col gap-1">
+                                            <div className="flex justify-between items-start">
+                                                <span className="text-sm text-gray-900 leading-snug font-medium line-clamp-2 pr-6">{task.title}</span>
+                                            </div>
+                                            {task.description && <p className="text-xs text-gray-500 line-clamp-2">{task.description}</p>}
+                                        </div>
 
                                         {isAgentWorking && (
-                                            <div className="flex items-center gap-2 text-[10px] text-purple-600">
+                                            <div className="flex items-center gap-2 text-[10px] text-purple-600 bg-purple-50 px-2 py-1 rounded-md self-start">
                                                 <Loader2 className="w-3 h-3 animate-spin" />
                                                 <span>AI Working...</span>
                                             </div>
                                         )}
 
-                                        <div className="flex items-center justify-between pt-2 mt-1">
+                                        {/* Meta Row */}
+                                        <div className="flex items-center justify-between pt-2 mt-auto border-t border-gray-50">
                                              <div className="flex items-center gap-2">
-                                                 {/* Assignee */}
-                                                 <div className="relative">
-                                                     <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center text-[10px] text-gray-600 border border-gray-200">
-                                                         {task.assignee ? task.assignee.charAt(0) : <User className="w-3 h-3" />}
+                                                 {/* Assignee Avatar */}
+                                                 <div className="relative group/assignee" title={task.assignee || 'Unassigned'}>
+                                                     <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-[10px] text-gray-600 border border-white shadow-sm overflow-hidden font-medium">
+                                                         {task.assignee ? (task.assignee.startsWith('AI_') ? <Bot className="w-3.5 h-3.5 text-purple-600" /> : task.assignee.charAt(0)) : <User className="w-3.5 h-3.5 text-gray-400" />}
                                                      </div>
-                                                     <select value={task.assignee || ''} onChange={(e) => onUpdateTaskAssignee(task.id, e.target.value)} className="absolute inset-0 opacity-0 cursor-pointer">
+                                                     <select value={task.assignee || ''} onChange={(e) => onUpdateTaskAssignee(task.id, e.target.value)} className="absolute inset-0 opacity-0 cursor-pointer text-xs">
                                                          <option value="">Unassigned</option>
                                                          <optgroup label="Team">{MOCK_USERS.map(u => <option key={u} value={u}>{u}</option>)}</optgroup>
                                                          <optgroup label="AI">{AI_AGENTS.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}</optgroup>
                                                      </select>
                                                  </div>
-                                                 {/* Dependencies */}
-                                                 <button onClick={() => setDependencyModalTask(task)} className={`w-5 h-5 flex items-center justify-center rounded-sm text-gray-400 hover:text-black ${task.dependencies?.length ? 'text-black' : ''}`}>
-                                                     <LinkIcon className="w-3 h-3" />
-                                                 </button>
+                                                 
+                                                 {/* Priority Badge */}
+                                                 {task.priority && (
+                                                     <div className={`w-1.5 h-1.5 rounded-full ${task.priority === TaskPriority.HIGH ? 'bg-red-500' : task.priority === TaskPriority.MEDIUM ? 'bg-orange-400' : 'bg-blue-400'}`} title={`Priority: ${task.priority}`} />
+                                                 )}
                                              </div>
                                              
-                                             <div className="relative">
-                                                 <span className="text-[10px] text-gray-400 hover:text-black cursor-pointer uppercase tracking-wider">{task.status}</span>
-                                                 <select value={task.status} onChange={(e) => onUpdateTaskStatus(task.id, e.target.value as TaskStatus)} className="absolute inset-0 opacity-0 cursor-pointer">
-                                                     {Object.values(TaskStatus).map(s => <option key={s} value={s}>{s}</option>)}
-                                                 </select>
+                                             <div className="flex items-center gap-3">
+                                                 {/* Dependencies Trigger */}
+                                                 <button onClick={() => setDependencyModalTask(task)} className={`text-gray-300 hover:text-black transition-colors ${task.dependencies?.length ? 'text-gray-900' : ''}`} title="Dependencies">
+                                                     <LinkIcon className="w-3.5 h-3.5" />
+                                                 </button>
+
+                                                 {/* Due Date */}
+                                                 {task.dueDate && (
+                                                     <div className="flex items-center gap-1 text-[10px] text-gray-400 font-medium">
+                                                         <Calendar className="w-3 h-3" />
+                                                         <span>{new Date(task.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
+                                                     </div>
+                                                 )}
                                              </div>
                                         </div>
                                     </div>
                                 );
                             })}
+                             {/* Empty State / Drop Target */}
+                             {colTasks.length === 0 && (
+                                <div className="h-24 border-2 border-dashed border-gray-100 rounded-lg flex items-center justify-center text-gray-300 text-xs">
+                                    Drop items here
+                                </div>
+                            )}
                         </div>
                     </div>
                 );
@@ -207,22 +290,34 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
 
       {/* Dependency Modal */}
       {dependencyModalTask && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/80 backdrop-blur-sm">
-              <div className="bg-white p-6 rounded-lg shadow-xl border border-gray-100 w-full max-w-sm">
-                  <div className="flex justify-between items-center mb-4">
-                      <h3 className="font-medium text-sm">Dependencies for "{dependencyModalTask.title}"</h3>
-                      <button onClick={() => setDependencyModalTask(null)}><X className="w-4 h-4 text-gray-400" /></button>
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/50 backdrop-blur-sm">
+              <div className="bg-white p-0 rounded-lg shadow-2xl border border-gray-100 w-full max-w-sm animate-in zoom-in-95 overflow-hidden">
+                  <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-white">
+                      <h3 className="font-semibold text-gray-900 text-sm">Dependencies for "{dependencyModalTask.title}"</h3>
+                      <button onClick={() => setDependencyModalTask(null)} className="text-gray-400 hover:text-black p-1 hover:bg-gray-100 rounded transition-colors"><X className="w-4 h-4" /></button>
                   </div>
-                  <div className="space-y-1 max-h-60 overflow-y-auto">
+                  <div className="p-2 max-h-80 overflow-y-auto">
                       {tasks.filter(t => t.id !== dependencyModalTask.id).map(t => {
                           const isDep = dependencyModalTask.dependencies?.includes(t.id);
                           return (
-                              <div key={t.id} onClick={() => toggleDependency(t.id)} className={`p-2 text-sm flex items-center gap-2 cursor-pointer hover:bg-gray-50 rounded ${isDep ? 'text-black font-medium' : 'text-gray-500'}`}>
-                                  <div className={`w-3 h-3 border ${isDep ? 'bg-black border-black' : 'border-gray-300'}`} />
-                                  <span>{t.title}</span>
+                              <div key={t.id} onClick={() => toggleDependency(t.id)} className={`px-4 py-3 text-sm flex items-center gap-3 cursor-pointer hover:bg-gray-50 rounded-md transition-colors group`}>
+                                  {isDep ? (
+                                      <div className="w-5 h-5 bg-black rounded-full flex items-center justify-center shrink-0">
+                                          <CheckCircle className="w-3.5 h-3.5 text-white" />
+                                      </div>
+                                  ) : (
+                                      <div className="w-5 h-5 border-2 border-gray-300 rounded-full shrink-0 group-hover:border-gray-400"></div>
+                                  )}
+                                  <span className={`truncate ${isDep ? 'text-black font-medium' : 'text-gray-600'}`}>{t.title}</span>
                               </div>
                           );
                       })}
+                      {tasks.length <= 1 && (
+                          <div className="p-4 text-center text-gray-400 text-xs">No other tasks available.</div>
+                      )}
+                  </div>
+                  <div className="p-4 bg-gray-50 border-t border-gray-100 text-[10px] text-gray-400 text-center">
+                      Select tasks that must be completed before this one.
                   </div>
               </div>
           </div>
@@ -231,23 +326,28 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
       {/* Suggestions Modal */}
       {isReviewingSuggestions && (
            <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/80 backdrop-blur-sm">
-              <div className="bg-white p-6 rounded-lg shadow-xl border border-gray-100 w-full max-w-md">
+              <div className="bg-white p-6 rounded-lg shadow-xl border border-gray-100 w-full max-w-md animate-in zoom-in-95">
                    <h3 className="font-medium text-sm mb-4">Suggested Tasks</h3>
-                   <div className="space-y-2 mb-6">
+                   <div className="space-y-2 mb-6 max-h-96 overflow-y-auto">
                        {suggestedTasks.map((t, i) => (
                            <div key={i} onClick={() => {
                                const newSet = new Set(selectedSuggestionIndices);
                                if (newSet.has(i)) newSet.delete(i); else newSet.add(i);
                                setSelectedSuggestionIndices(newSet);
-                           }} className={`p-3 border rounded cursor-pointer ${selectedSuggestionIndices.has(i) ? 'border-black bg-gray-50' : 'border-gray-200'}`}>
-                               <div className="text-sm font-medium">{t.title}</div>
-                               <div className="text-xs text-gray-500">{t.description}</div>
+                           }} className={`p-3 border rounded-lg cursor-pointer transition-all flex items-start gap-3 ${selectedSuggestionIndices.has(i) ? 'border-black bg-gray-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                               <div className={`mt-0.5 w-4 h-4 border rounded flex items-center justify-center shrink-0 ${selectedSuggestionIndices.has(i) ? 'bg-black border-black' : 'border-gray-300'}`}>
+                                   {selectedSuggestionIndices.has(i) && <CheckSquare className="w-3 h-3 text-white" />}
+                               </div>
+                               <div>
+                                   <div className="text-sm font-medium text-gray-900">{t.title}</div>
+                                   <div className="text-xs text-gray-500 mt-0.5">{t.description}</div>
+                               </div>
                            </div>
                        ))}
                    </div>
-                   <div className="flex justify-end gap-2">
-                       <button onClick={() => setIsReviewingSuggestions(false)} className="px-3 py-1.5 text-xs text-gray-500 hover:text-black">Cancel</button>
-                       <button onClick={confirmSuggestions} className="px-3 py-1.5 text-xs bg-black text-white rounded">Add Selected</button>
+                   <div className="flex justify-end gap-2 pt-4 border-t border-gray-100">
+                       <button onClick={() => setIsReviewingSuggestions(false)} className="px-4 py-2 text-xs font-medium text-gray-600 hover:text-black hover:bg-gray-100 rounded transition-colors">Cancel</button>
+                       <button onClick={confirmSuggestions} className="px-4 py-2 text-xs font-medium bg-black text-white rounded hover:bg-gray-800 transition-colors">Add Selected</button>
                    </div>
               </div>
            </div>

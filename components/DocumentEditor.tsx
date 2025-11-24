@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Document, Task, TaskPriority } from '../types';
-import { Wand2, ListChecks, RefreshCw, X, Check, User, Flag, AlignLeft, Tag as TagIcon, Sparkles, Edit3, Eye, SpellCheck, Scissors, Table as TableIcon, Link as LinkIcon, FileText } from 'lucide-react';
+import { Wand2, ListChecks, RefreshCw, X, Check, User, Flag, AlignLeft, Tag as TagIcon, Sparkles, Edit3, Eye, SpellCheck, Scissors, Table as TableIcon, Link as LinkIcon, FileText, Maximize2, Minimize2 } from 'lucide-react';
 import { geminiService } from '../services/geminiService';
 
 interface DocumentEditorProps {
@@ -40,6 +40,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
   const [summary, setSummary] = useState<string | null>(null);
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [isReadMode, setIsReadMode] = useState(false);
+  const [isZenMode, setIsZenMode] = useState(false);
   const [tagInput, setTagInput] = useState('');
   
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -51,7 +52,18 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
         textareaRef.current.style.height = 'auto';
         textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px';
     }
-  }, [doc.content, isReadMode]);
+  }, [doc.content, isReadMode, isZenMode]);
+
+  // Handle ESC to exit Zen Mode
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+        if (e.key === 'Escape' && isZenMode) {
+            setIsZenMode(false);
+        }
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [isZenMode]);
 
   const handleUpdate = (newDoc: Document) => onUpdate(newDoc);
   const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -85,20 +97,25 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
   };
 
   return (
-    <div className="flex-1 h-full overflow-y-auto bg-white font-sans">
-      <div className="max-w-3xl mx-auto px-8 py-12 min-h-[calc(100vh-4rem)]">
+    <div className={`flex-1 h-full overflow-y-auto bg-white font-sans transition-all duration-500 ${isZenMode ? 'fixed inset-0 z-[100] px-0 py-0' : ''}`}>
+      <div className={`mx-auto transition-all duration-500 min-h-[calc(100vh-4rem)] ${isZenMode ? 'max-w-4xl px-8 py-20' : 'max-w-3xl px-8 py-12'}`}>
         
         {/* Minimal Toolbar */}
         <div className="flex items-center justify-between mb-8 group">
-           <div className="text-[10px] text-gray-300 uppercase tracking-widest">
-             {doc.updatedAt && `Last edited ${doc.updatedAt.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`}
-           </div>
-           <div className="flex items-center space-x-4 opacity-0 group-hover:opacity-100 transition-opacity">
+           {!isZenMode && (
+               <div className="text-[10px] text-gray-300 uppercase tracking-widest">
+                 {doc.updatedAt && `Last edited ${doc.updatedAt.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`}
+               </div>
+           )}
+           <div className={`flex items-center space-x-4 transition-opacity ${isZenMode ? 'opacity-0 hover:opacity-100 absolute top-6 right-8' : 'opacity-0 group-hover:opacity-100'}`}>
               <button onClick={() => setIsReadMode(!isReadMode)} className="text-gray-400 hover:text-black transition-colors" title="Toggle Read Mode">
                 {isReadMode ? <Edit3 className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
               <button onClick={handleSummarize} className="text-gray-400 hover:text-black transition-colors" title="Summarize">
                 {isSummarizing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <AlignLeft className="w-4 h-4" />}
+              </button>
+              <button onClick={() => setIsZenMode(!isZenMode)} className="text-gray-400 hover:text-black transition-colors" title={isZenMode ? "Exit Zen Mode (ESC)" : "Enter Zen Mode"}>
+                {isZenMode ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
               </button>
            </div>
         </div>

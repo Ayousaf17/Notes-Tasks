@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Task, Document, Project, TaskPriority, TaskStatus } from '../types';
 import { geminiService } from '../services/geminiService';
-import { Sparkles, Calendar, ArrowRight, Clock, FileText, CheckCircle } from 'lucide-react';
+import { Sparkles, Calendar, ArrowRight, Clock, FileText, CheckCircle, Volume2, StopCircle } from 'lucide-react';
 
 interface DashboardViewProps {
   tasks: Task[];
@@ -23,6 +23,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 }) => {
   const [briefing, setBriefing] = useState<string | null>(null);
   const [loadingBriefing, setLoadingBriefing] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
 
   const todaysTasks = useMemo(() => {
       const today = new Date();
@@ -71,6 +72,30 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       }
   }, [focusList, userName]);
 
+  // Handle Speech
+  useEffect(() => {
+      const handleEnd = () => setIsSpeaking(false);
+      window.speechSynthesis.addEventListener('end', handleEnd); // Some browsers trigger on utterance
+      return () => {
+          window.speechSynthesis.cancel();
+          window.speechSynthesis.removeEventListener('end', handleEnd);
+      };
+  }, []);
+
+  const toggleSpeech = () => {
+      if (isSpeaking) {
+          window.speechSynthesis.cancel();
+          setIsSpeaking(false);
+      } else if (briefing) {
+          const utterance = new SpeechSynthesisUtterance(briefing);
+          utterance.rate = 1;
+          utterance.pitch = 1;
+          utterance.onend = () => setIsSpeaking(false);
+          window.speechSynthesis.speak(utterance);
+          setIsSpeaking(true);
+      }
+  };
+
   const getProjectName = (id: string) => projects.find(p => p.id === id)?.title || 'Unknown Project';
 
   return (
@@ -79,7 +104,19 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         
         {/* Minimal Daily Pulse */}
         <div className="py-8">
-            <p className="text-sm font-medium text-gray-400 uppercase tracking-widest mb-4">Daily Pulse</p>
+            <div className="flex justify-between items-center mb-4">
+                <p className="text-sm font-medium text-gray-400 uppercase tracking-widest">Daily Pulse</p>
+                {briefing && (
+                    <button 
+                        onClick={toggleSpeech}
+                        className={`p-2 rounded-full transition-colors ${isSpeaking ? 'bg-black text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                        title={isSpeaking ? "Stop" : "Listen to Briefing"}
+                    >
+                        {isSpeaking ? <StopCircle className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                    </button>
+                )}
+            </div>
+            
             {loadingBriefing ? (
                 <div className="animate-pulse space-y-4">
                     <div className="h-8 bg-gray-100 rounded w-1/2"></div>

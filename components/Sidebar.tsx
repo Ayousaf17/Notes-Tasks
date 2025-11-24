@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { FileText, Layout, Calendar, Settings, Plus, Cloud, Inbox, Network, Home, X, Globe, Layers } from 'lucide-react';
+import { FileText, Layout, Calendar, Settings, Plus, Cloud, Inbox, Network, Home, X, Globe, Layers, User } from 'lucide-react';
 import { ViewMode, Document, Project } from '../types';
 
 interface SidebarProps {
@@ -164,21 +164,37 @@ export const Sidebar: React.FC<SidebarProps> = ({
         )}
       </div>
 
-      {/* Footer */}
-      <div className="p-4 mt-auto">
-        <button
-          onClick={onConnectGoogle}
-          className={`w-full flex items-center space-x-2 px-2 py-1.5 text-xs transition-colors ${
-            isGoogleConnected ? 'text-green-600' : 'text-gray-400 hover:text-black'
-          }`}
-        >
-          <Cloud className="w-3.5 h-3.5" />
-          <span>{isGoogleConnected ? 'Synced' : 'Connect Cloud'}</span>
-        </button>
-        <button className="w-full flex items-center space-x-2 px-2 py-1.5 text-gray-400 hover:text-black text-xs">
-          <Settings className="w-3.5 h-3.5" />
-          <span>Settings</span>
-        </button>
+      {/* Footer / Profile */}
+      <div className="p-4 mt-auto border-t border-gray-50 bg-gray-50/50">
+         <div className="flex items-center gap-3 px-2 py-2 mb-2">
+            <div className="w-8 h-8 rounded-full bg-black flex items-center justify-center text-white">
+                <User className="w-4 h-4" />
+            </div>
+            <div className="flex-1 min-w-0">
+                <div className="text-sm font-medium text-gray-900 truncate">Workspace User</div>
+                <div className="text-[10px] text-gray-400 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                    Online
+                </div>
+            </div>
+            <span className="text-[10px] font-bold bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded">PRO</span>
+         </div>
+         
+         <div className="space-y-1">
+            <button
+            onClick={onConnectGoogle}
+            className={`w-full flex items-center space-x-2 px-2 py-1.5 text-xs transition-colors rounded hover:bg-white ${
+                isGoogleConnected ? 'text-green-600' : 'text-gray-400 hover:text-black'
+            }`}
+            >
+            <Cloud className="w-3.5 h-3.5" />
+            <span>{isGoogleConnected ? 'Sync Active' : 'Connect Cloud'}</span>
+            </button>
+            <button className="w-full flex items-center space-x-2 px-2 py-1.5 text-gray-400 hover:text-black text-xs rounded hover:bg-white">
+            <Settings className="w-3.5 h-3.5" />
+            <span>Settings</span>
+            </button>
+         </div>
       </div>
     </div>
   );
