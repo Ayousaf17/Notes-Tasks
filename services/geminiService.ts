@@ -1,0 +1,208 @@
+import { GoogleGenAI, Type, Schema } from "@google/genai";
+import { Task, TaskStatus, TaskPriority, ProjectPlan, Attachment } from "../types";
+
+const apiKey = process.env.API_KEY;
+const ai = new GoogleGenAI({ apiKey: apiKey || 'dummy_key' });
+
+const MODEL_NAME = "gemini-2.5-flash";
+
+export const geminiService = {
+  /**
+   * Multimodal Chat interaction
+   */
+  async chat(history: { role: string; parts: { text?: string; inlineData?: any }[] }[], message: string, attachments: Attachment[] = []): Promise<string> {
+    if (!apiKey) return "Error: No API Key configured.";
+
+    try {
+      const chat = ai.chats.create({
+        model: MODEL_NAME,
+        history: history.map(h => ({
+            role: h.role,
+            parts: h.parts
+        })),
+        config: {
+          systemInstruction: "You are Nexus, a minimalist, highly intelligent project architect. You are concise, precise, and helpful.",
+        }
+      });
+
+      const contentParts: any[] = [];
+      
+      // Add attachments first
+      if (attachments && attachments.length > 0) {
+        attachments.forEach(att => {
+          contentParts.push({
+            inlineData: {
+              mimeType: att.mimeType,
+              data: att.data
+            }
+          });
+        });
+      }
+
+      // Add text message
+      if (message) {
+        contentParts.push({ text: message });
+      }
+
+      const result = await chat.sendMessage({ 
+        message: contentParts
+      });
+      
+      return result.text || "I processed that, but have no response.";
+    } catch (error) {
+      console.error("Gemini Chat Error:", error);
+      return "Sorry, I encountered an error processing your request.";
+    }
+  },
+
+  /**
+   * Generates a full project plan (Doc + Tasks) from a text prompt or file inputs
+   */
+  async generateProjectPlan(prompt: string, attachments: Attachment[] = []): Promise<ProjectPlan | null> {
+    if (!apiKey) return null;
+
+    try {
+      const contentParts: any[] = [];
+      
+      attachments.forEach(att => {
+        contentParts.push({
+          inlineData: {
+            mimeType: att.mimeType,
+            data: att.data
+          }
+        });
+      });
+
+      contentParts.push({ 
+        text: `Analyze the provided context/files and the following request: "${prompt}". 
+               If the content is a meeting recording or transcript, create a "Meeting Summary" as the document content and extract action items as tasks.
+               If it is a project request, create a comprehensive "Project Plan".
+               Return a JSON object with:
+               1. 'projectTitle': A suitable title.
+               2. 'overviewContent': A detailed Markdown summary of the meeting or project overview.
+               3. 'tasks': A list of actionable tasks extracted from the content, with inferred assignees (if names are mentioned) and priorities.` 
+      });
+
+      const response = await ai.models.generateContent({
+        model: MODEL_NAME,
+        contents: { parts: contentParts },
+        config: {
+            responseMimeType: "application/json",
+            responseSchema: {
+                type: Type.OBJECT,
+                properties: {
+                    projectTitle: { type: Type.STRING },
+                    overviewContent: { type: Type.STRING },
+                    tasks: {
+                        type: Type.ARRAY,
+                        items: {
+                            type: Type.OBJECT,
+                            properties: {
+                                title: { type: Type.STRING },
+                                description: { type: Type.STRING },
+                                status: { type: Type.STRING, enum: [TaskStatus.TODO, TaskStatus.IN_PROGRESS, TaskStatus.DONE] },
+                                priority: { type: Type.STRING, enum: [TaskPriority.HIGH, TaskPriority.MEDIUM, TaskPriority.LOW] },
+                                assignee: { type: Type.STRING, description: "Inferred assignee name or 'Unassigned'" },
+                            },
+                            required: ["title", "status"]
+                        }
+                    }
+                },
+                required: ["projectTitle", "overviewContent", "tasks"]
+            }
+        }
+      });
+
+      const jsonStr = response.text;
+      if (!jsonStr) return null;
+      
+      return JSON.parse(jsonStr) as ProjectPlan;
+    } catch (error) {
+      console.error("Gemini Project Plan Error:", error);
+      return null;
+    }
+  },
+
+  /**
+   * Analyzes text to extract actionable tasks
+   */
+  async extractTasks(text: string): Promise<Partial<Task>[]> {
+    if (!apiKey) return [];
+
+    try {
+      const response = await ai.models.generateContent({
+        model: MODEL_NAME,
+        contents: `Extract actionable tasks from the following text. Infer the assignee if a name is mentioned, and estimate priority. Text: "${text}"`,
+        config: {
+            responseMimeType: "application/json",
+            responseSchema: {
+                type: Type.ARRAY,
+                items: {
+                    type: Type.OBJECT,
+                    properties: {
+                        title: { type: Type.STRING },
+                        description: { type: Type.STRING },
+                        status: { type: Type.STRING, enum: [TaskStatus.TODO, TaskStatus.IN_PROGRESS, TaskStatus.DONE] },
+                        priority: { type: Type.STRING, enum: [TaskPriority.HIGH, TaskPriority.MEDIUM, TaskPriority.LOW] },
+                        assignee: { type: Type.STRING, description: "Inferred assignee name or 'Unassigned'" },
+                    },
+                    required: ["title", "status"]
+                }
+            }
+        }
+      });
+
+      const jsonStr = response.text;
+      if (!jsonStr) return [];
+      return JSON.parse(jsonStr) as Partial<Task>[];
+    } catch (error) {
+      console.error("Gemini Extract Tasks Error:", error);
+      return [];
+    }
+  },
+
+  /**
+   * Generates content continuation or specific sections for a document
+   */
+  async generateDocumentContent(prompt: string, currentContent: string): Promise<string> {
+    if (!apiKey) return "";
+
+    try {
+      const response = await ai.models.generateContent({
+        model: MODEL_NAME,
+        contents: `You are a helpful AI writing assistant. 
+        Context (Current Document Content): "${currentContent}"
+        User Request: "${prompt}"
+        
+        Generate the requested content to be added to the document. Return ONLY the new text content, formatted in Markdown. Do not include conversational filler.`,
+      });
+      
+      return response.text || "";
+    } catch (error) {
+      console.error("Gemini Generate Content Error:", error);
+      return "";
+    }
+  },
+
+  /**
+   * Summarizes the document content
+   */
+  async summarizeDocument(text: string): Promise<string> {
+    if (!apiKey) return "Error: No API Key.";
+
+    try {
+      const response = await ai.models.generateContent({
+        model: MODEL_NAME,
+        contents: `Summarize the following document concisely in a few paragraphs or a bulleted list. Capture the key points and any decisions made.
+        
+        Document Content:
+        "${text}"`,
+      });
+      
+      return response.text || "Could not generate summary.";
+    } catch (error) {
+      console.error("Gemini Summary Error:", error);
+      return "Error generating summary.";
+    }
+  }
+};

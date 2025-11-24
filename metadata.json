@@ -1,0 +1,7 @@
+{
+  "name": "Nexus Workspace",
+  "description": "A unified workspace blending documents, tasks, and AI intelligence with a Google Workspace-like feel.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
