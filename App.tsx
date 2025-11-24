@@ -9,14 +9,14 @@ import { CommandPalette } from './components/CommandPalette';
 import { ContextSidebar } from './components/ContextSidebar';
 import { InboxView } from './components/InboxView';
 import { GraphView } from './components/GraphView';
-import { DashboardView } from './components/DashboardView'; // NEW
-import { ViewMode, Document, Task, TaskStatus, ProjectPlan, TaskPriority, ChatMessage, Project, InboxItem, InboxAction } from './types';
+import { DashboardView } from './components/DashboardView'; 
+import { ViewMode, Document, Task, TaskStatus, ProjectPlan, TaskPriority, ChatMessage, Project, InboxItem, InboxAction, AgentRole } from './types';
 import { Sparkles, Bot, Command, Plus } from 'lucide-react';
 import { geminiService } from './services/geminiService';
 
 const App: React.FC = () => {
   // --- State ---
-  const [currentView, setCurrentView] = useState<ViewMode>(ViewMode.HOME); // Default to HOME
+  const [currentView, setCurrentView] = useState<ViewMode>(ViewMode.HOME); 
   
   // Projects State
   const [projects, setProjects] = useState<Project[]>([
@@ -136,7 +136,37 @@ const App: React.FC = () => {
   };
 
   const handleUpdateTaskStatus = (id: string, status: TaskStatus) => updateTask(id, { status });
-  const handleUpdateTaskAssignee = (id: string, assignee: string) => updateTask(id, { assignee });
+  
+  const handleUpdateTaskAssignee = async (id: string, assignee: string) => {
+      // 1. Update the UI Immediately
+      updateTask(id, { assignee });
+
+      // 2. Check if assigned to an Agent
+      if (assignee.startsWith('AI_')) {
+          const task = tasks.find(t => t.id === id);
+          if (task) {
+              // Set Agent Status to Working
+              updateTask(id, { 
+                  status: TaskStatus.IN_PROGRESS, 
+                  agentStatus: 'working',
+                  agentResult: undefined // Reset prev result
+              });
+
+              // Perform Background Work
+              const result = await geminiService.performAgentTask(assignee as AgentRole, task.title, task.description);
+
+              // Update Task with Result
+              updateTask(id, { 
+                  agentStatus: 'completed',
+                  agentResult: result
+              });
+          }
+      } else {
+          // If assigned back to human, reset agent status
+          updateTask(id, { agentStatus: 'idle' });
+      }
+  };
+
   const handleUpdateTaskDueDate = (id: string, date: Date) => updateTask(id, { dueDate: date });
   const handleUpdateTaskPriority = (id: string, priority: TaskPriority) => updateTask(id, { priority });
   const handleUpdateTaskDependencies = (id: string, dependencies: string[]) => updateTask(id, { dependencies });

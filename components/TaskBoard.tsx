@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
-import { Task, TaskStatus, TaskPriority } from '../types';
-import { MoreHorizontal, Plus, Calendar as CalendarIcon, User, Filter, X, ArrowUpDown, Flag, Link as LinkIcon, AlertCircle, CheckCircle, Check, Sparkles, Loader2, ListChecks, FileText, ArrowUpRight } from 'lucide-react';
+import { Task, TaskStatus, TaskPriority, AgentRole } from '../types';
+import { MoreHorizontal, Plus, Calendar as CalendarIcon, User, Filter, X, ArrowUpDown, Flag, Link as LinkIcon, AlertCircle, CheckCircle, Check, Sparkles, Loader2, ListChecks, FileText, ArrowUpRight, Bot, ChevronDown, ChevronUp } from 'lucide-react';
 import { geminiService } from '../services/geminiService';
 
 interface TaskBoardProps {
@@ -45,6 +45,9 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
   const [isReviewingSuggestions, setIsReviewingSuggestions] = useState(false);
   const [selectedSuggestionIndices, setSelectedSuggestionIndices] = useState<Set<number>>(new Set());
   
+  // Expanded Result State
+  const [expandedResultTaskId, setExpandedResultTaskId] = useState<string | null>(null);
+
   const columns = [
     { id: TaskStatus.TODO, label: 'To Do', color: 'bg-red-50 text-red-700' },
     { id: TaskStatus.IN_PROGRESS, label: 'In Progress', color: 'bg-yellow-50 text-yellow-700' },
@@ -52,12 +55,17 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
   ];
 
   const MOCK_USERS = ['Me', 'Alice', 'Bob', 'Charlie', 'Dave'];
+  const AI_AGENTS = [
+      { id: AgentRole.RESEARCHER, name: 'AI Researcher' },
+      { id: AgentRole.WRITER, name: 'AI Writer' },
+      { id: AgentRole.PLANNER, name: 'AI Planner' }
+  ];
 
   // Compute unique assignees for the filter dropdown
   const availableAssignees = useMemo(() => {
     const users = new Set(MOCK_USERS);
     tasks.forEach(t => {
-        if (t.assignee) users.add(t.assignee);
+        if (t.assignee && !t.assignee.startsWith('AI_')) users.add(t.assignee);
     });
     return Array.from(users).sort();
   }, [tasks]);
@@ -77,7 +85,9 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
             ? true 
             : assigneeFilter === 'Unassigned' 
                 ? !task.assignee 
-                : task.assignee === assigneeFilter;
+                : assigneeFilter === 'AI_AGENTS'
+                    ? task.assignee?.startsWith('AI_')
+                    : task.assignee === assigneeFilter;
                 
         const matchStatus = statusFilter === 'ALL' 
             ? true 
@@ -185,6 +195,7 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
                     >
                         <option value="ALL">All Assignees</option>
                         <option value="Unassigned">Unassigned</option>
+                        <option value="AI_AGENTS">AI Agents</option>
                         {availableAssignees.map(u => <option key={u} value={u}>{u}</option>)}
                     </select>
                     <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
@@ -309,12 +320,18 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
                 {colTasks.map((task) => {
                     const blocked = isTaskBlocked(task);
                     const hasDeps = task.dependencies && task.dependencies.length > 0;
+                    const isAgentWorking = task.agentStatus === 'working';
+                    const hasAgentResult = task.agentStatus === 'completed' && task.agentResult;
                     
                     return (
                     <div
                         key={task.id}
                         className={`bg-white p-3 rounded-lg shadow-sm border hover:shadow-md transition-all duration-200 group flex flex-col gap-2 ${
-                            blocked ? 'border-red-200 ring-1 ring-red-50' : 'border-slate-200'
+                            blocked 
+                            ? 'border-red-200 ring-1 ring-red-50' 
+                            : isAgentWorking 
+                                ? 'border-purple-200 ring-1 ring-purple-50'
+                                : 'border-slate-200'
                         }`}
                     >
                         {/* Header: Blocked Status & Title */}
@@ -331,9 +348,49 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
                                         <CheckCircle className="w-3.5 h-3.5" />
                                     </div>
                                 )}
+                                {isAgentWorking && (
+                                    <div className="text-purple-500 animate-spin" title="AI Agent Working">
+                                        <Loader2 className="w-3.5 h-3.5" />
+                                    </div>
+                                )}
+                                {hasAgentResult && (
+                                    <div className="text-purple-600" title="Agent Work Complete">
+                                        <Sparkles className="w-3.5 h-3.5 fill-purple-100" />
+                                    </div>
+                                )}
                             </div>
                             {task.description && (
                             <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">{task.description}</p>
+                            )}
+                            
+                            {/* Agent Status Message */}
+                            {isAgentWorking && (
+                                <div className="mt-2 text-[10px] bg-purple-50 text-purple-700 px-2 py-1 rounded border border-purple-100 flex items-center gap-1.5">
+                                    <Bot className="w-3 h-3" />
+                                    <span>{task.assignee?.replace('AI_', 'AI ')} is working...</span>
+                                </div>
+                            )}
+
+                             {/* Agent Result Preview */}
+                             {hasAgentResult && (
+                                <div className="mt-2">
+                                    <button 
+                                        onClick={() => setExpandedResultTaskId(expandedResultTaskId === task.id ? null : task.id)}
+                                        className="w-full text-[10px] bg-purple-50 hover:bg-purple-100 text-purple-700 px-2 py-1.5 rounded border border-purple-100 flex items-center justify-between transition-colors"
+                                    >
+                                        <div className="flex items-center gap-1.5">
+                                            <Sparkles className="w-3 h-3" />
+                                            <span>View Agent Result</span>
+                                        </div>
+                                        {expandedResultTaskId === task.id ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                                    </button>
+                                    
+                                    {expandedResultTaskId === task.id && (
+                                        <div className="mt-2 text-xs text-gray-700 bg-gray-50 p-2 rounded border border-gray-100 max-h-40 overflow-y-auto whitespace-pre-wrap font-mono">
+                                            {task.agentResult?.output}
+                                        </div>
+                                    )}
+                                </div>
                             )}
                         </div>
                         
@@ -345,10 +402,12 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
                             <div className="relative flex items-center">
                                 <div className={`w-5 h-5 rounded-full flex items-center justify-center border text-[9px] font-medium transition-colors cursor-pointer ${
                                     task.assignee 
-                                    ? 'bg-indigo-50 text-indigo-600 border-indigo-100' 
+                                    ? task.assignee.startsWith('AI_') ? 'bg-purple-100 text-purple-600 border-purple-200' : 'bg-indigo-50 text-indigo-600 border-indigo-100'
                                     : 'bg-slate-50 text-slate-300 border-slate-100 border-dashed hover:border-slate-300'
                                 }`}>
-                                    {task.assignee ? task.assignee.charAt(0).toUpperCase() : <User className="w-3 h-3" />}
+                                    {task.assignee 
+                                        ? task.assignee.startsWith('AI_') ? <Bot className="w-3 h-3" /> : task.assignee.charAt(0).toUpperCase() 
+                                        : <User className="w-3 h-3" />}
                                 </div>
                                 
                                 <select
@@ -358,7 +417,14 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
                                     title="Assignee"
                                 >
                                     <option value="">Unassigned</option>
-                                    {MOCK_USERS.map(u => <option key={u} value={u}>{u}</option>)}
+                                    <optgroup label="Team">
+                                        {MOCK_USERS.map(u => <option key={u} value={u}>{u}</option>)}
+                                    </optgroup>
+                                    <optgroup label="AI Workforce">
+                                        {AI_AGENTS.map(agent => (
+                                            <option key={agent.id} value={agent.id}>✨ {agent.name}</option>
+                                        ))}
+                                    </optgroup>
                                 </select>
                             </div>
 

@@ -1,6 +1,6 @@
 
 export enum ViewMode {
-  HOME = 'HOME', // NEW
+  HOME = 'HOME', 
   DOCUMENTS = 'DOCUMENTS',
   BOARD = 'BOARD',
   CALENDAR = 'CALENDAR',
@@ -37,17 +37,34 @@ export enum TaskPriority {
   LOW = 'Low',
 }
 
+// NEW: Agent Roles
+export enum AgentRole {
+  RESEARCHER = 'AI_RESEARCHER', // Finds info, summarizes
+  WRITER = 'AI_WRITER',         // Drafts content
+  PLANNER = 'AI_PLANNER',       // Breaks down into subtasks
+}
+
+export interface AgentResult {
+  output: string;
+  type: 'text' | 'checklist';
+  timestamp: Date;
+}
+
 export interface Task {
   id: string;
   projectId: string; // Relational Link
   title: string;
   description?: string;
   status: TaskStatus;
-  assignee?: string;
+  assignee?: string; // Can be 'Me', 'Alice', or 'AI_RESEARCHER', etc.
   dueDate?: Date;
   priority?: TaskPriority;
-  dependencies?: string[]; // IDs of tasks this task depends on
-  linkedDocumentId?: string; // ID of the document this task has expanded into
+  dependencies?: string[]; 
+  linkedDocumentId?: string;
+  
+  // NEW: Agent State
+  agentStatus?: 'idle' | 'working' | 'completed' | 'failed';
+  agentResult?: AgentResult;
 }
 
 export interface InboxItem {
@@ -56,7 +73,7 @@ export interface InboxItem {
   type: 'text' | 'audio';
   status: 'pending' | 'processed';
   createdAt: Date;
-  processedResult?: InboxAction; // Store the AI suggestion
+  processedResult?: InboxAction; 
 }
 
 export interface InboxAction {
@@ -64,8 +81,8 @@ export interface InboxAction {
   targetProjectId: string;
   data: {
     title: string;
-    description?: string; // For Tasks
-    content?: string;     // For Docs
+    description?: string; 
+    content?: string;     
     priority?: TaskPriority;
   };
   reasoning: string;

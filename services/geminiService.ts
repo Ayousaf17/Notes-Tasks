@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type, Schema } from "@google/genai";
-import { Task, TaskStatus, TaskPriority, ProjectPlan, Attachment, Project, InboxAction } from "../types";
+import { Task, TaskStatus, TaskPriority, ProjectPlan, Attachment, Project, InboxAction, AgentRole, AgentResult } from "../types";
 
 const apiKey = process.env.API_KEY;
 const ai = new GoogleGenAI({ apiKey: apiKey || 'dummy_key' });
@@ -493,4 +493,55 @@ export const geminiService = {
       return "Unable to generate briefing.";
     }
   },
+
+  /**
+   * Performs a task assigned to an AI Agent
+   */
+  async performAgentTask(role: AgentRole, taskTitle: string, taskDescription?: string): Promise<AgentResult> {
+      if (!apiKey) return { output: "Error: No API Key", type: 'text', timestamp: new Date() };
+
+      let prompt = "";
+      if (role === AgentRole.RESEARCHER) {
+          prompt = `You are an expert AI Researcher. The user has assigned you this task: "${taskTitle}". 
+          Description: "${taskDescription || ''}". 
+          
+          Please perform a comprehensive research summary on this topic. Structure your response with:
+          1. Key Findings
+          2. Relevant Facts/Data
+          3. Sources/References (simulated if necessary)
+          4. Recommended Next Steps.
+          
+          Format as Markdown.`;
+      } else if (role === AgentRole.WRITER) {
+          prompt = `You are an expert AI Writer. The user has assigned you this task: "${taskTitle}". 
+          Description: "${taskDescription || ''}". 
+          
+          Please draft the content requested. Focus on high quality, professional tone, and clarity. 
+          If the task is vague, assume a standard business document format.
+          
+          Format as Markdown.`;
+      } else if (role === AgentRole.PLANNER) {
+          prompt = `You are an expert AI Project Planner. The user has assigned you this task: "${taskTitle}". 
+          Description: "${taskDescription || ''}". 
+          
+          Please break this task down into a detailed Checklist of subtasks. 
+          Do not write paragraphs. Write a Markdown checkbox list (e.g., - [ ] Step 1).
+          Include dependencies or prerequisites if obvious.`;
+      }
+
+      try {
+          const response = await ai.models.generateContent({
+              model: MODEL_NAME,
+              contents: prompt
+          });
+          
+          return {
+              output: response.text || "I tried to do the work but produced no output.",
+              type: role === AgentRole.PLANNER ? 'checklist' : 'text',
+              timestamp: new Date()
+          };
+      } catch (error) {
+          return { output: "I encountered an error while working on this task.", type: 'text', timestamp: new Date() };
+      }
+  }
 };
