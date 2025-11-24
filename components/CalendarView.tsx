@@ -31,6 +31,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onSelectTask,
   const month = currentDate.getMonth();
   const daysInMonth = getDaysInMonth(year, month);
   const firstDay = getFirstDayOfMonth(year, month);
+  
+  // Ensure we always render 6 rows (42 cells) for consistent height
+  const totalSlots = 42; 
 
   const prevMonth = () => {
     setCurrentDate(new Date(year, month - 1, 1));
@@ -140,7 +143,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onSelectTask,
       </div>
 
       {/* Grid Body */}
-      <div className="flex-1 grid grid-cols-7 grid-rows-5 bg-gray-50/30 overflow-hidden">
+      <div className="flex-1 grid grid-cols-7 grid-rows-6 bg-gray-50/30 overflow-hidden">
         {/* Empty cells for start padding */}
         {Array.from({ length: firstDay }).map((_, i) => (
             <div key={`empty-${i}`} className="border-b border-r border-gray-100 bg-gray-50/50"></div>
@@ -159,12 +162,12 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onSelectTask,
                     onDragOver={(e) => handleDragOver(e, day)}
                     onDrop={(e) => handleDrop(e, day)}
                     className={`group border-b border-r border-gray-100 p-2 transition-all relative flex flex-col gap-1 overflow-hidden
-                        ${isToday ? 'bg-white ring-1 ring-inset ring-blue-100 z-10' : ''}
+                        ${isToday ? 'bg-white ring-1 ring-inset ring-black z-10' : ''}
                         ${isDragOver ? 'bg-indigo-50/80 ring-2 ring-inset ring-indigo-200' : 'hover:bg-white'}
                     `}
                 >
                     <div className="flex justify-between items-start mb-1 pointer-events-none">
-                        <span className={`text-sm font-medium w-7 h-7 flex items-center justify-center rounded-full ${isToday ? 'bg-black text-white' : 'text-gray-500 group-hover:text-gray-900'}`}>
+                        <span className={`text-sm font-medium w-8 h-8 flex items-center justify-center rounded-full ${isToday ? 'bg-black text-white' : 'text-gray-500 group-hover:text-gray-900'}`}>
                             {day}
                         </span>
                         {dayTasks.length > 0 && (
@@ -195,8 +198,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onSelectTask,
             );
         })}
         
-        {/* End padding to fill grid if needed */}
-        {Array.from({ length: (35 - (daysInMonth + firstDay)) > 0 ? (35 - (daysInMonth + firstDay)) : (42 - (daysInMonth + firstDay)) }).map((_, i) => (
+        {/* End padding to fill grid (Always target 42 cells) */}
+        {Array.from({ length: totalSlots - (daysInMonth + firstDay) }).map((_, i) => (
             <div key={`end-${i}`} className="border-b border-r border-gray-100 bg-gray-50/50"></div>
         ))}
       </div>
