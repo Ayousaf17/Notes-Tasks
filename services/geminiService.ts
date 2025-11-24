@@ -299,5 +299,70 @@ export const geminiService = {
           console.error("Gemini Suggest Tags Error:", error);
           return [];
       }
+  },
+
+  /**
+   * Improves the writing style of selected text
+   */
+  async improveWriting(text: string): Promise<string> {
+    if (!apiKey) return text;
+    try {
+        const response = await ai.models.generateContent({
+            model: MODEL_NAME,
+            contents: `Improve the clarity, flow, and professionalism of the following text. Keep the meaning identical, but make it read better. Return ONLY the improved text.
+            
+            Text: "${text}"`
+        });
+        return response.text || text;
+    } catch (e) { return text; }
+  },
+
+  /**
+   * Fixes grammar and spelling
+   */
+  async fixGrammar(text: string): Promise<string> {
+    if (!apiKey) return text;
+    try {
+        const response = await ai.models.generateContent({
+            model: MODEL_NAME,
+            contents: `Fix any grammar, spelling, or punctuation errors in the following text. Return ONLY the corrected text.
+            
+            Text: "${text}"`
+        });
+        return response.text || text;
+    } catch (e) { return text; }
+  },
+
+  /**
+   * Shortens the text
+   */
+  async shortenText(text: string): Promise<string> {
+    if (!apiKey) return text;
+    try {
+        const response = await ai.models.generateContent({
+            model: MODEL_NAME,
+            contents: `Condense the following text to be more concise without losing key information. Return ONLY the shortened text.
+            
+            Text: "${text}"`
+        });
+        return response.text || text;
+    } catch (e) { return text; }
+  },
+
+  /**
+   * Autocompletes or continues text (Ghostwriter)
+   */
+  async continueWriting(context: string): Promise<string> {
+    if (!apiKey) return "";
+    try {
+        const response = await ai.models.generateContent({
+            model: MODEL_NAME,
+            contents: `You are a ghostwriter. Based on the following document context, write the next logical sentence or short phrase to complete the thought. 
+            Do not repeat the last sentence. Keep it natural and consistent with the tone. Return ONLY the completion text.
+            
+            Context: "${context.slice(-2000)}"`
+        });
+        return response.text?.trim() || "";
+    } catch (e) { return ""; }
   }
 };
