@@ -152,13 +152,20 @@ export const geminiService = {
       });
 
       contentParts.push({ 
-        text: `Analyze the provided context/files and the following request: "${prompt}". 
-               If the content is a meeting recording or transcript, create a "Meeting Summary" as the document content and extract action items as tasks.
-               If it is a project request, create a comprehensive "Project Plan".
-               Return a JSON object with:
-               1. 'projectTitle': A suitable title.
-               2. 'overviewContent': A detailed Markdown summary of the meeting or project overview.
-               3. 'tasks': A list of actionable tasks extracted from the content, with inferred assignees (if names are mentioned) and priorities.` 
+        text: `Analyze the provided Project Proposal/Document and the request: "${prompt}". 
+               
+               1. **Project Title**: Extract the exact project name (e.g. "Slack + Gorgias AI Agent").
+               2. **Overview Document**: Create a comprehensive Markdown document that includes:
+                  - Executive Summary
+                  - Scope of Work
+                  - **Pricing Table**: Reconstruct the pricing table if present (Fees, Totals).
+                  - **Key Milestones**: List the phases.
+                  - **Risk Analysis**: Add a brief AI-generated section on potential risks based on the timeline.
+               3. **Tasks**: Extract every actionable step from the "Phases" or "Scope" sections.
+                  - **Dates**: If the document contains a "Project Timeline" table with specific dates (e.g., "10/10/2025"), map those dates to the task 'dueDate'.
+                  - **Priority**: Infer priority (Phase 1 is usually High).
+               
+               Return JSON.` 
       });
 
       const response = await ai.models.generateContent({
@@ -181,7 +188,8 @@ export const geminiService = {
                                 status: { type: Type.STRING, enum: [TaskStatus.TODO, TaskStatus.IN_PROGRESS, TaskStatus.DONE] },
                                 priority: { type: Type.STRING, enum: [TaskPriority.HIGH, TaskPriority.MEDIUM, TaskPriority.LOW] },
                                 assignee: { type: Type.STRING, description: "Inferred assignee name or 'Unassigned'" },
-                                dependencies: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Optional list of task titles this task depends on." }
+                                dependencies: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Optional list of task titles this task depends on." },
+                                dueDate: { type: Type.STRING, description: "ISO Date string if a date is found in the doc" }
                             },
                             required: ["title", "status"]
                         }

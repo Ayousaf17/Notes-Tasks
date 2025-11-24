@@ -189,22 +189,34 @@ const App: React.FC = () => {
   };
 
   const handleProjectPlanCreated = (plan: ProjectPlan) => {
+    // 1. Create New Project automatically for this plan
+    const newProject: Project = {
+        id: Date.now().toString(),
+        title: plan.projectTitle || 'New AI Project',
+        icon: '🚀',
+        createdAt: new Date()
+    };
+    setProjects(prev => [...prev, newProject]);
+    
+    // 2. Create Overview Document in that project
     const newDoc: Document = {
         id: Date.now().toString(),
-        projectId: activeProjectId,
-        title: plan.projectTitle,
+        projectId: newProject.id,
+        title: 'Project Overview & Scope',
         content: plan.overviewContent,
         updatedAt: new Date(),
-        tags: ['Project Plan']
+        tags: ['Project Plan', 'Proposal']
     };
     setDocuments(prev => [...prev, newDoc]);
+    
+    // 3. Create Tasks
     const newTasks: Task[] = plan.tasks.map(t => ({
         id: Date.now().toString() + Math.random(),
-        projectId: activeProjectId,
+        projectId: newProject.id,
         title: t.title || 'New Task',
         description: t.description,
         status: (t.status as TaskStatus) || TaskStatus.TODO,
-        dueDate: new Date(),
+        dueDate: (t as any).dueDate ? new Date((t as any).dueDate) : undefined, // Map extracted date
         assignee: t.assignee || 'Unassigned',
         priority: t.priority || TaskPriority.MEDIUM,
         dependencies: [],
@@ -212,6 +224,9 @@ const App: React.FC = () => {
         updatedAt: new Date()
     }));
     setTasks(prev => [...prev, ...newTasks]);
+
+    // 4. Switch Context to the new Project
+    setActiveProjectId(newProject.id);
     setActiveDocId(newDoc.id);
     setCurrentView(ViewMode.DOCUMENTS);
   };
