@@ -103,6 +103,7 @@ export const geminiService = {
                                 status: { type: Type.STRING, enum: [TaskStatus.TODO, TaskStatus.IN_PROGRESS, TaskStatus.DONE] },
                                 priority: { type: Type.STRING, enum: [TaskPriority.HIGH, TaskPriority.MEDIUM, TaskPriority.LOW] },
                                 assignee: { type: Type.STRING, description: "Inferred assignee name or 'Unassigned'" },
+                                dependencies: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Optional list of task titles this task depends on." }
                             },
                             required: ["title", "status"]
                         }
@@ -132,7 +133,14 @@ export const geminiService = {
     try {
       const response = await ai.models.generateContent({
         model: MODEL_NAME,
-        contents: `Extract actionable tasks from the following text. Infer the assignee if a name is mentioned, and estimate priority. Text: "${text}"`,
+        contents: `Analyze the following document content to identify actionable tasks.
+        
+        For each task:
+        1. Extract the title and a brief description.
+        2. Infer the assignee if a specific person is mentioned.
+        3. Assess the urgency and importance of the task within the context and automatically assign a priority level: 'High', 'Medium', or 'Low'.
+
+        Document Content: "${text}"`,
         config: {
             responseMimeType: "application/json",
             responseSchema: {
@@ -145,8 +153,9 @@ export const geminiService = {
                         status: { type: Type.STRING, enum: [TaskStatus.TODO, TaskStatus.IN_PROGRESS, TaskStatus.DONE] },
                         priority: { type: Type.STRING, enum: [TaskPriority.HIGH, TaskPriority.MEDIUM, TaskPriority.LOW] },
                         assignee: { type: Type.STRING, description: "Inferred assignee name or 'Unassigned'" },
+                        dependencies: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Optional list of task titles this task depends on." }
                     },
-                    required: ["title", "status"]
+                    required: ["title", "status", "priority"]
                 }
             }
         }
@@ -157,6 +166,54 @@ export const geminiService = {
       return JSON.parse(jsonStr) as Partial<Task>[];
     } catch (error) {
       console.error("Gemini Extract Tasks Error:", error);
+      return [];
+    }
+  },
+
+  /**
+   * Suggests tasks based on provided context (document content or chat history)
+   */
+  async suggestTasksFromContext(context: string): Promise<Partial<Task>[]> {
+    if (!apiKey) return [];
+
+    try {
+      const response = await ai.models.generateContent({
+        model: MODEL_NAME,
+        contents: `You are a proactive Project Manager AI. 
+        Based on the provided Context (which may include document text and recent chat history), suggest 3-5 logical, actionable next steps or tasks.
+        
+        Context:
+        "${context.substring(0, 15000)}"
+        
+        Requirements:
+        1. Tasks should be clear and actionable.
+        2. Infer priority based on urgency in the context.
+        3. If no specific context is clear, suggest standard project initiation tasks.`,
+        config: {
+            responseMimeType: "application/json",
+            responseSchema: {
+                type: Type.ARRAY,
+                items: {
+                    type: Type.OBJECT,
+                    properties: {
+                        title: { type: Type.STRING },
+                        description: { type: Type.STRING },
+                        status: { type: Type.STRING, enum: [TaskStatus.TODO, TaskStatus.IN_PROGRESS, TaskStatus.DONE] },
+                        priority: { type: Type.STRING, enum: [TaskPriority.HIGH, TaskPriority.MEDIUM, TaskPriority.LOW] },
+                        assignee: { type: Type.STRING, description: "Inferred assignee name or 'Unassigned'" },
+                        dependencies: { type: Type.ARRAY, items: { type: Type.STRING } }
+                    },
+                    required: ["title", "status", "priority"]
+                }
+            }
+        }
+      });
+
+      const jsonStr = response.text;
+      if (!jsonStr) return [];
+      return JSON.parse(jsonStr) as Partial<Task>[];
+    } catch (error) {
+      console.error("Gemini Suggest Tasks Error:", error);
       return [];
     }
   },

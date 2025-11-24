@@ -3,7 +3,7 @@ import { Sidebar } from './components/Sidebar';
 import { DocumentEditor } from './components/DocumentEditor';
 import { TaskBoard } from './components/TaskBoard';
 import { AIChatSidebar } from './components/AIChatSidebar';
-import { ViewMode, Document, Task, TaskStatus, ProjectPlan, TaskPriority } from './types';
+import { ViewMode, Document, Task, TaskStatus, ProjectPlan, TaskPriority, ChatMessage } from './types';
 import { Sparkles, Bot } from 'lucide-react';
 
 const App: React.FC = () => {
@@ -14,7 +14,12 @@ const App: React.FC = () => {
   ]);
   const [activeDocId, setActiveDocId] = useState<string | null>('1');
   const [tasks, setTasks] = useState<Task[]>([
-    { id: 't1', title: 'Review Proposal', status: TaskStatus.IN_PROGRESS, description: 'Check the PDF attachment', assignee: 'Me', priority: TaskPriority.HIGH, dueDate: new Date() }
+    { id: 't1', title: 'Review Proposal', status: TaskStatus.IN_PROGRESS, description: 'Check the PDF attachment', assignee: 'Me', priority: TaskPriority.HIGH, dueDate: new Date(), dependencies: [] }
+  ]);
+  
+  // Lifted Chat State
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
+    { id: 'init', role: 'model', text: 'I can help you create project plans from files, summarize meetings, or organize your tasks.', timestamp: new Date() }
   ]);
   
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -47,7 +52,8 @@ const App: React.FC = () => {
       description: t.description,
       dueDate: new Date(),
       assignee: t.assignee || 'Unassigned', // Respect extracted assignee or default to Unassigned
-      priority: t.priority || TaskPriority.MEDIUM
+      priority: t.priority || TaskPriority.MEDIUM,
+      dependencies: []
     }));
     setTasks(prev => [...prev, ...finalTasks]);
   };
@@ -66,6 +72,10 @@ const App: React.FC = () => {
 
   const handleUpdateTaskPriority = (taskId: string, priority: TaskPriority) => {
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, priority } : t));
+  };
+
+  const handleUpdateTaskDependencies = (taskId: string, dependencyIds: string[]) => {
+    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, dependencies: dependencyIds } : t));
   };
 
   const handleProjectPlanCreated = (plan: ProjectPlan) => {
@@ -87,7 +97,8 @@ const App: React.FC = () => {
         status: (t.status as TaskStatus) || TaskStatus.TODO,
         dueDate: new Date(),
         assignee: t.assignee || 'Unassigned',
-        priority: t.priority || TaskPriority.MEDIUM
+        priority: t.priority || TaskPriority.MEDIUM,
+        dependencies: []
     }));
     setTasks(prev => [...prev, ...newTasks]);
 
@@ -110,6 +121,20 @@ const App: React.FC = () => {
 
   // --- Derived State ---
   const activeDocument = documents.find(d => d.id === activeDocId);
+
+  // Combine context for AI Suggestions in TaskBoard
+  const getContextForTaskBoard = () => {
+    let context = '';
+    if (activeDocument && activeDocument.content.trim()) {
+        context += `Active Document Content:\n${activeDocument.content}\n\n`;
+    }
+    // Add recent chat context (last 5 user/model turns)
+    const recentChats = chatMessages.slice(-5).map(m => `${m.role}: ${m.text}`).join('\n');
+    if (recentChats) {
+        context += `Recent Chat History:\n${recentChats}`;
+    }
+    return context;
+  };
 
   return (
     <div className="flex h-screen w-full bg-white overflow-hidden font-sans text-gray-900">
@@ -163,6 +188,9 @@ const App: React.FC = () => {
                     onUpdateTaskAssignee={handleUpdateTaskAssignee}
                     onUpdateTaskDueDate={handleUpdateTaskDueDate}
                     onUpdateTaskPriority={handleUpdateTaskPriority}
+                    onUpdateTaskDependencies={handleUpdateTaskDependencies}
+                    contextString={getContextForTaskBoard()}
+                    onAddTasks={handleExtractTasks}
                 />
             ) : (
                 <div className="flex items-center justify-center h-full text-gray-300">
@@ -181,6 +209,8 @@ const App: React.FC = () => {
                 : `Tasks:\n${tasks.map(t => `- ${t.title} (${t.status})`).join('\n')}`
             }
             onProjectPlanCreated={handleProjectPlanCreated}
+            messages={chatMessages}
+            setMessages={setChatMessages}
         />
       </main>
     </div>

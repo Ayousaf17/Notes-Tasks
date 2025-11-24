@@ -32,6 +32,7 @@ export interface Task {
   assignee?: string;
   dueDate?: Date;
   priority?: TaskPriority;
+  dependencies?: string[]; // IDs of tasks this task depends on
 }
 
 export interface ChatMessage {

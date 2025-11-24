@@ -90,7 +90,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({ document, onUpda
           case 'High': return 'text-red-600 bg-red-50';
           case 'Medium': return 'text-orange-600 bg-orange-50';
           case 'Low': return 'text-blue-600 bg-blue-50';
-          default: return 'text-slate-400 bg-slate-50';
+          default: return 'text-orange-600 bg-orange-50';
       }
   };
 
@@ -264,7 +264,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({ document, onUpda
                                     )}
                                     <div className={`flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded ${getPriorityColor(task.priority)}`}>
                                         <Flag className="w-3 h-3" />
-                                        <span>{task.priority || 'Normal'}</span>
+                                        <span>{task.priority || 'Medium'}</span>
                                     </div>
                                 </div>
                             </div>

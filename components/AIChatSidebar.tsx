@@ -8,12 +8,18 @@ interface AIChatSidebarProps {
   onClose: () => void;
   contextData?: string;
   onProjectPlanCreated: (plan: ProjectPlan) => void;
+  messages: ChatMessage[];
+  setMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>;
 }
 
-export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({ isOpen, onClose, contextData, onProjectPlanCreated }) => {
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    { id: 'init', role: 'model', text: 'I can help you create project plans from files, summarize meetings, or organize your tasks.', timestamp: new Date() }
-  ]);
+export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({ 
+  isOpen, 
+  onClose, 
+  contextData, 
+  onProjectPlanCreated,
+  messages,
+  setMessages
+}) => {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
