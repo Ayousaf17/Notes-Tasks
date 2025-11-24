@@ -17,6 +17,7 @@ import { ViewMode, Document, Task, TaskStatus, ProjectPlan, TaskPriority, ChatMe
 import { Sparkles, Command, Plus, Menu, Cloud, MessageSquare } from 'lucide-react';
 import { geminiService } from './services/geminiService';
 import { dataService } from './services/dataService';
+import { supabase } from './services/supabase';
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewMode>(ViewMode.HOME); 
@@ -64,17 +65,7 @@ const App: React.FC = () => {
   
   const [activeDocId, setActiveDocId] = useState<string | null>('d1');
   
-  const now = new Date();
-  const yesterday = new Date(now.getTime() - (1 * 24 * 60 * 60 * 1000));
-  const weekAgo = new Date(now.getTime() - (7 * 24 * 60 * 60 * 1000));
-  const oldTaskDate = new Date(now.getTime() - (12 * 24 * 60 * 60 * 1000));
-
-  const [tasks, setTasks] = useState<Task[]>([
-    { id: 't1', projectId: 'p1', title: 'Finalize Figma Components', status: TaskStatus.DONE, description: 'Button variants and input states', assignee: 'Alice', priority: TaskPriority.HIGH, dueDate: yesterday, dependencies: [], createdAt: weekAgo, updatedAt: yesterday },
-    { id: 't2', projectId: 'p1', title: 'Implement React Components', status: TaskStatus.IN_PROGRESS, description: 'Port Figma components to code', assignee: 'Me', priority: TaskPriority.HIGH, dueDate: now, dependencies: ['t1'], createdAt: weekAgo, updatedAt: now },
-    { id: 't3', projectId: 'p2', title: 'Draft Blog Post', status: TaskStatus.TODO, description: 'Announce the V2 redesign', assignee: 'AI_WRITER', priority: TaskPriority.MEDIUM, dueDate: new Date(now.getTime() + 86400000), dependencies: ['t2'], createdAt: now, updatedAt: now },
-    { id: 't4', projectId: 'p3', title: 'Database Schema Update', status: TaskStatus.IN_PROGRESS, description: 'Add new fields for user preferences', assignee: 'Bob', priority: TaskPriority.LOW, dueDate: oldTaskDate, dependencies: [], createdAt: oldTaskDate, updatedAt: oldTaskDate }
-  ]);
+  const [tasks, setTasks] = useState<Task[]>([]);
 
   const [inboxItems, setInboxItems] = useState<InboxItem[]>([
       { id: 'i1', content: 'Feedback from CEO: Make the sidebar collapsible on mobile', type: 'text', status: 'pending', createdAt: new Date() }
@@ -88,7 +79,7 @@ const App: React.FC = () => {
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
-  // Load Data from Supabase on Mount
+  // Load Data from Supabase on Mount & Setup Realtime Subscription
   useEffect(() => {
     const loadData = async () => {
         try {
@@ -98,17 +89,28 @@ const App: React.FC = () => {
                 setProjects(dbProjects);
                 setTasks(dbTasks);
                 setDocuments(dbDocs);
-                setActiveProjectId(dbProjects[0].id);
-                if (dbDocs.length > 0) setActiveDocId(dbDocs[0].id);
-            } else {
-                // If DB is empty, keep the mock data but try to save it? 
-                // For now, we just keep mock data in memory if DB fails or is empty.
+                // Keep active project if valid, else switch to first
+                setActiveProjectId(prev => dbProjects.find(p => p.id === prev) ? prev : dbProjects[0].id);
             }
         } catch (e) {
             console.error("Failed to load data from Supabase", e);
         }
     };
     loadData();
+
+    // Realtime Subscription
+    const channel = supabase
+        .channel('db-changes')
+        .on('postgres_changes', { event: '*', schema: 'public' }, () => {
+            // Simple Strategy: Refetch all on any change to ensure consistency
+            // In a larger app, we would handle INSERT/UPDATE/DELETE specifically to avoid full refetch
+            loadData();
+        })
+        .subscribe();
+
+    return () => {
+        supabase.removeChannel(channel);
+    };
   }, []);
 
   useEffect(() => {
@@ -132,7 +134,7 @@ const App: React.FC = () => {
 
   const viewTitle = (currentView === ViewMode.GLOBAL_BOARD || currentView === ViewMode.GLOBAL_CALENDAR)
     ? "Master View"
-    : activeProject.title;
+    : activeProject?.title || 'Loading...';
 
   useEffect(() => {
       if (currentView === ViewMode.DOCUMENTS && activeDocId) {
@@ -393,7 +395,7 @@ const App: React.FC = () => {
   const activeDocument = documents.find(d => d.id === activeDocId);
 
   const getContextForTaskBoard = () => {
-    let context = `Project Context: ${activeProject.title}\n`;
+    let context = `Project Context: ${activeProject?.title || 'General'}\n`;
     if (activeDocument && activeDocument.content.trim()) context += `Active Document Content:\n${activeDocument.content}\n\n`;
     const recentChats = chatMessages.slice(-5).map(m => `${m.role}: ${m.text}`).join('\n');
     if (recentChats) context += `Recent Chat History:\n${recentChats}`;

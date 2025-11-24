@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Document, Task, TaskPriority } from '../types';
-import { Wand2, ListChecks, RefreshCw, X, Check, User, Flag, AlignLeft, Tag as TagIcon, Sparkles, Edit3, Eye, SpellCheck, Scissors, Table as TableIcon, Link as LinkIcon, FileText, Maximize2, Minimize2 } from 'lucide-react';
+import { Wand2, ListChecks, RefreshCw, X, Check, User, Flag, AlignLeft, Tag as TagIcon, Sparkles, Edit3, Eye, SpellCheck, Scissors, Table as TableIcon, Link as LinkIcon, FileText, Maximize2, Minimize2, Heading1, Heading2, List } from 'lucide-react';
 import { geminiService } from '../services/geminiService';
 
 interface DocumentEditorProps {
@@ -57,13 +57,14 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
   // Handle ESC to exit Zen Mode
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
-        if (e.key === 'Escape' && isZenMode) {
-            setIsZenMode(false);
+        if (e.key === 'Escape') {
+            if (isZenMode) setIsZenMode(false);
+            if (slashMenu) setSlashMenu(null);
         }
     };
     window.addEventListener('keydown', handleEsc);
     return () => window.removeEventListener('keydown', handleEsc);
-  }, [isZenMode]);
+  }, [isZenMode, slashMenu]);
 
   const handleUpdate = (newDoc: Document) => onUpdate(newDoc);
   const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -71,8 +72,9 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
     const { selectionStart } = e.target;
     if (newVal[selectionStart - 1] === '/') {
         const coords = getCaretCoordinates(e.target, selectionStart);
-        setSlashMenu({ x: coords.left, y: coords.top + 24, query: '' });
+        setSlashMenu({ x: coords.left, y: coords.top + 30, query: '' });
     } else if (slashMenu) {
+        // Simple close if they keep typing for now, ideally would filter menu
         setSlashMenu(null); 
     }
     handleUpdate({ ...doc, content: newVal, updatedAt: new Date() });
@@ -94,6 +96,33 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
     const result = await geminiService.summarizeDocument(doc.content);
     setSummary(result);
     setIsSummarizing(false);
+  };
+
+  const executeSlashCommand = (command: string) => {
+      if (!textareaRef.current) return;
+      const { selectionStart } = textareaRef.current;
+      // Find position of '/'
+      const textBefore = doc.content.substring(0, selectionStart);
+      const slashIndex = textBefore.lastIndexOf('/');
+      if (slashIndex === -1) return;
+
+      let insertText = '';
+      if (command === 'h1') insertText = '# ';
+      if (command === 'h2') insertText = '## ';
+      if (command === 'bullet') insertText = '- ';
+      if (command === 'task') insertText = '- [ ] ';
+      
+      const newContent = doc.content.substring(0, slashIndex) + insertText + doc.content.substring(selectionStart);
+      
+      handleUpdate({ ...doc, content: newContent, updatedAt: new Date() });
+      setSlashMenu(null);
+      
+      // Refocus
+      setTimeout(() => {
+          textareaRef.current?.focus();
+          const newPos = slashIndex + insertText.length;
+          textareaRef.current?.setSelectionRange(newPos, newPos);
+      }, 10);
   };
 
   return (
@@ -167,6 +196,28 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
                 />
             )}
         </div>
+
+        {/* Slash Menu */}
+        {slashMenu && !isReadMode && (
+            <div 
+                className="fixed z-50 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-xl rounded-lg py-1 w-48 overflow-hidden animate-in zoom-in-95 duration-100" 
+                style={{ left: slashMenu.x, top: slashMenu.y }}
+            >
+                <div className="px-3 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider bg-gray-50 dark:bg-gray-800/50">Basic Blocks</div>
+                <button onClick={() => executeSlashCommand('h1')} className="w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
+                    <Heading1 className="w-4 h-4" /> Heading 1
+                </button>
+                <button onClick={() => executeSlashCommand('h2')} className="w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
+                    <Heading2 className="w-4 h-4" /> Heading 2
+                </button>
+                <button onClick={() => executeSlashCommand('bullet')} className="w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
+                    <List className="w-4 h-4" /> Bullet List
+                </button>
+                <button onClick={() => executeSlashCommand('task')} className="w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
+                    <ListChecks className="w-4 h-4" /> Task Item
+                </button>
+            </div>
+        )}
 
         {/* Hover Menu */}
         {hoverMenu && !isReadMode && (

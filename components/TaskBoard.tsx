@@ -148,6 +148,14 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
       document.body.style.cursor = 'default';
   };
 
+  const handleQuickAdd = (status: TaskStatus) => {
+      onAddTasks([{
+          title: '',
+          status: status,
+          priority: TaskPriority.MEDIUM
+      }]);
+  };
+
   return (
     <div className="flex-1 flex flex-col h-full bg-white dark:bg-gray-900 font-sans overflow-hidden transition-colors duration-200">
       {/* Header Controls */}
@@ -217,7 +225,7 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
 
                                         <div className="flex flex-col gap-1 pointer-events-none">
                                             <div className="flex justify-between items-start">
-                                                <span className="text-sm text-gray-900 dark:text-gray-100 leading-snug font-medium line-clamp-2 pr-6">{task.title}</span>
+                                                <span className="text-sm text-gray-900 dark:text-gray-100 leading-snug font-medium line-clamp-2 pr-6">{task.title || 'Untitled Task'}</span>
                                             </div>
                                             {task.description && <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2">{task.description}</p>}
                                         </div>
@@ -268,12 +276,13 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
                                     </div>
                                 );
                             })}
-                             {/* Empty State / Drop Target */}
-                             {colTasks.length === 0 && (
-                                <div className="h-24 border-2 border-dashed border-gray-100 dark:border-gray-800 rounded-lg flex items-center justify-center text-gray-300 dark:text-gray-600 text-xs">
-                                    Drop items here
-                                </div>
-                            )}
+                             {/* Quick Add Button */}
+                             <button 
+                                onClick={() => handleQuickAdd(col.id as TaskStatus)}
+                                className="w-full py-2 rounded-lg border border-dashed border-gray-200 dark:border-gray-800 text-gray-400 dark:text-gray-500 hover:text-black dark:hover:text-white hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800/50 text-xs font-medium transition-all flex items-center justify-center gap-1"
+                             >
+                                 <Plus className="w-3.5 h-3.5" /> New
+                             </button>
                         </div>
                     </div>
                 );

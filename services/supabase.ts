@@ -2,52 +2,32 @@
 import { createClient } from '@supabase/supabase-js';
 
 // Live Supabase Connection
-const SUPABASE_URL = 'https://jpfzafujsswrdwuenijt.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpwZnphZnVqc3N3cmR3dWVuaWp0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQwMTQ0NDYsImV4cCI6MjA3OTU5MDQ0Nn0.O9qm79PrwTFsdY-a2xEy-BDqZeQRyUb4uIoSnLUEXtc';
+// Prioritize Environment Variables for security, fall back to provided keys for prototype demo
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://jpfzafujsswrdwuenijt.supabase.co';
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpwZnphZnVqc3N3cmR3dWVuaWp0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQwMTQ0NDYsImV4cCI6MjA3OTU5MDQ0Nn0.O9qm79PrwTFsdY-a2xEy-BDqZeQRyUb4uIoSnLUEXtc';
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 /**
  * DATABASE SETUP INSTRUCTIONS
  * 
- * Go to Supabase Dashboard -> SQL Editor and run this script:
+ * 1. Go to Supabase Dashboard -> SQL Editor
+ * 2. Run the Table Creation scripts (Projects, Tasks, Documents).
  * 
- * -- 1. Projects Table
- * create table if not exists projects (
- *   id text primary key,
- *   title text not null,
- *   icon text,
- *   created_at timestamp with time zone default timezone('utc'::text, now()) not null
- * );
+ * 3. ENABLE REALTIME:
+ *    Run: alter publication supabase_realtime add table projects, tasks, documents;
  * 
- * -- 2. Tasks Table
- * create table if not exists tasks (
- *   id text primary key,
- *   project_id text references projects(id) on delete cascade,
- *   title text not null,
- *   description text,
- *   status text default 'To Do',
- *   priority text default 'Medium',
- *   assignee text,
- *   due_date timestamp with time zone,
- *   dependencies text[], 
- *   linked_document_id text,
- *   agent_status text,
- *   agent_result jsonb,
- *   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
- *   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
- * );
- * 
- * -- 3. Documents Table
- * create table if not exists documents (
- *   id text primary key,
- *   project_id text references projects(id) on delete cascade,
- *   title text not null,
- *   content text,
- *   tags text[],
- *   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
- * );
- * 
- * -- 4. Enable Realtime
- * alter publication supabase_realtime add table projects, tasks, documents;
+ * 4. ROW LEVEL SECURITY (RLS) - ESSENTIAL FOR PRODUCTION:
+ *    -- Enable RLS
+ *    alter table projects enable row level security;
+ *    alter table tasks enable row level security;
+ *    alter table documents enable row level security;
+ *    
+ *    -- Create generic policies (Adjust for auth.uid() in real multi-user app)
+ *    create policy "Enable read access for all users" on projects for select using (true);
+ *    create policy "Enable insert access for all users" on projects for insert with check (true);
+ *    create policy "Enable update access for all users" on projects for update using (true);
+ *    create policy "Enable delete access for all users" on projects for delete using (true);
+ *    
+ *    -- Repeat policies for tasks and documents
  */
