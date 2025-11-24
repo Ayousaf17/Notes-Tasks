@@ -1,6 +1,6 @@
 {
-  "name": "Nexus Workspace",
-  "description": "A unified workspace blending documents, tasks, and AI intelligence with a Google Workspace-like feel.",
+  "name": "Aasani OS",
+  "description": "A self-organizing workspace operating system powered by AI.",
   "requestFramePermissions": [
     "microphone"
   ]

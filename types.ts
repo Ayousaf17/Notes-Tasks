@@ -4,8 +4,17 @@ export enum ViewMode {
   CALENDAR = 'CALENDAR',
 }
 
+export interface Project {
+  id: string;
+  title: string;
+  icon?: string; // e.g. "🚀"
+  description?: string;
+  createdAt: Date;
+}
+
 export interface Document {
   id: string;
+  projectId: string; // Relational Link
   title: string;
   content: string;
   updatedAt: Date;
@@ -26,6 +35,7 @@ export enum TaskPriority {
 
 export interface Task {
   id: string;
+  projectId: string; // Relational Link
   title: string;
   description?: string;
   status: TaskStatus;
@@ -58,4 +68,12 @@ export interface ProjectPlan {
 export interface UserContext {
   googleConnected: boolean;
   userName: string;
+}
+
+export interface SearchResult {
+  id: string;
+  title: string;
+  type: 'document' | 'task' | 'command' | 'project';
+  subtitle?: string;
+  action?: () => void;
 }

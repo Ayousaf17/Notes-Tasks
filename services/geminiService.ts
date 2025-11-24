@@ -21,7 +21,7 @@ export const geminiService = {
             parts: h.parts
         })),
         config: {
-          systemInstruction: "You are Nexus, a minimalist, highly intelligent project architect. You are concise, precise, and helpful.",
+          systemInstruction: "You are Aasani, the AI system core for Aasani OS. You are an intelligent operating partner. You help organize projects, simplify workflows, and connect information. You are concise, proactive, and structured.",
         }
       });
 
@@ -53,6 +53,30 @@ export const geminiService = {
       console.error("Gemini Chat Error:", error);
       return "Sorry, I encountered an error processing your request.";
     }
+  },
+
+  /**
+   * Queries the entire workspace context
+   */
+  async queryWorkspace(query: string, contextSummary: string): Promise<string> {
+      if (!apiKey) return "Error: No API Key.";
+
+      try {
+          const response = await ai.models.generateContent({
+              model: MODEL_NAME,
+              contents: `You are the Aasani OS Intelligence.
+              User Query: "${query}"
+              
+              Workspace Context (All Projects, Documents & Tasks):
+              ${contextSummary}
+              
+              Answer the user's question based strictly on the provided workspace context. If the information isn't there, say so. Be concise.`
+          });
+          return response.text || "No answer found.";
+      } catch (error) {
+          console.error("Gemini Workspace Query Error:", error);
+          return "Error querying workspace.";
+      }
   },
 
   /**
@@ -179,8 +203,8 @@ export const geminiService = {
     try {
       const response = await ai.models.generateContent({
         model: MODEL_NAME,
-        contents: `You are a proactive Project Manager AI. 
-        Based on the provided Context (which may include document text and recent chat history), suggest 3-5 logical, actionable next steps or tasks.
+        contents: `You are a proactive Project Manager AI for Aasani OS. 
+        Based on the provided Context (which may include document text and recent chat history), suggest 3-5 logical, actionable next steps or tasks for this project.
         
         Context:
         "${context.substring(0, 15000)}"

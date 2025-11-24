@@ -1,12 +1,15 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Document, Task, TaskPriority } from '../types';
-import { Wand2, ListChecks, RefreshCw, X, Check, User, Flag, AlignLeft, Tag as TagIcon, Sparkles, MoreHorizontal, Type, Scissors, SpellCheck, ChevronRight, Hash, Table as TableIcon } from 'lucide-react';
+import { Wand2, ListChecks, RefreshCw, X, Check, User, Flag, AlignLeft, Tag as TagIcon, Sparkles, MoreHorizontal, Type, Scissors, SpellCheck, ChevronRight, Hash, Table as TableIcon, Link as LinkIcon, Eye, Edit3, FileText } from 'lucide-react';
 import { geminiService } from '../services/geminiService';
 
 interface DocumentEditorProps {
   document: Document;
+  allDocuments?: Document[]; // Passed for wiki linking
+  allTasks?: Task[]; // Passed for wiki linking
   onUpdate: (updatedDoc: Document) => void;
   onExtractTasks: (tasks: Partial<Task>[]) => void;
+  onNavigate?: (type: 'document' | 'task', id: string) => void;
 }
 
 // Helper to get caret coordinates for popup positioning
@@ -43,11 +46,19 @@ const getCaretCoordinates = (element: HTMLTextAreaElement, position: number) => 
     };
 };
 
-export const DocumentEditor: React.FC<DocumentEditorProps> = ({ document: doc, onUpdate, onExtractTasks }) => {
+export const DocumentEditor: React.FC<DocumentEditorProps> = ({ 
+    document: doc, 
+    allDocuments = [],
+    allTasks = [],
+    onUpdate, 
+    onExtractTasks,
+    onNavigate
+}) => {
   // --- Core State ---
   const [isGenerating, setIsGenerating] = useState(false);
   const [summary, setSummary] = useState<string | null>(null);
   const [isSummarizing, setIsSummarizing] = useState(false);
+  const [isReadMode, setIsReadMode] = useState(false); // NEW: Toggle between Edit/View
   
   // --- Task Extraction State ---
   const [pendingTasks, setPendingTasks] = useState<Partial<Task>[]>([]);
@@ -62,6 +73,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({ document: doc, o
   // --- "Nexus" Editor State ---
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [slashMenu, setSlashMenu] = useState<{ x: number, y: number, query: string } | null>(null);
+  const [wikiMenu, setWikiMenu] = useState<{ x: number, y: number, query: string } | null>(null); // NEW: Wiki Links
   const [hoverMenu, setHoverMenu] = useState<{ x: number, y: number, text: string, range: [number, number] } | null>(null);
   const [ghostSuggestion, setGhostSuggestion] = useState<{ text: string, x: number, y: number } | null>(null);
   const [isTyping, setIsTyping] = useState(false);
@@ -72,16 +84,16 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({ document: doc, o
 
   // Auto-resize textarea
   useEffect(() => {
-    if (textareaRef.current) {
+    if (textareaRef.current && !isReadMode) {
         textareaRef.current.style.height = 'auto';
         textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px';
     }
-  }, [doc.content]);
+  }, [doc.content, isReadMode]);
 
   // Ghost Autocomplete Logic
   useEffect(() => {
     const timer = setTimeout(async () => {
-        if (!isTyping && doc.content.length > 50 && !slashMenu && !showDraftInput && !hoverMenu && textareaRef.current) {
+        if (!isTyping && !isReadMode && doc.content.length > 50 && !slashMenu && !wikiMenu && !showDraftInput && !hoverMenu && textareaRef.current) {
             const { selectionStart, selectionEnd } = textareaRef.current;
             if (selectionStart === selectionEnd && selectionStart === doc.content.length) {
                 // Only suggest at end of doc for now to be safe, or end of paragraph
@@ -96,7 +108,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({ document: doc, o
     }, 2000); // 2s pause triggers ghost
 
     return () => clearTimeout(timer);
-  }, [doc.content, isTyping, slashMenu, showDraftInput, hoverMenu]);
+  }, [doc.content, isTyping, slashMenu, wikiMenu, showDraftInput, hoverMenu, isReadMode]);
 
   // --- Handlers ---
 
@@ -113,26 +125,41 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({ document: doc, o
 
   const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newVal = e.target.value;
-    
-    // Slash Command Detection
     const { selectionStart } = e.target;
-    // Check if user just typed '/' at start of line or after space
+    
+    // 1. Slash Command Detection
     if (newVal[selectionStart - 1] === '/') {
-        // Simple check: is it preceded by newline or space?
         if (selectionStart === 1 || /[\n\s]/.test(newVal[selectionStart - 2])) {
             const coords = getCaretCoordinates(e.target, selectionStart);
             setSlashMenu({ x: coords.left, y: coords.top + 24, query: '' });
+            setWikiMenu(null);
         }
-    } else if (slashMenu) {
-        // Check if we should close slash menu (space or backspace handled naturally)
+    } 
+    // 2. Wiki Link Detection ([[)
+    else if (newVal.substring(selectionStart - 2, selectionStart) === '[[') {
+        const coords = getCaretCoordinates(e.target, selectionStart);
+        setWikiMenu({ x: coords.left, y: coords.top + 24, query: '' });
+        setSlashMenu(null);
+    }
+    // 3. Update Active Menus
+    else if (slashMenu) {
         const lineStart = newVal.lastIndexOf('\n', selectionStart - 1) + 1;
         const currentLine = newVal.substring(lineStart, selectionStart);
         if (!currentLine.includes('/')) {
             setSlashMenu(null);
         } else {
-            // Update query
             const slashIndex = currentLine.indexOf('/');
             setSlashMenu(prev => prev ? { ...prev, query: currentLine.substring(slashIndex + 1) } : null);
+        }
+    }
+    else if (wikiMenu) {
+        // Find last occurrence of [[ before cursor
+        const lastOpen = newVal.lastIndexOf('[[', selectionStart);
+        if (lastOpen === -1 || (selectionStart - lastOpen > 30)) { // Cancel if too far or gone
+            setWikiMenu(null);
+        } else {
+            const query = newVal.substring(lastOpen + 2, selectionStart);
+            setWikiMenu(prev => prev ? { ...prev, query } : null);
         }
     }
 
@@ -183,10 +210,30 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({ document: doc, o
           setGhostSuggestion(null);
       }
       
-      if (slashMenu && (e.key === 'Enter' || e.key === 'Escape')) {
-           // handled in menu or here to close
-           if (e.key === 'Escape') setSlashMenu(null);
+      if ((slashMenu || wikiMenu) && (e.key === 'Enter' || e.key === 'Escape' || e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+           // Allow menu components to handle arrows/enter usually, but here we might need to trap
+           if (e.key === 'Escape') {
+               setSlashMenu(null);
+               setWikiMenu(null);
+           }
       }
+  };
+
+  // --- Link Insertion ---
+  const insertWikiLink = (item: { title: string, id: string, type: 'document' | 'task' }) => {
+      setWikiMenu(null);
+      if (!textareaRef.current) return;
+      
+      const { selectionStart, value } = textareaRef.current;
+      const lastOpen = value.lastIndexOf('[[', selectionStart);
+      
+      // Create Markdown Link: [Title](nexus://type/id)
+      const linkText = `[${item.title}](nexus://${item.type}/${item.id})`;
+      
+      const newValue = value.substring(0, lastOpen) + linkText + value.substring(selectionStart);
+      handleUpdate({ ...doc, content: newValue });
+      
+      // Focus back logic would go here
   };
 
   // --- AI Actions ---
@@ -266,20 +313,15 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({ document: doc, o
       // Update doc temporarily without slash
       handleUpdate({ ...doc, content: cleanValue });
       
-      // Need to reset cursor position logic after state update, but for now we execute action
-      
       if (cmd === 'draft') {
-          // Open custom prompt input at slash location
           const coords = getCaretCoordinates(textareaRef.current, slashIndex);
           setShowDraftInput({ x: coords.left, y: coords.top + 20 });
       } else if (cmd === 'continue') {
           setIsGenerating(true);
           const continuation = await geminiService.continueWriting(cleanValue);
-          insertTextAtCursor(continuation, [slashIndex, slashIndex]); // Insert at the slash location
+          insertTextAtCursor(continuation, [slashIndex, slashIndex]); 
           setIsGenerating(false);
       } else if (cmd === 'list') {
-          // Heuristic: Convert last paragraph to list
-          // For simplicity, just insert a bullet point
           insertTextAtCursor("- ", [slashIndex, slashIndex]);
       } else if (cmd === 'task') {
           insertTextAtCursor("- [ ] ", [slashIndex, slashIndex]);
@@ -293,9 +335,6 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({ document: doc, o
       setShowDraftInput(null);
       setIsGenerating(true);
       const content = await geminiService.generateDocumentContent(draftPrompt, doc.content);
-      // Insert where slash was? We lost the exact position if we didn't track it, 
-      // but insertTextAtCursor uses current selection which might be ok or end.
-      // Better: Append or insert at cursor.
       insertTextAtCursor(content);
       setIsGenerating(false);
       setDraftPrompt('');
@@ -326,15 +365,6 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({ document: doc, o
     setIsSuggestingTags(false);
   };
 
-  // --- Slash Commands List ---
-  const slashCommands = [
-      { id: 'continue', label: 'Continue writing', icon: Sparkles, desc: 'Let AI write the next paragraph' },
-      { id: 'draft', label: 'Draft with prompt', icon: Wand2, desc: 'Give custom instructions' },
-      { id: 'task', label: 'Task item', icon: Check, desc: 'Insert a checkbox' },
-      { id: 'list', label: 'Bullet list', icon: ListChecks, desc: 'Start a bulleted list' },
-      { id: 'table', label: 'Table', icon: TableIcon, desc: 'Insert a table' },
-  ].filter(c => !slashMenu?.query || c.id.includes(slashMenu.query.toLowerCase()) || c.label.toLowerCase().includes(slashMenu.query.toLowerCase()));
-
   const handleConfirmTasks = () => {
     const tasksToAdd = pendingTasks.filter((_, i) => selectedTaskIndices.has(i));
     onExtractTasks(tasksToAdd);
@@ -362,12 +392,57 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({ document: doc, o
       }
   };
 
+  // --- Render Parsed Markdown for Read Mode ---
+  const renderMarkdown = (text: string) => {
+    // Very basic parser to handle links and newlines
+    const lines = text.split('\n');
+    return lines.map((line, i) => {
+        // Replace links
+        const linkRegex = /\[([^\]]+)\]\((nexus:\/\/[^\)]+)\)/g;
+        const parts = [];
+        let lastIndex = 0;
+        let match;
+        
+        while ((match = linkRegex.exec(line)) !== null) {
+            if (match.index > lastIndex) {
+                parts.push(line.substring(lastIndex, match.index));
+            }
+            const title = match[1];
+            const href = match[2];
+            const [_, type, id] = href.match(/nexus:\/\/([^\/]+)\/(.+)/) || [];
+            
+            parts.push(
+                <span 
+                    key={match.index} 
+                    onClick={(e) => {
+                        e.preventDefault();
+                        if(onNavigate && type && id) onNavigate(type as any, id);
+                    }}
+                    className="text-blue-600 underline cursor-pointer hover:text-blue-800 bg-blue-50 px-1 rounded"
+                >
+                    {title}
+                </span>
+            );
+            lastIndex = match.index + match[0].length;
+        }
+        if (lastIndex < line.length) {
+            parts.push(line.substring(lastIndex));
+        }
+
+        return (
+            <div key={i} className="min-h-[1.5em]">
+                {parts.length > 0 ? parts : line}
+            </div>
+        );
+    });
+  };
+
   return (
     <div className="flex-1 h-full overflow-y-auto bg-white relative font-sans">
       <div className="max-w-4xl mx-auto px-12 py-16 min-h-[calc(100vh-4rem)] relative">
         
         {/* Top Metadata Toolbar */}
-        <div className="group mb-4 flex items-center justify-between opacity-0 hover:opacity-100 transition-opacity duration-300">
+        <div className="group mb-4 flex items-center justify-between">
            <div className="flex space-x-2">
              {doc.updatedAt && (
                <span className="text-[10px] uppercase tracking-widest text-gray-300">
@@ -375,7 +450,12 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({ document: doc, o
                </span>
              )}
            </div>
-           <div className="flex items-center space-x-2">
+           <div className="flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+              <button onClick={() => setIsReadMode(!isReadMode)} className={`flex items-center space-x-1.5 px-2 py-1 rounded text-xs font-medium transition-colors ${isReadMode ? 'bg-gray-100 text-black' : 'text-gray-400 hover:text-gray-900'}`}>
+                {isReadMode ? <Edit3 className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                <span>{isReadMode ? 'Edit' : 'Read'}</span>
+              </button>
+              <div className="w-[1px] h-3 bg-gray-200 mx-1"></div>
               <button onClick={handleSummarize} disabled={isSummarizing} className="flex items-center space-x-1.5 px-2 py-1 rounded text-xs font-medium text-gray-400 hover:text-gray-900 hover:bg-gray-50 transition-colors">
                 {isSummarizing ? <RefreshCw className="w-3 h-3 animate-spin" /> : <AlignLeft className="w-3 h-3" />}
                 <span>Summarize</span>
@@ -392,53 +472,67 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({ document: doc, o
         </div>
 
         {/* Title */}
-        <input
-          type="text"
-          value={doc.title}
-          onChange={handleTitleChange}
-          placeholder="Untitled"
-          className="w-full text-4xl font-bold text-gray-900 placeholder-gray-200 border-none focus:ring-0 focus:outline-none bg-transparent mb-4 p-0"
-        />
+        {isReadMode ? (
+            <h1 className="w-full text-4xl font-bold text-gray-900 mb-4">{doc.title || 'Untitled'}</h1>
+        ) : (
+            <input
+                type="text"
+                value={doc.title}
+                onChange={handleTitleChange}
+                placeholder="Untitled"
+                className="w-full text-4xl font-bold text-gray-900 placeholder-gray-200 border-none focus:ring-0 focus:outline-none bg-transparent mb-4 p-0"
+            />
+        )}
 
         {/* Tags */}
         <div className="flex flex-wrap items-center gap-2 mb-8 animate-in fade-in duration-300">
             {doc.tags?.map(tag => (
                 <div key={tag} className="flex items-center gap-1 px-2 py-1 rounded-md bg-gray-100 text-xs text-gray-600 group hover:bg-gray-200 transition-colors">
                     <span className="font-medium">#{tag}</span>
-                    <button onClick={() => removeTag(tag)} className="text-gray-400 hover:text-gray-800 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <X className="w-3 h-3" />
-                    </button>
+                    {!isReadMode && (
+                        <button onClick={() => removeTag(tag)} className="text-gray-400 hover:text-gray-800 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <X className="w-3 h-3" />
+                        </button>
+                    )}
                 </div>
             ))}
-            <div className="flex items-center gap-2">
-                <div className="relative flex items-center">
-                    <TagIcon className="w-3.5 h-3.5 text-gray-400 absolute left-2" />
-                    <input 
-                        type="text"
-                        value={tagInput}
-                        onChange={(e) => setTagInput(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === 'Enter') addTag(tagInput); }}
-                        placeholder="Add tag..."
-                        className="pl-7 pr-2 py-1 bg-transparent text-xs border-none focus:ring-0 placeholder-gray-300 w-24 focus:w-32 transition-all"
-                    />
+            {!isReadMode && (
+                <div className="flex items-center gap-2">
+                    <div className="relative flex items-center">
+                        <TagIcon className="w-3.5 h-3.5 text-gray-400 absolute left-2" />
+                        <input 
+                            type="text"
+                            value={tagInput}
+                            onChange={(e) => setTagInput(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') addTag(tagInput); }}
+                            placeholder="Add tag..."
+                            className="pl-7 pr-2 py-1 bg-transparent text-xs border-none focus:ring-0 placeholder-gray-300 w-24 focus:w-32 transition-all"
+                        />
+                    </div>
                 </div>
-            </div>
+            )}
         </div>
 
         {/* --- MAIN WRITING SURFACE --- */}
         <div className="relative">
-            <textarea
-                ref={textareaRef}
-                value={doc.content}
-                onChange={handleContentChange}
-                onSelect={handleSelect}
-                onKeyDown={handleKeyDown}
-                placeholder="Type '/' for commands, or just start writing..."
-                className="w-full min-h-[60vh] text-lg leading-relaxed text-gray-800 border-none focus:ring-0 focus:outline-none bg-transparent resize-none p-0 placeholder-gray-200 font-serif"
-            />
+            {isReadMode ? (
+                <div className="w-full min-h-[60vh] text-lg leading-relaxed text-gray-800 font-serif whitespace-pre-wrap">
+                    {renderMarkdown(doc.content)}
+                </div>
+            ) : (
+                <textarea
+                    ref={textareaRef}
+                    value={doc.content}
+                    onChange={handleContentChange}
+                    onSelect={handleSelect}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Type '/' for commands, '[[ to link', or just start writing..."
+                    className="w-full min-h-[60vh] text-lg leading-relaxed text-gray-800 border-none focus:ring-0 focus:outline-none bg-transparent resize-none p-0 placeholder-gray-200 font-serif"
+                />
+            )}
             
             {/* Ghost Suggestion Tooltip */}
-            {ghostSuggestion && (
+            {ghostSuggestion && !isReadMode && (
                 <div 
                     className="absolute z-20 pointer-events-none animate-in fade-in zoom-in-95 duration-300"
                     style={{ left: ghostSuggestion.x, top: ghostSuggestion.y }}
@@ -460,7 +554,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({ document: doc, o
       {/* --- FLOATING UI ELEMENTS --- */}
 
       {/* 1. Slash Command Menu */}
-      {slashMenu && (
+      {slashMenu && !isReadMode && (
           <div 
               className="fixed z-50 w-64 bg-white rounded-lg shadow-xl border border-gray-100 overflow-hidden animate-in fade-in zoom-in-95 duration-100"
               style={{ 
@@ -472,10 +566,15 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({ document: doc, o
                   Basic Blocks
               </div>
               <div className="max-h-60 overflow-y-auto p-1">
-                  {slashCommands.length === 0 ? (
-                      <div className="p-2 text-xs text-gray-400 text-center">No commands found</div>
-                  ) : (
-                      slashCommands.map((cmd, i) => (
+                  {[
+                      { id: 'continue', label: 'Continue writing', icon: Sparkles, desc: 'Let AI write the next paragraph' },
+                      { id: 'draft', label: 'Draft with prompt', icon: Wand2, desc: 'Give custom instructions' },
+                      { id: 'task', label: 'Task item', icon: Check, desc: 'Insert a checkbox' },
+                      { id: 'list', label: 'Bullet list', icon: ListChecks, desc: 'Start a bulleted list' },
+                      { id: 'table', label: 'Table', icon: TableIcon, desc: 'Insert a table' },
+                  ]
+                  .filter(c => !slashMenu?.query || c.id.includes(slashMenu.query.toLowerCase()) || c.label.toLowerCase().includes(slashMenu.query.toLowerCase()))
+                  .map((cmd, i) => (
                           <button
                               key={cmd.id}
                               onClick={() => executeSlashCommand(cmd.id)}
@@ -490,13 +589,55 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({ document: doc, o
                               </div>
                           </button>
                       ))
+                  }
+              </div>
+          </div>
+      )}
+
+      {/* 2. Wiki Link Menu */}
+      {wikiMenu && !isReadMode && (
+          <div 
+              className="fixed z-50 w-64 bg-white rounded-lg shadow-xl border border-gray-100 overflow-hidden animate-in fade-in zoom-in-95 duration-100"
+              style={{ 
+                  left: textareaRef.current ? textareaRef.current.getBoundingClientRect().left + wikiMenu.x : 0, 
+                  top: textareaRef.current ? textareaRef.current.getBoundingClientRect().top + wikiMenu.y : 0 
+              }}
+          >
+              <div className="bg-gray-50 px-3 py-2 border-b border-gray-100 text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                  <LinkIcon className="w-3 h-3" /> Link to...
+              </div>
+              <div className="max-h-60 overflow-y-auto p-1">
+                  {[
+                      ...allDocuments.filter(d => d.id !== doc.id).map(d => ({ title: d.title || 'Untitled', id: d.id, type: 'document' as const })),
+                      ...allTasks.map(t => ({ title: t.title, id: t.id, type: 'task' as const }))
+                  ]
+                  .filter(item => !wikiMenu.query || item.title.toLowerCase().includes(wikiMenu.query.toLowerCase()))
+                  .map((item, i) => (
+                      <button
+                          key={item.id}
+                          onClick={() => insertWikiLink(item)}
+                          className={`w-full text-left px-3 py-2 rounded-md flex items-center gap-3 hover:bg-gray-100 transition-colors ${i === 0 ? 'bg-gray-50' : ''}`}
+                      >
+                          <div className="w-6 h-6 rounded border bg-white flex items-center justify-center text-gray-500 shadow-sm">
+                              {item.type === 'document' ? <FileText className="w-3 h-3" /> : <Check className="w-3 h-3" />}
+                          </div>
+                          <div className="truncate">
+                              <p className="text-sm font-medium text-gray-700 truncate">{item.title}</p>
+                              <p className="text-[10px] text-gray-400 capitalize">{item.type}</p>
+                          </div>
+                      </button>
+                  ))}
+                  {wikiMenu.query && (
+                      <div className="p-2 text-xs text-center text-gray-400">
+                          Press Enter to link
+                      </div>
                   )}
               </div>
           </div>
       )}
 
-      {/* 2. Draft Input (triggered by /draft) */}
-      {showDraftInput && (
+      {/* 3. Draft Input (triggered by /draft) */}
+      {showDraftInput && !isReadMode && (
           <div 
             className="fixed z-50 w-80 bg-white rounded-lg shadow-xl border border-gray-200 p-3 animate-in fade-in slide-in-from-top-2"
             style={{ 
@@ -523,8 +664,8 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({ document: doc, o
           </div>
       )}
 
-      {/* 3. "Magic" Hover Menu */}
-      {hoverMenu && (
+      {/* 4. "Magic" Hover Menu */}
+      {hoverMenu && !isReadMode && (
           <div 
               className="fixed z-50 bg-black text-white rounded shadow-2xl flex items-center overflow-hidden animate-in fade-in zoom-in-95 duration-200"
               style={{ 
