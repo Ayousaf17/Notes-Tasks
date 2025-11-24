@@ -16,6 +16,7 @@ import { IntegrationsModal } from './components/IntegrationsModal';
 import { ViewMode, Document, Task, TaskStatus, ProjectPlan, TaskPriority, ChatMessage, Project, InboxItem, InboxAction, AgentRole, Integration } from './types';
 import { Sparkles, Command, Plus, Menu, Cloud, MessageSquare } from 'lucide-react';
 import { geminiService } from './services/geminiService';
+import { dataService } from './services/dataService';
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewMode>(ViewMode.HOME); 
@@ -87,6 +88,29 @@ const App: React.FC = () => {
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
+  // Load Data from Supabase on Mount
+  useEffect(() => {
+    const loadData = async () => {
+        try {
+            const { projects: dbProjects, tasks: dbTasks, documents: dbDocs } = await dataService.fetchAll();
+            
+            if (dbProjects.length > 0) {
+                setProjects(dbProjects);
+                setTasks(dbTasks);
+                setDocuments(dbDocs);
+                setActiveProjectId(dbProjects[0].id);
+                if (dbDocs.length > 0) setActiveDocId(dbDocs[0].id);
+            } else {
+                // If DB is empty, keep the mock data but try to save it? 
+                // For now, we just keep mock data in memory if DB fails or is empty.
+            }
+        } catch (e) {
+            console.error("Failed to load data from Supabase", e);
+        }
+    };
+    loadData();
+  }, []);
+
   useEffect(() => {
       const handleKeyDown = (e: KeyboardEvent) => {
           if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
@@ -119,11 +143,11 @@ const App: React.FC = () => {
       }
   }, [activeProjectId, activeDocId, documents]);
 
-  const handleCreateProject = () => {
+  const handleCreateProject = async () => {
       const name = prompt("Enter Project Name:");
       if (name) {
           const newProject: Project = {
-              id: Date.now().toString(),
+              id: crypto.randomUUID(),
               title: name,
               icon: '📁',
               createdAt: new Date()
@@ -132,12 +156,15 @@ const App: React.FC = () => {
           setActiveProjectId(newProject.id);
           setActiveDocId(null);
           setCurrentView(ViewMode.DOCUMENTS);
+          
+          // Sync to DB
+          await dataService.createProject(newProject);
       }
   };
 
-  const handleCreateDocument = () => {
+  const handleCreateDocument = async () => {
     const newDoc: Document = {
-      id: Date.now().toString(),
+      id: crypto.randomUUID(),
       projectId: activeProjectId,
       title: '',
       content: '',
@@ -147,15 +174,20 @@ const App: React.FC = () => {
     setDocuments(prev => [...prev, newDoc]);
     setActiveDocId(newDoc.id);
     setCurrentView(ViewMode.DOCUMENTS);
+    
+    // Sync to DB
+    await dataService.createDocument(newDoc);
   };
 
   const handleUpdateDocument = (updatedDoc: Document) => {
     setDocuments(prev => prev.map(doc => doc.id === updatedDoc.id ? updatedDoc : doc));
+    // Debounced save or direct save? Direct for now.
+    dataService.updateDocument(updatedDoc.id, updatedDoc);
   };
 
   const handleExtractTasks = (newTasks: Partial<Task>[]): Task[] => {
     const finalTasks: Task[] = newTasks.map(t => ({
-      id: Date.now().toString() + Math.random(),
+      id: crypto.randomUUID(),
       projectId: activeProjectId,
       title: t.title || 'Untitled Task',
       status: t.status || TaskStatus.TODO,
@@ -168,16 +200,22 @@ const App: React.FC = () => {
       updatedAt: new Date()
     }));
     setTasks(prev => [...prev, ...finalTasks]);
+    
+    // Sync
+    finalTasks.forEach(t => dataService.createTask(t));
+    
     return finalTasks;
   };
 
   const updateTask = (id: string, updates: Partial<Task>) => {
       setTasks(prev => prev.map(t => t.id === id ? { ...t, ...updates, updatedAt: new Date() } : t));
+      dataService.updateTask(id, updates);
   };
 
   const handleDeleteTask = (id: string) => {
       setTasks(prev => prev.filter(t => t.id !== id));
       if (selectedTaskId === id) setSelectedTaskId(null);
+      dataService.deleteTask(id);
   };
 
   const handleUpdateTaskStatus = (id: string, status: TaskStatus) => updateTask(id, { status });
@@ -205,7 +243,7 @@ const App: React.FC = () => {
       if (!task || task.linkedDocumentId) return;
       const newContent = await geminiService.expandTaskToContent(task.title, task.description);
       const newDoc: Document = {
-          id: Date.now().toString(),
+          id: crypto.randomUUID(),
           projectId: task.projectId,
           title: task.title,
           content: newContent,
@@ -214,6 +252,10 @@ const App: React.FC = () => {
       };
       setDocuments(prev => [...prev, newDoc]);
       updateTask(taskId, { linkedDocumentId: newDoc.id });
+      
+      // Sync
+      await dataService.createDocument(newDoc);
+      
       setActiveProjectId(task.projectId);
       setActiveDocId(newDoc.id);
       setCurrentView(ViewMode.DOCUMENTS);
@@ -221,15 +263,16 @@ const App: React.FC = () => {
 
   const handleProjectPlanCreated = (plan: ProjectPlan) => {
     const newProject: Project = {
-        id: Date.now().toString(),
+        id: crypto.randomUUID(),
         title: plan.projectTitle || 'New AI Project',
         icon: '🚀',
         createdAt: new Date()
     };
     setProjects(prev => [...prev, newProject]);
+    dataService.createProject(newProject);
     
     const newDoc: Document = {
-        id: Date.now().toString(),
+        id: crypto.randomUUID(),
         projectId: newProject.id,
         title: 'Project Overview & Scope',
         content: plan.overviewContent,
@@ -237,9 +280,10 @@ const App: React.FC = () => {
         tags: ['Project Plan', 'Proposal']
     };
     setDocuments(prev => [...prev, newDoc]);
+    dataService.createDocument(newDoc);
     
     const newTasks: Task[] = plan.tasks.map(t => ({
-        id: Date.now().toString() + Math.random(),
+        id: crypto.randomUUID(),
         projectId: newProject.id,
         title: t.title || 'New Task',
         description: t.description,
@@ -252,6 +296,7 @@ const App: React.FC = () => {
         updatedAt: new Date()
     }));
     setTasks(prev => [...prev, ...newTasks]);
+    newTasks.forEach(t => dataService.createTask(t));
 
     setActiveProjectId(newProject.id);
     setActiveDocId(newDoc.id);
@@ -260,15 +305,12 @@ const App: React.FC = () => {
 
   // --- Connection Handler ---
   const handleToggleIntegration = async (id: string, apiKey?: string) => {
-      // 1. Toggle State
-      setIntegrations(prev => prev.map(i => i.id === id ? { ...i, connected: !i.connected } : i));
+      setIntegrations(prev => prev.map(i => i.id === id ? { ...i, connected: !i.connected, config: apiKey ? { apiKey } : i.config } : i));
       
-      // 2. Logic Injection based on ID
-      const now = new Date();
       const isConnecting = !integrations.find(i => i.id === id)?.connected;
 
       if (isConnecting && id === 'google') {
-          // INJECT: Mock Google Calendar Events
+          // INJECT: Mock Google Calendar Events (Not saved to DB intentionally)
           const events: Task[] = [
               { id: 'g1', projectId: 'p1', title: 'Client Meeting: Sync', status: TaskStatus.TODO, priority: TaskPriority.MEDIUM, dueDate: now, assignee: 'Google', createdAt: now, updatedAt: now, externalType: 'GOOGLE_CALENDAR' },
               { id: 'g2', projectId: 'p1', title: 'Team Standup', status: TaskStatus.TODO, priority: TaskPriority.LOW, dueDate: new Date(now.getTime() + 86400000), assignee: 'Google', createdAt: now, updatedAt: now, externalType: 'GOOGLE_CALENDAR' }
@@ -276,7 +318,6 @@ const App: React.FC = () => {
           setTasks(prev => [...prev, ...events]);
       } 
       else if (!isConnecting && id === 'google') {
-          // REMOVE: Mock Events
           setTasks(prev => prev.filter(t => t.externalType !== 'GOOGLE_CALENDAR'));
       }
   };
@@ -294,7 +335,6 @@ const App: React.FC = () => {
           if (task) {
               setActiveProjectId(task.projectId);
               setCurrentView(ViewMode.BOARD);
-              // Select it
               setSelectedTaskId(id);
           }
       }
@@ -303,7 +343,7 @@ const App: React.FC = () => {
 
   const handleAddInboxItem = (content: string, type: 'text' | 'audio' | 'file', fileName?: string) => {
       const newItem: InboxItem = {
-          id: Date.now().toString(),
+          id: crypto.randomUUID(),
           content,
           type,
           fileName,
@@ -320,7 +360,7 @@ const App: React.FC = () => {
   const handleProcessInboxItem = (itemId: string, action: InboxAction) => {
       if (action.actionType === 'create_task') {
           const newTask: Task = {
-              id: Date.now().toString(),
+              id: crypto.randomUUID(),
               projectId: action.targetProjectId,
               title: action.data.title,
               description: action.data.description || '',
@@ -333,9 +373,10 @@ const App: React.FC = () => {
               updatedAt: new Date()
           };
           setTasks(prev => [...prev, newTask]);
+          dataService.createTask(newTask);
       } else if (action.actionType === 'create_document') {
            const newDoc: Document = {
-              id: Date.now().toString(),
+              id: crypto.randomUUID(),
               projectId: action.targetProjectId,
               title: action.data.title,
               content: action.data.content || '# ' + action.data.title,
@@ -343,6 +384,7 @@ const App: React.FC = () => {
               updatedAt: new Date()
            };
            setDocuments(prev => [...prev, newDoc]);
+           dataService.createDocument(newDoc);
       }
       setInboxItems(prev => prev.map(item => item.id === itemId ? { ...item, status: 'processed' } : item).filter(i => i.status !== 'processed'));
   };

@@ -10,41 +10,44 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 /**
  * DATABASE SETUP INSTRUCTIONS
  * 
- * To make the app work, go to your Supabase Dashboard -> SQL Editor 
- * and run this script to create the required tables:
+ * Go to Supabase Dashboard -> SQL Editor and run this script:
  * 
  * -- 1. Projects Table
- * create table projects (
- *   id uuid default gen_random_uuid() primary key,
+ * create table if not exists projects (
+ *   id text primary key,
  *   title text not null,
  *   icon text,
  *   created_at timestamp with time zone default timezone('utc'::text, now()) not null
  * );
  * 
  * -- 2. Tasks Table
- * create table tasks (
- *   id uuid default gen_random_uuid() primary key,
- *   project_id uuid references projects(id) on delete cascade,
+ * create table if not exists tasks (
+ *   id text primary key,
+ *   project_id text references projects(id) on delete cascade,
  *   title text not null,
  *   description text,
  *   status text default 'To Do',
  *   priority text default 'Medium',
  *   assignee text,
  *   due_date timestamp with time zone,
+ *   dependencies text[], 
+ *   linked_document_id text,
+ *   agent_status text,
+ *   agent_result jsonb,
  *   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
  *   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
  * );
  * 
  * -- 3. Documents Table
- * create table documents (
- *   id uuid default gen_random_uuid() primary key,
- *   project_id uuid references projects(id) on delete cascade,
+ * create table if not exists documents (
+ *   id text primary key,
+ *   project_id text references projects(id) on delete cascade,
  *   title text not null,
  *   content text,
  *   tags text[],
  *   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
  * );
  * 
- * -- 4. Enable Realtime (Optional but recommended)
+ * -- 4. Enable Realtime
  * alter publication supabase_realtime add table projects, tasks, documents;
  */
