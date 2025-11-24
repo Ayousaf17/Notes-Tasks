@@ -248,7 +248,7 @@ const App: React.FC = () => {
           if (task) {
               setActiveProjectId(task.projectId);
               setCurrentView(ViewMode.BOARD);
-              // Optionally select it too
+              // Select it
               setSelectedTaskId(id);
           }
       }

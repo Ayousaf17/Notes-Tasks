@@ -70,10 +70,20 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onSelectTask,
     setDraggedTaskId(taskId);
     e.dataTransfer.setData('taskId', taskId);
     e.dataTransfer.effectAllowed = 'move';
+    // Visual tweak
+    const el = e.currentTarget as HTMLElement;
+    el.style.opacity = '0.5';
   };
+  
+  const handleDragEnd = (e: React.DragEvent) => {
+      const el = e.currentTarget as HTMLElement;
+      el.style.opacity = '1';
+      setDraggedTaskId(null);
+      setDragOverDate(null);
+  }
 
   const handleDragOver = (e: React.DragEvent, day: number) => {
-    e.preventDefault();
+    e.preventDefault(); // Essential for allowing drop
     const dateStr = `${year}-${month}-${day}`;
     if (dragOverDate !== dateStr) {
         setDragOverDate(dateStr);
@@ -94,7 +104,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onSelectTask,
   return (
     <div className="flex-1 h-full flex flex-col bg-white overflow-hidden font-sans">
       {/* Header */}
-      <div className="flex items-center justify-between px-8 py-5 border-b border-gray-100">
+      <div className="flex items-center justify-between px-8 py-5 border-b border-gray-100 shrink-0">
         <div className="flex items-center gap-4">
             <h2 className="text-xl font-semibold text-gray-900">
                 {MONTHS[month]} <span className="text-gray-400 font-normal">{year}</span>
@@ -121,7 +131,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onSelectTask,
       </div>
 
       {/* Grid Header */}
-      <div className="grid grid-cols-7 border-b border-gray-100">
+      <div className="grid grid-cols-7 border-b border-gray-100 shrink-0">
         {DAYS.map(day => (
             <div key={day} className="py-2 text-center text-xs font-medium text-gray-400 uppercase tracking-wider">
                 {day}
@@ -130,10 +140,10 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onSelectTask,
       </div>
 
       {/* Grid Body */}
-      <div className="flex-1 grid grid-cols-7 auto-rows-fr bg-gray-50/30 overflow-y-auto">
+      <div className="flex-1 grid grid-cols-7 grid-rows-5 bg-gray-50/30 overflow-hidden">
         {/* Empty cells for start padding */}
         {Array.from({ length: firstDay }).map((_, i) => (
-            <div key={`empty-${i}`} className="border-b border-r border-gray-100 bg-gray-50/50 min-h-[140px]"></div>
+            <div key={`empty-${i}`} className="border-b border-r border-gray-100 bg-gray-50/50"></div>
         ))}
 
         {/* Days */}
@@ -148,9 +158,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onSelectTask,
                     key={day} 
                     onDragOver={(e) => handleDragOver(e, day)}
                     onDrop={(e) => handleDrop(e, day)}
-                    className={`group border-b border-r border-gray-100 p-2 min-h-[140px] transition-colors relative flex flex-col gap-1 
+                    className={`group border-b border-r border-gray-100 p-2 transition-all relative flex flex-col gap-1 overflow-hidden
                         ${isToday ? 'bg-white ring-1 ring-inset ring-blue-100 z-10' : ''}
-                        ${isDragOver ? 'bg-indigo-50/50' : 'hover:bg-white'}
+                        ${isDragOver ? 'bg-indigo-50/80 ring-2 ring-inset ring-indigo-200' : 'hover:bg-white'}
                     `}
                 >
                     <div className="flex justify-between items-start mb-1 pointer-events-none">
@@ -162,15 +172,16 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onSelectTask,
                         )}
                     </div>
 
-                    <div className="flex-1 flex flex-col gap-1 overflow-y-auto max-h-[120px] no-scrollbar">
+                    <div className="flex-1 flex flex-col gap-1 overflow-y-auto no-scrollbar">
                         {dayTasks.map(task => (
                             <div 
                                 key={task.id}
-                                draggable
+                                draggable="true"
                                 onDragStart={(e) => handleDragStart(e, task.id)}
+                                onDragEnd={handleDragEnd}
                                 onClick={(e) => { e.stopPropagation(); onSelectTask && onSelectTask(task.id); }}
                                 className={`
-                                    cursor-grab active:cursor-grabbing text-left px-2 py-1.5 rounded text-[10px] font-medium border truncate w-full transition-transform hover:scale-[1.02] shadow-sm 
+                                    cursor-pointer active:cursor-grabbing text-left px-2 py-1.5 rounded text-[10px] font-medium border truncate w-full transition-transform hover:scale-[1.02] shadow-sm 
                                     ${getPriorityColor(task.priority)} 
                                     ${task.status === TaskStatus.DONE ? 'opacity-50 line-through grayscale' : ''}
                                 `}
@@ -185,7 +196,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onSelectTask,
         })}
         
         {/* End padding to fill grid if needed */}
-        {Array.from({ length: (7 - ((daysInMonth + firstDay) % 7)) % 7 }).map((_, i) => (
+        {Array.from({ length: (35 - (daysInMonth + firstDay)) > 0 ? (35 - (daysInMonth + firstDay)) : (42 - (daysInMonth + firstDay)) }).map((_, i) => (
             <div key={`end-${i}`} className="border-b border-r border-gray-100 bg-gray-50/50"></div>
         ))}
       </div>

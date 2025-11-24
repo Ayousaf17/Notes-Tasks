@@ -179,12 +179,12 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="w-full md:w-96 bg-white border-l border-gray-100 flex flex-col shadow-2xl shadow-gray-200/50 absolute right-0 top-0 bottom-0 z-50 transition-transform">
+    <div className="w-full md:w-96 bg-white border-l border-gray-100 flex flex-col shadow-2xl shadow-gray-200/50 absolute right-0 top-0 bottom-0 z-50 transition-transform font-sans">
       {/* Header */}
       <div className="p-5 border-b border-gray-50 flex items-center justify-between bg-white">
         <div className="flex items-center space-x-2">
           <div className="w-2 h-2 bg-black rounded-full animate-pulse" />
-          <span className="font-medium text-gray-900 text-sm tracking-tight">Aasani</span>
+          <span className="font-semibold text-gray-900 text-sm tracking-tight">Assistant</span>
         </div>
         <button onClick={onClose} className="text-gray-400 hover:text-black transition-colors">
           <X className="w-4 h-4" />
@@ -209,10 +209,10 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                 )}
                 
                 {/* Text Bubble */}
-                <div className={`inline-block px-4 py-2 rounded-2xl text-sm leading-relaxed ${
+                <div className={`inline-block px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
                     msg.role === 'user' 
-                    ? 'bg-gray-100 text-gray-900 rounded-br-none' 
-                    : 'text-gray-600 bg-white border border-gray-100 rounded-bl-none'
+                    ? 'bg-black text-white rounded-br-none' 
+                    : 'text-gray-700 bg-gray-50 border border-gray-100 rounded-bl-none'
                 }`}>
                     {msg.text}
                 </div>
@@ -228,7 +228,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                 {isAnalysingPlan ? (
                    <>
                      <Sparkles className="w-3 h-3 animate-spin text-purple-500" />
-                     <span className="text-purple-500 font-medium">Analyzing content & extracting tasks...</span>
+                     <span className="text-purple-500 font-medium">Analyzing...</span>
                    </>
                 ) : (
                    <>
@@ -241,13 +241,14 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
         <div ref={bottomRef} />
       </div>
 
-      {/* Input Area */}
-      <div className="p-4 bg-white border-t border-gray-50 pb-6">
+      {/* Input Area (Pill Design) */}
+      <div className="p-4 bg-white pb-6 relative">
+        {/* Active Attachments Preview */}
         {attachments.length > 0 && (
-            <div className="flex space-x-2 mb-3 overflow-x-auto">
+            <div className="flex space-x-2 mb-3 overflow-x-auto px-1">
                 {attachments.map((att, idx) => (
-                    <div key={idx} className="relative group flex items-center space-x-2 bg-gray-50 px-3 py-2 rounded-lg border border-gray-100">
-                        {att.mimeType.startsWith('audio/') ? <Music className="w-4 h-4 text-gray-500" /> : <FileText className="w-4 h-4 text-gray-500" />}
+                    <div key={idx} className="relative group flex items-center space-x-2 bg-gray-50 px-3 py-2 rounded-lg border border-gray-100 shadow-sm">
+                        {att.mimeType.startsWith('audio/') ? <Music className="w-3 h-3 text-gray-500" /> : <FileText className="w-3 h-3 text-gray-500" />}
                         <span className="text-xs text-gray-600 truncate max-w-[120px]">{att.name || 'Attachment'}</span>
                         <button onClick={() => setAttachments(attachments.filter((_, i) => i !== idx))} className="ml-2 text-gray-400 hover:text-red-500">
                             <X className="w-3 h-3" />
@@ -257,13 +258,13 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
             </div>
         )}
 
-        <div className="bg-gray-50/80 rounded-full px-2 py-1.5 flex items-center gap-2 border border-transparent focus-within:border-gray-200 focus-within:bg-white transition-all shadow-sm">
+        <div className="bg-gray-100/80 rounded-full px-2 py-1.5 flex items-center gap-2 border border-transparent focus-within:bg-white focus-within:ring-2 focus-within:ring-black/5 focus-within:border-gray-200 transition-all shadow-sm">
             
             {/* Left Actions */}
-            <div className="flex items-center gap-1 pl-1">
+            <div className="flex items-center gap-0.5 pl-1">
                 <button 
                     onClick={() => fileInputRef.current?.click()}
-                    className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded-full transition-colors"
+                    className="p-2 text-gray-400 hover:text-black hover:bg-gray-200 rounded-full transition-colors"
                     title="Attach file"
                 >
                     <Paperclip className="w-4 h-4" />
@@ -272,7 +273,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
 
                 <button 
                     onClick={isRecording ? stopRecording : startRecording}
-                    className={`p-2 rounded-full transition-all ${isRecording ? 'bg-red-100 text-red-600 animate-pulse' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-200'}`}
+                    className={`p-2 rounded-full transition-all ${isRecording ? 'bg-red-500 text-white animate-pulse' : 'text-gray-400 hover:text-black hover:bg-gray-200'}`}
                     title={isRecording ? "Stop recording" : "Record voice note"}
                 >
                     <Mic className="w-4 h-4" />
@@ -291,16 +292,16 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                     }
                 }}
                 placeholder="Ask Aasani..."
-                className="flex-1 bg-transparent border-none focus:ring-0 text-sm py-2 px-1 placeholder-gray-400 text-gray-800"
+                className="flex-1 bg-transparent border-none focus:ring-0 text-sm py-2 px-1 placeholder-gray-400 text-gray-900"
             />
             
             {/* Send Button */}
             <button 
                 onClick={handleSend}
                 disabled={(!input.trim() && attachments.length === 0) || loading}
-                className="p-2 bg-gray-200 text-gray-500 rounded-full hover:bg-black hover:text-white disabled:opacity-30 disabled:hover:bg-gray-200 disabled:hover:text-gray-500 transition-colors"
+                className="p-2 bg-black text-white rounded-full hover:bg-gray-800 disabled:opacity-30 disabled:hover:bg-black transition-colors shadow-sm"
             >
-                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5 ml-0.5" />}
             </button>
         </div>
       </div>

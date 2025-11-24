@@ -149,9 +149,9 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-white font-sans">
+    <div className="flex-1 flex flex-col h-full bg-white font-sans overflow-hidden">
       {/* Header Controls */}
-      <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between shrink-0 bg-white sticky top-0 z-20">
+      <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between shrink-0 bg-white/90 backdrop-blur z-20 sticky top-0">
         <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 text-sm text-gray-500">
                 <Filter className="w-4 h-4 text-gray-400" />
@@ -168,7 +168,7 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
         </div>
 
         <div className="flex items-center gap-4">
-             <button onClick={handleSuggestTasks} disabled={isSuggesting} className="flex items-center gap-2 text-sm text-purple-600 hover:text-purple-800 disabled:opacity-50 transition-colors">
+             <button onClick={handleSuggestTasks} disabled={isSuggesting} className="flex items-center gap-2 text-sm text-purple-600 hover:text-purple-800 disabled:opacity-50 transition-colors font-medium">
                 {isSuggesting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
                 <span>Suggest Tasks</span>
             </button>
@@ -176,7 +176,7 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
       </div>
 
       {/* Board */}
-      <div className="flex-1 overflow-x-auto p-6 bg-gray-50/50">
+      <div className="flex-1 overflow-x-auto overflow-y-hidden p-6 bg-gray-50/50">
         <div className="flex gap-6 h-full min-w-max">
             {columns.map(col => {
                 const colTasks = filteredAndSortedTasks.filter(t => t.status === col.id);
@@ -190,13 +190,13 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
                         onDrop={(e) => handleDrop(e, col.id)}
                     >
                         {/* Column Header (Sticky) */}
-                        <div className="flex items-center justify-between px-1 py-3 mb-2 sticky top-0 z-10 bg-gray-50/95 backdrop-blur-sm rounded-b-lg">
-                            <h3 className="text-sm font-semibold text-gray-700">{col.label}</h3>
-                            <span className="text-xs font-medium text-gray-400">{colTasks.length}</span>
+                        <div className="flex items-center justify-between px-1 py-3 mb-2 sticky top-0 z-10 bg-gray-50/95 backdrop-blur-sm rounded-lg border border-transparent shadow-sm">
+                            <h3 className="text-sm font-semibold text-gray-700 pl-2">{col.label}</h3>
+                            <span className="text-xs font-medium text-gray-400 pr-2">{colTasks.length}</span>
                         </div>
                         
-                        {/* Task List */}
-                        <div className="flex-1 overflow-y-auto px-1 pb-4 space-y-3">
+                        {/* Task List (Scrollable) */}
+                        <div className="flex-1 overflow-y-auto px-1 pb-4 space-y-3 no-scrollbar">
                             {colTasks.map(task => {
                                 const blocked = isTaskBlocked(task);
                                 const isAgentWorking = task.agentStatus === 'working';
