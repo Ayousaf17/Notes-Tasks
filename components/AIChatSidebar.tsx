@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { ChatMessage, Attachment, ProjectPlan } from '../types';
 import { Send, X, Bot, Paperclip, Mic, Loader2, FileText, Sparkles, Music } from 'lucide-react';
@@ -183,7 +184,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="w-96 bg-white border-l border-gray-100 flex flex-col shadow-2xl shadow-gray-200/50 absolute right-0 top-0 bottom-0 z-50 transition-transform">
+    <div className="w-full md:w-96 bg-white border-l border-gray-100 flex flex-col shadow-2xl shadow-gray-200/50 absolute right-0 top-0 bottom-0 z-50 transition-transform">
       {/* Header */}
       <div className="p-5 border-b border-gray-50 flex items-center justify-between bg-white">
         <div className="flex items-center space-x-2">

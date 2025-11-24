@@ -82,11 +82,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const getProjectName = (id: string) => projects.find(p => p.id === id)?.title || 'Unknown Project';
 
   return (
-    <div className="flex-1 h-full bg-slate-50 overflow-y-auto p-8 font-sans">
+    <div className="flex-1 h-full bg-slate-50 overflow-y-auto p-4 md:p-8 font-sans">
       <div className="max-w-5xl mx-auto space-y-8">
         
         {/* Hero Section */}
-        <div className="relative overflow-hidden rounded-2xl bg-black text-white shadow-xl p-8">
+        <div className="relative overflow-hidden rounded-2xl bg-black text-white shadow-xl p-6 md:p-8">
             <div className="relative z-10">
                 <div className="flex items-center gap-2 text-gray-400 mb-4 text-xs font-bold uppercase tracking-wider">
                     <Sun className="w-4 h-4" />

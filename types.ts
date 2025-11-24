@@ -7,6 +7,9 @@ export enum ViewMode {
   GRAPH = 'GRAPH',
   INBOX = 'INBOX',
   REVIEW = 'REVIEW',
+  // NEW: Global Views
+  GLOBAL_BOARD = 'GLOBAL_BOARD',
+  GLOBAL_CALENDAR = 'GLOBAL_CALENDAR'
 }
 
 export interface Project {

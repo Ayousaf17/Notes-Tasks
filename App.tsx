@@ -12,52 +12,59 @@ import { GraphView } from './components/GraphView';
 import { DashboardView } from './components/DashboardView'; 
 import { ReviewWizard } from './components/ReviewWizard';
 import { ViewMode, Document, Task, TaskStatus, ProjectPlan, TaskPriority, ChatMessage, Project, InboxItem, InboxAction, AgentRole } from './types';
-import { Sparkles, Bot, Command, Plus } from 'lucide-react';
+import { Sparkles, Bot, Command, Plus, Menu } from 'lucide-react';
 import { geminiService } from './services/geminiService';
 
 const App: React.FC = () => {
   // --- State ---
   const [currentView, setCurrentView] = useState<ViewMode>(ViewMode.HOME); 
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   
   // Projects State
   const [projects, setProjects] = useState<Project[]>([
-      { id: 'p1', title: 'General', icon: '🏠', createdAt: new Date() },
-      { id: 'p2', title: 'Product Launch', icon: '🚀', createdAt: new Date() }
+      { id: 'p1', title: 'V2 Redesign', icon: '🎨', createdAt: new Date() },
+      { id: 'p2', title: 'Marketing Launch', icon: '🚀', createdAt: new Date() },
+      { id: 'p3', title: 'Backend Migration', icon: '⚙️', createdAt: new Date() }
   ]);
   const [activeProjectId, setActiveProjectId] = useState<string>('p1');
 
   // Documents State (Linked to ProjectId)
   const [documents, setDocuments] = useState<Document[]>([
-    { id: '1', projectId: 'p1', title: 'Welcome to Aasani OS', content: '# Aasani OS\n\nThe operating system for your work.\n\nEverything is organized into **Projects**. Select a project from the sidebar to view its documents, tasks, and timeline.', updatedAt: new Date(), tags: ['Guide'] },
-    { id: '2', projectId: 'p2', title: 'Launch Strategy', content: '# Q3 Launch\n\n- [ ] Define MVP\n- [ ] Hire Design Agency', updatedAt: new Date(), tags: ['Strategy'] }
+    { id: 'd1', projectId: 'p1', title: 'Design System Specs', content: '# V2 Design System\n\n- Primary Color: #000000\n- Typography: Inter\n\nSee [[Marketing Launch]] for usage guidelines.', updatedAt: new Date(), tags: ['Specs', 'Design'] },
+    { id: 'd2', projectId: 'p2', title: 'Q3 Campaign', content: '# Q3 Campaign Strategy\n\nFocus on "Zero Friction" messaging.\n\nTasks:\n- [ ] nexus://task/t2', updatedAt: new Date(), tags: ['Strategy'] }
   ]);
   
-  const [activeDocId, setActiveDocId] = useState<string | null>('1');
+  const [activeDocId, setActiveDocId] = useState<string | null>('d1');
   
   // Tasks State (Linked to ProjectId)
-  // Mocking dates to simulate an "old" task for the review protocol
+  // Mocking rich dependency data
   const now = new Date();
-  const fiveDaysAgo = new Date(now.getTime() - (5 * 24 * 60 * 60 * 1000));
-  const tenDaysAgo = new Date(now.getTime() - (10 * 24 * 60 * 60 * 1000));
+  const yesterday = new Date(now.getTime() - (1 * 24 * 60 * 60 * 1000));
+  const weekAgo = new Date(now.getTime() - (7 * 24 * 60 * 60 * 1000));
+  const oldTaskDate = new Date(now.getTime() - (12 * 24 * 60 * 60 * 1000));
 
   const [tasks, setTasks] = useState<Task[]>([
     { 
-        id: 't1', projectId: 'p1', title: 'Explore the system', status: TaskStatus.IN_PROGRESS, description: 'Try creating a new project', assignee: 'Me', priority: TaskPriority.HIGH, dueDate: new Date(), dependencies: [], 
-        createdAt: fiveDaysAgo, updatedAt: fiveDaysAgo 
+        id: 't1', projectId: 'p1', title: 'Finalize Figma Components', status: TaskStatus.DONE, description: 'Button variants and input states', assignee: 'Alice', priority: TaskPriority.HIGH, dueDate: yesterday, dependencies: [], 
+        createdAt: weekAgo, updatedAt: yesterday 
     },
     { 
-        id: 't2', projectId: 'p2', title: 'Draft Press Release', status: TaskStatus.TODO, description: 'Announce the launch', assignee: 'Alice', priority: TaskPriority.MEDIUM, dueDate: new Date(), dependencies: [],
+        id: 't2', projectId: 'p1', title: 'Implement React Components', status: TaskStatus.IN_PROGRESS, description: 'Port Figma components to code', assignee: 'Me', priority: TaskPriority.HIGH, dueDate: now, dependencies: ['t1'],
+        createdAt: weekAgo, updatedAt: now
+    },
+    { 
+        id: 't3', projectId: 'p2', title: 'Draft Blog Post', status: TaskStatus.TODO, description: 'Announce the V2 redesign', assignee: 'AI_WRITER', priority: TaskPriority.MEDIUM, dueDate: new Date(now.getTime() + 86400000), dependencies: ['t2'],
         createdAt: now, updatedAt: now
     },
     {
-        id: 't3', projectId: 'p2', title: 'Update Website Assets', status: TaskStatus.IN_PROGRESS, description: 'Get new banners from design team.', assignee: 'Me', priority: TaskPriority.LOW, dueDate: tenDaysAgo, dependencies: [],
-        createdAt: tenDaysAgo, updatedAt: tenDaysAgo // This should trigger the "Stuck" logic in ReviewWizard (older than 7 days if logic matches)
+        id: 't4', projectId: 'p3', title: 'Database Schema Update', status: TaskStatus.IN_PROGRESS, description: 'Add new fields for user preferences', assignee: 'Bob', priority: TaskPriority.LOW, dueDate: oldTaskDate, dependencies: [],
+        createdAt: oldTaskDate, updatedAt: oldTaskDate // Stuck task
     }
   ]);
 
   // Inbox State
   const [inboxItems, setInboxItems] = useState<InboxItem[]>([
-      { id: 'i1', content: 'Remember to call client about the Q3 budget adjustment', type: 'text', status: 'pending', createdAt: new Date() }
+      { id: 'i1', content: 'Feedback from CEO: Make the sidebar collapsible on mobile', type: 'text', status: 'pending', createdAt: new Date() }
   ]);
   
   // Chat State
@@ -86,6 +93,15 @@ const App: React.FC = () => {
   const projectDocs = documents.filter(d => d.projectId === activeProjectId);
   const projectTasks = tasks.filter(t => t.projectId === activeProjectId);
   
+  // Decide which tasks to show based on View Mode (Global vs Project)
+  const tasksToDisplay = (currentView === ViewMode.GLOBAL_BOARD || currentView === ViewMode.GLOBAL_CALENDAR) 
+    ? tasks 
+    : projectTasks;
+
+  const viewTitle = (currentView === ViewMode.GLOBAL_BOARD || currentView === ViewMode.GLOBAL_CALENDAR)
+    ? "Master View"
+    : activeProject.title;
+
   // Ensure active document belongs to active project
   useEffect(() => {
       if (currentView === ViewMode.DOCUMENTS && activeDocId) {
@@ -368,42 +384,56 @@ const App: React.FC = () => {
         activeDocumentId={activeDocId}
         isGoogleConnected={isGoogleConnected}
         onConnectGoogle={handleConnectGoogle}
+        isMobileOpen={isMobileSidebarOpen}
+        onMobileClose={() => setIsMobileSidebarOpen(false)}
       />
 
-      <main className="flex-1 flex flex-col h-full relative">
+      <main className="flex-1 flex flex-col h-full relative w-full">
         {/* OS Header */}
-        <header className="h-14 border-b border-gray-50 flex items-center justify-between px-6 bg-white/50 backdrop-blur-sm shrink-0 z-20">
-          <div className="flex items-center space-x-2 text-sm">
-             <span className="font-semibold text-gray-900">
+        <header className="h-14 border-b border-gray-50 flex items-center justify-between px-4 md:px-6 bg-white/50 backdrop-blur-sm shrink-0 z-20">
+          <div className="flex items-center space-x-3 text-sm">
+             {/* Mobile Sidebar Toggle */}
+             <button onClick={() => setIsMobileSidebarOpen(true)} className="md:hidden text-gray-500 hover:text-black">
+                 <Menu className="w-5 h-5" />
+             </button>
+
+             <span className="font-semibold text-gray-900 hidden md:inline">
                  {currentView === ViewMode.HOME ? 'Dashboard' : 
                   currentView === ViewMode.INBOX ? 'Inbox' : 
-                  currentView === ViewMode.REVIEW ? 'Review Protocol' : activeProject.title}
+                  currentView === ViewMode.REVIEW ? 'Review Protocol' : 
+                  viewTitle}
              </span>
-             <span className="text-gray-300">/</span>
-             <span className="text-gray-500">
+             <span className="text-gray-300 hidden md:inline">/</span>
+             <span className="text-gray-500 truncate max-w-[150px] md:max-w-none">
                  {currentView === ViewMode.DOCUMENTS ? (activeDocument?.title || 'Documents') : 
                   currentView === ViewMode.BOARD ? 'Task Board' : 
                   currentView === ViewMode.GRAPH ? 'Knowledge Graph' : 
                   currentView === ViewMode.INBOX ? 'Brain Dump' : 
                   currentView === ViewMode.HOME ? 'Daily Pulse' : 
+                  currentView === ViewMode.GLOBAL_BOARD ? 'All Projects' :
+                  currentView === ViewMode.GLOBAL_CALENDAR ? 'All Projects' :
                   currentView === ViewMode.REVIEW ? 'Cleanup' : 'Timeline'}
              </span>
           </div>
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-2 md:space-x-3">
              <button 
                 onClick={() => setIsCommandPaletteOpen(true)}
-                className="flex items-center space-x-1.5 px-2 py-1 rounded bg-gray-50 border border-gray-200 text-xs text-gray-400 hover:border-gray-300 transition-all mr-2"
+                className="flex items-center space-x-1.5 px-2 py-1 rounded bg-gray-50 border border-gray-200 text-xs text-gray-400 hover:border-gray-300 transition-all hidden md:flex"
             >
                 <Command className="w-3 h-3" />
                 <span>K</span>
             </button>
+             {/* Mobile Command Button */}
+             <button onClick={() => setIsCommandPaletteOpen(true)} className="md:hidden text-gray-500">
+                <Command className="w-5 h-5" />
+             </button>
 
             <button 
                 onClick={() => setIsChatOpen(!isChatOpen)}
                 className={`flex items-center space-x-2 px-3 py-1.5 rounded-full transition-all text-sm border ${isChatOpen ? 'bg-black text-white border-black' : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'}`}
             >
                 <Sparkles className="w-3.5 h-3.5" />
-                <span>Aasani AI</span>
+                <span className="hidden md:inline">Aasani AI</span>
             </button>
           </div>
         </header>
@@ -411,7 +441,7 @@ const App: React.FC = () => {
         {/* Content Area */}
         <div className="flex-1 overflow-hidden relative bg-white flex">
             {/* Main View */}
-            <div className="flex-1 flex flex-col overflow-hidden">
+            <div className="flex-1 flex flex-col overflow-hidden w-full">
                 {currentView === ViewMode.HOME ? (
                     <DashboardView 
                         tasks={tasks}
@@ -465,9 +495,9 @@ const App: React.FC = () => {
                         <p className="mb-4">No page selected</p>
                         <button onClick={handleCreateDocument} className="px-4 py-2 bg-black text-white text-sm rounded-lg hover:bg-gray-800 transition-colors">Create Page</button>
                     </div>
-                ) : currentView === ViewMode.BOARD ? (
+                ) : currentView === ViewMode.BOARD || currentView === ViewMode.GLOBAL_BOARD ? (
                     <TaskBoard 
-                        tasks={projectTasks}
+                        tasks={tasksToDisplay}
                         onUpdateTaskStatus={handleUpdateTaskStatus}
                         onUpdateTaskAssignee={handleUpdateTaskAssignee}
                         onUpdateTaskDueDate={handleUpdateTaskDueDate}
@@ -485,8 +515,9 @@ const App: React.FC = () => {
                         onNavigate={handleNavigate}
                     />
                 ) : (
+                    // Calendar / Global Calendar
                     <CalendarView 
-                        tasks={projectTasks}
+                        tasks={tasksToDisplay}
                         onSelectTask={(id) => {
                              const t = tasks.find(t => t.id === id);
                              if(t) alert(`Task: ${t.title}\nStatus: ${t.status}`);
@@ -495,14 +526,16 @@ const App: React.FC = () => {
                 )}
             </div>
             
-            {/* Context Sidebar (Only visible in Document Mode) */}
+            {/* Context Sidebar (Only visible in Document Mode on Desktop) */}
             {currentView === ViewMode.DOCUMENTS && activeDocument && (
-                <ContextSidebar 
-                    currentDoc={activeDocument}
-                    allDocs={documents}
-                    allTasks={tasks}
-                    onNavigate={handleNavigate}
-                />
+                <div className="hidden lg:block h-full border-l border-gray-100">
+                    <ContextSidebar 
+                        currentDoc={activeDocument}
+                        allDocs={documents}
+                        allTasks={tasks}
+                        onNavigate={handleNavigate}
+                    />
+                </div>
             )}
         </div>
 
