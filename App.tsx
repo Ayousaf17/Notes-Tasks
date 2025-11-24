@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { DocumentEditor } from './components/DocumentEditor';
@@ -11,13 +12,45 @@ import { GraphView } from './components/GraphView';
 import { DashboardView } from './components/DashboardView'; 
 import { ReviewWizard } from './components/ReviewWizard';
 import { TaskDetailModal } from './components/TaskDetailModal';
-import { ViewMode, Document, Task, TaskStatus, ProjectPlan, TaskPriority, ChatMessage, Project, InboxItem, InboxAction, AgentRole } from './types';
-import { Sparkles, Command, Plus, Menu } from 'lucide-react';
+import { IntegrationsModal } from './components/IntegrationsModal';
+import { ViewMode, Document, Task, TaskStatus, ProjectPlan, TaskPriority, ChatMessage, Project, InboxItem, InboxAction, AgentRole, Integration } from './types';
+import { Sparkles, Command, Plus, Menu, Cloud, MessageSquare, CreditCard, Database } from 'lucide-react';
 import { geminiService } from './services/geminiService';
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewMode>(ViewMode.HOME); 
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  
+  // Dark Mode State
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    if (typeof window !== 'undefined') {
+        return localStorage.getItem('theme') === 'dark' || 
+               (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    if (isDarkMode) {
+        document.documentElement.classList.add('dark');
+        localStorage.setItem('theme', 'dark');
+    } else {
+        document.documentElement.classList.remove('dark');
+        localStorage.setItem('theme', 'light');
+    }
+  }, [isDarkMode]);
+
+  // Integrations State
+  const [isIntegrationsOpen, setIsIntegrationsOpen] = useState(false);
+  const [integrations, setIntegrations] = useState<Integration[]>([
+      { id: 'google', name: 'Google Workspace', description: 'Sync Docs, Calendar, and Drive.', icon: Cloud, connected: false, category: 'Cloud' },
+      { id: 'chatgpt', name: 'ChatGPT', description: 'Connect GPT-4o for advanced reasoning.', icon: MessageSquare, connected: false, category: 'AI' },
+      { id: 'claude', name: 'Claude', description: 'Anthropic\'s Claude 3.5 Sonnet model.', icon: MessageSquare, connected: false, category: 'AI' },
+      { id: 'perplexity', name: 'Perplexity', description: 'Real-time web search and sourcing.', icon: MessageSquare, connected: false, category: 'AI' },
+      { id: 'stripe', name: 'Stripe', description: 'Payment processing and financial data.', icon: CreditCard, connected: false, category: 'Finance' },
+      { id: 'quickbooks', name: 'QuickBooks', description: 'Accounting and bookkeeping sync.', icon: Database, connected: false, category: 'Finance' },
+      { id: 'relay', name: 'Relay', description: 'Banking and cash flow management.', icon: Database, connected: false, category: 'Finance' },
+  ]);
   
   const [projects, setProjects] = useState<Project[]>([
       { id: 'p1', title: 'V2 Redesign', icon: '🎨', createdAt: new Date() },
@@ -54,7 +87,6 @@ const App: React.FC = () => {
   ]);
   
   const [isChatOpen, setIsChatOpen] = useState(false);
-  const [isGoogleConnected, setIsGoogleConnected] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
@@ -229,9 +261,8 @@ const App: React.FC = () => {
     setCurrentView(ViewMode.DOCUMENTS);
   };
 
-  const handleConnectGoogle = () => {
-    const confirm = window.confirm(isGoogleConnected ? "Disconnect Cloud Sync?" : "Connect Cloud Sync? (Simulation)");
-    if (confirm) setIsGoogleConnected(!isGoogleConnected);
+  const handleToggleIntegration = (id: string) => {
+      setIntegrations(prev => prev.map(i => i.id === id ? { ...i, connected: !i.connected } : i));
   };
   
   const handleNavigate = (type: 'document' | 'task', id: string) => {
@@ -247,18 +278,19 @@ const App: React.FC = () => {
           if (task) {
               setActiveProjectId(task.projectId);
               setCurrentView(ViewMode.BOARD);
-              // Optionally select it too
+              // Select it
               setSelectedTaskId(id);
           }
       }
       setIsCommandPaletteOpen(false);
   };
 
-  const handleAddInboxItem = (content: string, type: 'text' | 'audio') => {
+  const handleAddInboxItem = (content: string, type: 'text' | 'audio' | 'file', fileName?: string) => {
       const newItem: InboxItem = {
           id: Date.now().toString(),
           content,
           type,
+          fileName,
           status: 'pending',
           createdAt: new Date()
       };
@@ -317,7 +349,7 @@ const App: React.FC = () => {
   const selectedTask = tasks.find(t => t.id === selectedTaskId);
 
   return (
-    <div className="flex h-screen w-full bg-white overflow-hidden font-sans text-gray-900">
+    <div className="flex h-screen w-full bg-white dark:bg-gray-900 overflow-hidden font-sans text-gray-900 dark:text-gray-100 transition-colors duration-200">
       
       <Sidebar
         currentView={currentView}
@@ -330,24 +362,25 @@ const App: React.FC = () => {
         onSelectDocument={setActiveDocId}
         onCreateDocument={handleCreateDocument}
         activeDocumentId={activeDocId}
-        isGoogleConnected={isGoogleConnected}
-        onConnectGoogle={handleConnectGoogle}
+        onOpenIntegrations={() => setIsIntegrationsOpen(true)}
         isMobileOpen={isMobileSidebarOpen}
         onMobileClose={() => setIsMobileSidebarOpen(false)}
+        isDarkMode={isDarkMode}
+        onToggleDarkMode={() => setIsDarkMode(!isDarkMode)}
       />
 
-      <main className="flex-1 flex flex-col h-full relative w-full bg-white">
+      <main className="flex-1 flex flex-col h-full relative w-full bg-white dark:bg-gray-900">
         {/* Minimalist Header */}
-        <header className="h-14 border-b border-gray-100 flex items-center justify-between px-6 bg-white shrink-0 z-20">
+        <header className="h-14 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between px-6 bg-white dark:bg-gray-900 shrink-0 z-20">
           <div className="flex items-center space-x-3 text-sm">
-             <button onClick={() => setIsMobileSidebarOpen(true)} className="md:hidden text-gray-500 hover:text-black">
+             <button onClick={() => setIsMobileSidebarOpen(true)} className="md:hidden text-gray-500 hover:text-black dark:hover:text-white">
                  <Menu className="w-5 h-5" />
              </button>
-             <span className="font-medium text-black hidden md:inline">
+             <span className="font-medium text-black dark:text-white hidden md:inline">
                  {currentView === ViewMode.HOME ? 'Home' : viewTitle}
              </span>
-             <span className="text-gray-300 hidden md:inline">/</span>
-             <span className="text-gray-500 truncate">
+             <span className="text-gray-300 dark:text-gray-700 hidden md:inline">/</span>
+             <span className="text-gray-500 dark:text-gray-400 truncate">
                  {currentView === ViewMode.DOCUMENTS ? (activeDocument?.title || 'Untitled') : 
                   currentView === ViewMode.BOARD ? 'Board' : 
                   currentView === ViewMode.HOME ? 'Dashboard' :
@@ -355,10 +388,10 @@ const App: React.FC = () => {
              </span>
           </div>
           <div className="flex items-center space-x-3">
-             <button onClick={() => setIsCommandPaletteOpen(true)} className="text-gray-400 hover:text-black transition-colors">
+             <button onClick={() => setIsCommandPaletteOpen(true)} className="text-gray-400 hover:text-black dark:hover:text-white transition-colors">
                 <Command className="w-4 h-4" />
             </button>
-            <button onClick={() => setIsChatOpen(!isChatOpen)} className={`transition-colors ${isChatOpen ? 'text-purple-600' : 'text-gray-400 hover:text-black'}`}>
+            <button onClick={() => setIsChatOpen(!isChatOpen)} className={`transition-colors ${isChatOpen ? 'text-purple-600 dark:text-purple-400' : 'text-gray-400 hover:text-black dark:hover:text-white'}`}>
                 <Sparkles className="w-4 h-4" />
             </button>
           </div>
@@ -375,8 +408,8 @@ const App: React.FC = () => {
                 ) : currentView === ViewMode.DOCUMENTS && activeDocument ? (
                     <DocumentEditor document={activeDocument} allDocuments={documents} allTasks={tasks} onUpdate={handleUpdateDocument} onExtractTasks={handleExtractTasks} onNavigate={handleNavigate} />
                 ) : currentView === ViewMode.DOCUMENTS && !activeDocument ? (
-                    <div className="flex flex-col items-center justify-center h-full text-gray-300">
-                        <Plus className="w-8 h-8 mb-4 text-gray-200" />
+                    <div className="flex flex-col items-center justify-center h-full text-gray-300 dark:text-gray-600">
+                        <Plus className="w-8 h-8 mb-4 text-gray-200 dark:text-gray-700" />
                         <p className="text-sm">Select or create a page</p>
                     </div>
                 ) : currentView === ViewMode.BOARD || currentView === ViewMode.GLOBAL_BOARD ? (
@@ -405,7 +438,7 @@ const App: React.FC = () => {
             </div>
             
             {currentView === ViewMode.DOCUMENTS && activeDocument && (
-                <div className="hidden lg:block h-full border-l border-gray-100">
+                <div className="hidden lg:block h-full border-l border-gray-100 dark:border-gray-800">
                     <ContextSidebar currentDoc={activeDocument} allDocs={documents} allTasks={tasks} onNavigate={handleNavigate} />
                 </div>
             )}
@@ -421,6 +454,13 @@ const App: React.FC = () => {
         />
 
         <CommandPalette isOpen={isCommandPaletteOpen} onClose={() => setIsCommandPaletteOpen(false)} documents={documents} tasks={tasks} projects={projects} onNavigate={handleNavigate} onCreateDocument={handleCreateDocument} onChangeView={setCurrentView} onSelectProject={setActiveProjectId} />
+        
+        <IntegrationsModal 
+          isOpen={isIntegrationsOpen} 
+          onClose={() => setIsIntegrationsOpen(false)} 
+          integrations={integrations}
+          onToggleIntegration={handleToggleIntegration}
+        />
 
         {/* Task Details Modal */}
         {selectedTask && (

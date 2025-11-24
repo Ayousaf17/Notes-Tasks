@@ -1,3 +1,4 @@
+
 import React, { useMemo } from 'react';
 import { Document, Task } from '../types';
 import { GitGraph, Link as LinkIcon, CheckCircle, ArrowLeftCircle, FileText } from 'lucide-react';
@@ -41,9 +42,9 @@ export const ContextSidebar: React.FC<ContextSidebarProps> = ({ currentDoc, allD
   }, [currentDoc, allTasks]);
 
   return (
-    <div className="w-72 bg-white border-l border-gray-100 h-full flex flex-col shrink-0 overflow-y-auto">
-      <div className="p-4 border-b border-gray-50 bg-gray-50/30">
-          <div className="flex items-center space-x-2 text-gray-500">
+    <div className="w-72 bg-white dark:bg-gray-900 border-l border-gray-100 dark:border-gray-800 h-full flex flex-col shrink-0 overflow-y-auto transition-colors duration-200">
+      <div className="p-4 border-b border-gray-50 dark:border-gray-800 bg-gray-50/30 dark:bg-gray-900/50">
+          <div className="flex items-center space-x-2 text-gray-500 dark:text-gray-400">
               <GitGraph className="w-4 h-4" />
               <span className="text-xs font-bold uppercase tracking-widest">Context Graph</span>
           </div>
@@ -53,7 +54,7 @@ export const ContextSidebar: React.FC<ContextSidebarProps> = ({ currentDoc, allD
         
         {/* Connected Tasks */}
         <div>
-            <h4 className="text-xs font-medium text-gray-400 uppercase mb-3 flex items-center gap-2">
+            <h4 className="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase mb-3 flex items-center gap-2">
                 <CheckCircle className="w-3 h-3" />
                 <span>Linked Tasks</span>
             </h4>
@@ -63,9 +64,9 @@ export const ContextSidebar: React.FC<ContextSidebarProps> = ({ currentDoc, allD
                         <button 
                             key={t.id}
                             onClick={() => onNavigate('task', t.id)}
-                            className="w-full text-left p-2 rounded bg-gray-50 border border-gray-100 hover:border-gray-300 transition-colors group"
+                            className="w-full text-left p-2 rounded bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-500 transition-colors group"
                         >
-                            <div className="text-xs font-medium text-gray-700 group-hover:text-black truncate">{t.title}</div>
+                            <div className="text-xs font-medium text-gray-700 dark:text-gray-200 group-hover:text-black dark:group-hover:text-white truncate">{t.title}</div>
                             <div className="text-[10px] text-gray-400 mt-0.5 flex justify-between">
                                 <span>{t.status}</span>
                                 <span>{t.assignee || 'Unassigned'}</span>
@@ -74,13 +75,13 @@ export const ContextSidebar: React.FC<ContextSidebarProps> = ({ currentDoc, allD
                     ))}
                 </div>
             ) : (
-                <div className="text-xs text-gray-300 italic">No linked tasks found.</div>
+                <div className="text-xs text-gray-300 dark:text-gray-600 italic">No linked tasks found.</div>
             )}
         </div>
 
         {/* Backlinks */}
         <div>
-             <h4 className="text-xs font-medium text-gray-400 uppercase mb-3 flex items-center gap-2">
+             <h4 className="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase mb-3 flex items-center gap-2">
                 <ArrowLeftCircle className="w-3 h-3" />
                 <span>Mentioned In</span>
             </h4>
@@ -90,21 +91,21 @@ export const ContextSidebar: React.FC<ContextSidebarProps> = ({ currentDoc, allD
                         <button
                             key={d.id}
                             onClick={() => onNavigate('document', d.id)}
-                            className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 text-gray-600 hover:text-black transition-colors"
+                            className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors"
                         >
-                            <FileText className="w-3 h-3 text-gray-400" />
+                            <FileText className="w-3 h-3 text-gray-400 dark:text-gray-500" />
                             <span className="text-xs truncate">{d.title}</span>
                         </button>
                     ))}
                 </div>
             ) : (
-                <div className="text-xs text-gray-300 italic">No backlinks found.</div>
+                <div className="text-xs text-gray-300 dark:text-gray-600 italic">No backlinks found.</div>
             )}
         </div>
 
         {/* Outgoing Links */}
         <div>
-             <h4 className="text-xs font-medium text-gray-400 uppercase mb-3 flex items-center gap-2">
+             <h4 className="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase mb-3 flex items-center gap-2">
                 <LinkIcon className="w-3 h-3" />
                 <span>Links To</span>
             </h4>
@@ -114,15 +115,15 @@ export const ContextSidebar: React.FC<ContextSidebarProps> = ({ currentDoc, allD
                         <button
                             key={d.id}
                             onClick={() => onNavigate('document', d.id)}
-                            className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 text-gray-600 hover:text-black transition-colors"
+                            className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors"
                         >
-                            <FileText className="w-3 h-3 text-gray-400" />
+                            <FileText className="w-3 h-3 text-gray-400 dark:text-gray-500" />
                             <span className="text-xs truncate">{d.title}</span>
                         </button>
                     ))}
                 </div>
             ) : (
-                <div className="text-xs text-gray-300 italic">No outgoing links.</div>
+                <div className="text-xs text-gray-300 dark:text-gray-600 italic">No outgoing links.</div>
             )}
         </div>
       </div>

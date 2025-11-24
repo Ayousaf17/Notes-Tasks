@@ -45,10 +45,10 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onSelectTask,
 
   const getPriorityColor = (p?: TaskPriority) => {
     switch(p) {
-        case TaskPriority.HIGH: return 'bg-red-50 text-red-700 border-red-100 hover:border-red-200';
-        case TaskPriority.MEDIUM: return 'bg-orange-50 text-orange-700 border-orange-100 hover:border-orange-200';
-        case TaskPriority.LOW: return 'bg-blue-50 text-blue-700 border-blue-100 hover:border-blue-200';
-        default: return 'bg-gray-50 text-gray-700 border-gray-100 hover:border-gray-200';
+        case TaskPriority.HIGH: return 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-red-100 dark:border-red-900/50 hover:border-red-200';
+        case TaskPriority.MEDIUM: return 'bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 border-orange-100 dark:border-orange-900/50 hover:border-orange-200';
+        case TaskPriority.LOW: return 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-100 dark:border-blue-900/50 hover:border-blue-200';
+        default: return 'bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-100 dark:border-gray-700 hover:border-gray-200';
     }
   };
 
@@ -105,19 +105,19 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onSelectTask,
   };
 
   return (
-    <div className="flex-1 h-full flex flex-col bg-white overflow-hidden font-sans">
+    <div className="flex-1 h-full flex flex-col bg-white dark:bg-gray-900 overflow-hidden font-sans transition-colors duration-200">
       {/* Header */}
-      <div className="flex items-center justify-between px-8 py-5 border-b border-gray-100 shrink-0">
+      <div className="flex items-center justify-between px-8 py-5 border-b border-gray-100 dark:border-gray-800 shrink-0">
         <div className="flex items-center gap-4">
-            <h2 className="text-xl font-semibold text-gray-900">
-                {MONTHS[month]} <span className="text-gray-400 font-normal">{year}</span>
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                {MONTHS[month]} <span className="text-gray-400 dark:text-gray-500 font-normal">{year}</span>
             </h2>
-            <div className="flex items-center bg-gray-50 rounded-lg p-0.5 border border-gray-100">
-                <button onClick={prevMonth} className="p-1.5 hover:bg-white hover:shadow-sm rounded-md transition-all text-gray-500 hover:text-black">
+            <div className="flex items-center bg-gray-50 dark:bg-gray-800 rounded-lg p-0.5 border border-gray-100 dark:border-gray-700">
+                <button onClick={prevMonth} className="p-1.5 hover:bg-white dark:hover:bg-gray-700 hover:shadow-sm rounded-md transition-all text-gray-500 hover:text-black dark:text-gray-400 dark:hover:text-white">
                     <ChevronLeft className="w-4 h-4" />
                 </button>
-                <div className="w-[1px] h-4 bg-gray-200 mx-1"></div>
-                <button onClick={nextMonth} className="p-1.5 hover:bg-white hover:shadow-sm rounded-md transition-all text-gray-500 hover:text-black">
+                <div className="w-[1px] h-4 bg-gray-200 dark:bg-gray-600 mx-1"></div>
+                <button onClick={nextMonth} className="p-1.5 hover:bg-white dark:hover:bg-gray-700 hover:shadow-sm rounded-md transition-all text-gray-500 hover:text-black dark:text-gray-400 dark:hover:text-white">
                     <ChevronRight className="w-4 h-4" />
                 </button>
             </div>
@@ -126,7 +126,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onSelectTask,
         <div className="flex items-center gap-3">
              <button 
                 onClick={() => setCurrentDate(new Date())}
-                className="text-xs font-medium text-gray-500 hover:text-black px-3 py-1.5 rounded-md hover:bg-gray-50 transition-colors border border-transparent hover:border-gray-200"
+                className="text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white px-3 py-1.5 rounded-md hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors border border-transparent hover:border-gray-200 dark:hover:border-gray-700"
              >
                 Today
              </button>
@@ -134,19 +134,19 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onSelectTask,
       </div>
 
       {/* Grid Header */}
-      <div className="grid grid-cols-7 border-b border-gray-100 shrink-0">
+      <div className="grid grid-cols-7 border-b border-gray-100 dark:border-gray-800 shrink-0">
         {DAYS.map(day => (
-            <div key={day} className="py-2 text-center text-xs font-medium text-gray-400 uppercase tracking-wider">
+            <div key={day} className="py-2 text-center text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                 {day}
             </div>
         ))}
       </div>
 
       {/* Grid Body */}
-      <div className="flex-1 grid grid-cols-7 grid-rows-6 bg-gray-50/30 overflow-hidden">
+      <div className="flex-1 grid grid-cols-7 grid-rows-6 bg-gray-50/30 dark:bg-gray-900 overflow-hidden">
         {/* Empty cells for start padding */}
         {Array.from({ length: firstDay }).map((_, i) => (
-            <div key={`empty-${i}`} className="border-b border-r border-gray-100 bg-gray-50/50"></div>
+            <div key={`empty-${i}`} className="border-b border-r border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900"></div>
         ))}
 
         {/* Days */}
@@ -161,13 +161,13 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onSelectTask,
                     key={day} 
                     onDragOver={(e) => handleDragOver(e, day)}
                     onDrop={(e) => handleDrop(e, day)}
-                    className={`group border-b border-r border-gray-100 p-2 transition-all relative flex flex-col gap-1 overflow-hidden
-                        ${isToday ? 'bg-white ring-1 ring-inset ring-black z-10' : ''}
-                        ${isDragOver ? 'bg-indigo-50/80 ring-2 ring-inset ring-indigo-200' : 'hover:bg-white'}
+                    className={`group border-b border-r border-gray-100 dark:border-gray-800 p-2 transition-all relative flex flex-col gap-1 overflow-hidden
+                        ${isToday ? 'bg-white dark:bg-gray-800 ring-1 ring-inset ring-black dark:ring-white z-10' : ''}
+                        ${isDragOver ? 'bg-indigo-50/80 dark:bg-indigo-900/50 ring-2 ring-inset ring-indigo-200 dark:ring-indigo-500' : 'hover:bg-white dark:hover:bg-gray-800'}
                     `}
                 >
                     <div className="flex justify-between items-start mb-1 pointer-events-none">
-                        <span className={`text-sm font-medium w-8 h-8 flex items-center justify-center rounded-full ${isToday ? 'bg-black text-white' : 'text-gray-500 group-hover:text-gray-900'}`}>
+                        <span className={`text-sm font-medium w-8 h-8 flex items-center justify-center rounded-full ${isToday ? 'bg-black dark:bg-white text-white dark:text-black' : 'text-gray-500 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-gray-200'}`}>
                             {day}
                         </span>
                         {dayTasks.length > 0 && (
@@ -200,7 +200,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onSelectTask,
         
         {/* End padding to fill grid (Always target 42 cells) */}
         {Array.from({ length: totalSlots - (daysInMonth + firstDay) }).map((_, i) => (
-            <div key={`end-${i}`} className="border-b border-r border-gray-100 bg-gray-50/50"></div>
+            <div key={`end-${i}`} className="border-b border-r border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900"></div>
         ))}
       </div>
     </div>

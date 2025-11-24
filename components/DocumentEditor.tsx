@@ -97,24 +97,24 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
   };
 
   return (
-    <div className={`flex-1 h-full overflow-y-auto bg-white font-sans transition-all duration-500 ${isZenMode ? 'fixed inset-0 z-[100] px-0 py-0' : ''}`}>
+    <div className={`flex-1 h-full overflow-y-auto bg-white dark:bg-gray-900 font-sans transition-all duration-500 ${isZenMode ? 'fixed inset-0 z-[100] px-0 py-0' : ''}`}>
       <div className={`mx-auto transition-all duration-500 min-h-[calc(100vh-4rem)] ${isZenMode ? 'max-w-4xl px-8 py-20' : 'max-w-3xl px-8 py-12'}`}>
         
         {/* Minimal Toolbar */}
         <div className="flex items-center justify-between mb-8 group">
            {!isZenMode && (
-               <div className="text-[10px] text-gray-300 uppercase tracking-widest">
+               <div className="text-[10px] text-gray-300 dark:text-gray-600 uppercase tracking-widest">
                  {doc.updatedAt && `Last edited ${doc.updatedAt.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`}
                </div>
            )}
            <div className={`flex items-center space-x-4 transition-opacity ${isZenMode ? 'opacity-0 hover:opacity-100 absolute top-6 right-8' : 'opacity-0 group-hover:opacity-100'}`}>
-              <button onClick={() => setIsReadMode(!isReadMode)} className="text-gray-400 hover:text-black transition-colors" title="Toggle Read Mode">
+              <button onClick={() => setIsReadMode(!isReadMode)} className="text-gray-400 hover:text-black dark:hover:text-white transition-colors" title="Toggle Read Mode">
                 {isReadMode ? <Edit3 className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
-              <button onClick={handleSummarize} className="text-gray-400 hover:text-black transition-colors" title="Summarize">
+              <button onClick={handleSummarize} className="text-gray-400 hover:text-black dark:hover:text-white transition-colors" title="Summarize">
                 {isSummarizing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <AlignLeft className="w-4 h-4" />}
               </button>
-              <button onClick={() => setIsZenMode(!isZenMode)} className="text-gray-400 hover:text-black transition-colors" title={isZenMode ? "Exit Zen Mode (ESC)" : "Enter Zen Mode"}>
+              <button onClick={() => setIsZenMode(!isZenMode)} className="text-gray-400 hover:text-black dark:hover:text-white transition-colors" title={isZenMode ? "Exit Zen Mode (ESC)" : "Enter Zen Mode"}>
                 {isZenMode ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
               </button>
            </div>
@@ -122,21 +122,21 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
 
         {/* Title */}
         {isReadMode ? (
-            <h1 className="w-full text-4xl font-bold text-gray-900 mb-6 tracking-tight leading-tight">{doc.title || 'Untitled'}</h1>
+            <h1 className="w-full text-4xl font-bold text-gray-900 dark:text-white mb-6 tracking-tight leading-tight">{doc.title || 'Untitled'}</h1>
         ) : (
             <input
                 type="text"
                 value={doc.title}
                 onChange={(e) => handleUpdate({ ...doc, title: e.target.value })}
                 placeholder="Untitled"
-                className="w-full text-4xl font-bold text-gray-900 placeholder-gray-200 border-none focus:ring-0 bg-transparent mb-6 p-0 tracking-tight leading-tight"
+                className="w-full text-4xl font-bold text-gray-900 dark:text-white placeholder-gray-200 dark:placeholder-gray-700 border-none focus:ring-0 bg-transparent mb-6 p-0 tracking-tight leading-tight"
             />
         )}
 
         {/* Tags */}
         <div className="flex flex-wrap items-center gap-2 mb-10">
             {doc.tags?.map(tag => (
-                <span key={tag} className="text-xs text-gray-400 font-medium">#{tag}</span>
+                <span key={tag} className="text-xs text-gray-400 dark:text-gray-500 font-medium">#{tag}</span>
             ))}
             {!isReadMode && (
                 <input 
@@ -145,7 +145,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
                     onChange={(e) => setTagInput(e.target.value)}
                     onKeyDown={(e) => { if (e.key === 'Enter') { handleUpdate({ ...doc, tags: [...(doc.tags || []), tagInput] }); setTagInput(''); }}}
                     placeholder="+ tag"
-                    className="text-xs text-gray-300 border-none focus:ring-0 p-0 w-20 bg-transparent placeholder-gray-200 hover:placeholder-gray-400"
+                    className="text-xs text-gray-300 dark:text-gray-600 border-none focus:ring-0 p-0 w-20 bg-transparent placeholder-gray-200 dark:placeholder-gray-700 hover:placeholder-gray-400"
                 />
             )}
         </div>
@@ -153,7 +153,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
         {/* Editor */}
         <div className="relative">
             {isReadMode ? (
-                <div className="w-full min-h-[60vh] text-lg text-gray-800 whitespace-pre-wrap leading-relaxed">
+                <div className="w-full min-h-[60vh] text-lg text-gray-800 dark:text-gray-200 whitespace-pre-wrap leading-relaxed">
                     {doc.content}
                 </div>
             ) : (
@@ -163,24 +163,24 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
                     onChange={handleContentChange}
                     onSelect={handleSelect}
                     placeholder="Start writing..."
-                    className="w-full min-h-[60vh] text-lg text-gray-800 border-none focus:ring-0 bg-transparent resize-none p-0 placeholder-gray-200 leading-relaxed"
+                    className="w-full min-h-[60vh] text-lg text-gray-800 dark:text-gray-200 border-none focus:ring-0 bg-transparent resize-none p-0 placeholder-gray-200 dark:placeholder-gray-700 leading-relaxed"
                 />
             )}
         </div>
 
         {/* Hover Menu */}
         {hoverMenu && !isReadMode && (
-          <div className="fixed z-50 bg-black text-white rounded shadow-xl flex items-center px-1 py-1" style={{ left: hoverMenu.x, top: hoverMenu.y }}>
-              <button className="p-2 hover:bg-gray-800 rounded"><Sparkles className="w-3 h-3" /></button>
+          <div className="fixed z-50 bg-black dark:bg-white text-white dark:text-black rounded shadow-xl flex items-center px-1 py-1" style={{ left: hoverMenu.x, top: hoverMenu.y }}>
+              <button className="p-2 hover:bg-gray-800 dark:hover:bg-gray-200 rounded"><Sparkles className="w-3 h-3" /></button>
           </div>
         )}
 
         {/* Summary Modal */}
         {summary && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/80 backdrop-blur-sm" onClick={() => setSummary(null)}>
-                <div className="bg-white p-8 rounded-lg shadow-xl border border-gray-100 max-w-lg w-full">
-                    <h3 className="text-lg font-medium mb-4">Summary</h3>
-                    <p className="text-sm text-gray-600 leading-relaxed">{summary}</p>
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/80 dark:bg-black/80 backdrop-blur-sm" onClick={() => setSummary(null)}>
+                <div className="bg-white dark:bg-gray-900 p-8 rounded-lg shadow-xl border border-gray-100 dark:border-gray-800 max-w-lg w-full">
+                    <h3 className="text-lg font-medium mb-4 text-gray-900 dark:text-white">Summary</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">{summary}</p>
                 </div>
             </div>
         )}

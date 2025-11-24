@@ -149,13 +149,13 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-white font-sans overflow-hidden">
+    <div className="flex-1 flex flex-col h-full bg-white dark:bg-gray-900 font-sans overflow-hidden transition-colors duration-200">
       {/* Header Controls */}
-      <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between shrink-0 bg-white/90 backdrop-blur z-20 sticky top-0">
+      <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between shrink-0 bg-white/90 dark:bg-gray-900/90 backdrop-blur z-20 sticky top-0">
         <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 text-sm text-gray-500">
+            <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
                 <Filter className="w-4 h-4 text-gray-400" />
-                <select value={assigneeFilter} onChange={(e) => setAssigneeFilter(e.target.value)} className="bg-transparent border-none text-sm focus:ring-0 p-0 cursor-pointer hover:text-black font-medium">
+                <select value={assigneeFilter} onChange={(e) => setAssigneeFilter(e.target.value)} className="bg-transparent border-none text-sm focus:ring-0 p-0 cursor-pointer hover:text-black dark:hover:text-white font-medium dark:bg-gray-900">
                     <option value="ALL">All Assignees</option>
                     <option value="Unassigned">Unassigned</option>
                     <option value="AI_AGENTS">AI Agents</option>
@@ -163,12 +163,12 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
                 </select>
             </div>
             {(assigneeFilter !== 'ALL' || statusFilter !== 'ALL' || priorityFilter !== 'ALL') && (
-                <button onClick={() => { setAssigneeFilter('ALL'); setStatusFilter('ALL'); setPriorityFilter('ALL'); }} className="text-xs text-gray-400 hover:text-black"><X className="w-3 h-3" /></button>
+                <button onClick={() => { setAssigneeFilter('ALL'); setStatusFilter('ALL'); setPriorityFilter('ALL'); }} className="text-xs text-gray-400 hover:text-black dark:hover:text-white"><X className="w-3 h-3" /></button>
             )}
         </div>
 
         <div className="flex items-center gap-4">
-             <button onClick={handleSuggestTasks} disabled={isSuggesting} className="flex items-center gap-2 text-sm text-purple-600 hover:text-purple-800 disabled:opacity-50 transition-colors font-medium">
+             <button onClick={handleSuggestTasks} disabled={isSuggesting} className="flex items-center gap-2 text-sm text-purple-600 hover:text-purple-800 dark:text-purple-400 dark:hover:text-purple-300 disabled:opacity-50 transition-colors font-medium">
                 {isSuggesting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
                 <span>Suggest Tasks</span>
             </button>
@@ -176,7 +176,7 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
       </div>
 
       {/* Board */}
-      <div className="flex-1 overflow-x-auto overflow-y-hidden p-6 bg-gray-50/50">
+      <div className="flex-1 overflow-x-auto overflow-y-hidden p-6 bg-gray-50/50 dark:bg-gray-950">
         <div className="flex gap-6 h-full min-w-max">
             {columns.map(col => {
                 const colTasks = filteredAndSortedTasks.filter(t => t.status === col.id);
@@ -185,13 +185,13 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
                 return (
                     <div 
                         key={col.id} 
-                        className={`w-80 flex-shrink-0 flex flex-col h-full rounded-xl transition-all duration-200 ${isActiveDrop ? 'bg-indigo-50/50' : 'bg-transparent'}`}
+                        className={`w-80 flex-shrink-0 flex flex-col h-full rounded-xl transition-all duration-200 ${isActiveDrop ? 'bg-indigo-50/50 dark:bg-indigo-900/20' : 'bg-transparent'}`}
                         onDragOver={(e) => handleDragOver(e, col.id)}
                         onDrop={(e) => handleDrop(e, col.id)}
                     >
                         {/* Column Header (Sticky) */}
-                        <div className="flex items-center justify-between px-1 py-3 mb-2 sticky top-0 z-10 bg-gray-50/95 backdrop-blur-sm rounded-lg border border-transparent shadow-sm">
-                            <h3 className="text-sm font-semibold text-gray-700 pl-2">{col.label}</h3>
+                        <div className="flex items-center justify-between px-1 py-3 mb-2 sticky top-0 z-10 bg-gray-50/95 dark:bg-gray-950/95 backdrop-blur-sm rounded-lg border border-transparent shadow-sm">
+                            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 pl-2">{col.label}</h3>
                             <span className="text-xs font-medium text-gray-400 pr-2">{colTasks.length}</span>
                         </div>
                         
@@ -209,33 +209,33 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
                                         onDragStart={(e) => handleDragStart(e, task.id)}
                                         onDragEnd={handleDragEnd}
                                         onClick={() => onSelectTask && onSelectTask(task.id)}
-                                        className={`group relative bg-white border border-gray-200 p-4 rounded-lg shadow-sm hover:shadow-md transition-all cursor-grab active:cursor-grabbing flex flex-col gap-3 ${blocked ? 'opacity-70 bg-gray-50' : ''} ${isDragging ? 'opacity-50 ring-2 ring-indigo-400 rotate-2 scale-95 z-50' : 'hover:-translate-y-0.5'}`}
+                                        className={`group relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 p-4 rounded-lg shadow-sm hover:shadow-md transition-all cursor-grab active:cursor-grabbing flex flex-col gap-3 ${blocked ? 'opacity-70 bg-gray-50 dark:bg-gray-800' : ''} ${isDragging ? 'opacity-50 ring-2 ring-indigo-400 rotate-2 scale-95 z-50' : 'hover:-translate-y-0.5'}`}
                                     >
-                                        <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity text-gray-300 pointer-events-none">
+                                        <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity text-gray-300 dark:text-gray-600 pointer-events-none">
                                             <GripVertical className="w-4 h-4" />
                                         </div>
 
                                         <div className="flex flex-col gap-1 pointer-events-none">
                                             <div className="flex justify-between items-start">
-                                                <span className="text-sm text-gray-900 leading-snug font-medium line-clamp-2 pr-6">{task.title}</span>
+                                                <span className="text-sm text-gray-900 dark:text-gray-100 leading-snug font-medium line-clamp-2 pr-6">{task.title}</span>
                                             </div>
-                                            {task.description && <p className="text-xs text-gray-500 line-clamp-2">{task.description}</p>}
+                                            {task.description && <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2">{task.description}</p>}
                                         </div>
 
                                         {isAgentWorking && (
-                                            <div className="flex items-center gap-2 text-[10px] text-purple-600 bg-purple-50 px-2 py-1 rounded-md self-start pointer-events-none">
+                                            <div className="flex items-center gap-2 text-[10px] text-purple-600 bg-purple-50 dark:bg-purple-900/20 dark:text-purple-400 px-2 py-1 rounded-md self-start pointer-events-none">
                                                 <Loader2 className="w-3 h-3 animate-spin" />
                                                 <span>AI Working...</span>
                                             </div>
                                         )}
 
                                         {/* Meta Row */}
-                                        <div className="flex items-center justify-between pt-2 mt-auto border-t border-gray-50" onClick={(e) => e.stopPropagation()}>
+                                        <div className="flex items-center justify-between pt-2 mt-auto border-t border-gray-50 dark:border-gray-800" onClick={(e) => e.stopPropagation()}>
                                              <div className="flex items-center gap-2">
                                                  {/* Assignee Avatar */}
                                                  <div className="relative group/assignee" title={task.assignee || 'Unassigned'}>
-                                                     <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-[10px] text-gray-600 border border-white shadow-sm overflow-hidden font-medium">
-                                                         {task.assignee ? (task.assignee.startsWith('AI_') ? <Bot className="w-3.5 h-3.5 text-purple-600" /> : task.assignee.charAt(0)) : <User className="w-3.5 h-3.5 text-gray-400" />}
+                                                     <div className="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-[10px] text-gray-600 dark:text-gray-300 border border-white dark:border-gray-700 shadow-sm overflow-hidden font-medium">
+                                                         {task.assignee ? (task.assignee.startsWith('AI_') ? <Bot className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" /> : task.assignee.charAt(0)) : <User className="w-3.5 h-3.5 text-gray-400" />}
                                                      </div>
                                                      <select value={task.assignee || ''} onChange={(e) => onUpdateTaskAssignee(task.id, e.target.value)} className="absolute inset-0 opacity-0 cursor-pointer text-xs">
                                                          <option value="">Unassigned</option>
@@ -252,7 +252,7 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
                                              
                                              <div className="flex items-center gap-3">
                                                  {/* Dependencies Trigger */}
-                                                 <button onClick={() => setDependencyModalTask(task)} className={`text-gray-300 hover:text-black transition-colors ${task.dependencies?.length ? 'text-gray-900' : ''}`} title="Dependencies">
+                                                 <button onClick={() => setDependencyModalTask(task)} className={`text-gray-300 hover:text-black dark:hover:text-white transition-colors ${task.dependencies?.length ? 'text-gray-900 dark:text-gray-100' : ''}`} title="Dependencies">
                                                      <LinkIcon className="w-3.5 h-3.5" />
                                                  </button>
 
@@ -270,7 +270,7 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
                             })}
                              {/* Empty State / Drop Target */}
                              {colTasks.length === 0 && (
-                                <div className="h-24 border-2 border-dashed border-gray-100 rounded-lg flex items-center justify-center text-gray-300 text-xs">
+                                <div className="h-24 border-2 border-dashed border-gray-100 dark:border-gray-800 rounded-lg flex items-center justify-center text-gray-300 dark:text-gray-600 text-xs">
                                     Drop items here
                                 </div>
                             )}
@@ -283,25 +283,25 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
 
       {/* Dependency Modal */}
       {dependencyModalTask && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-white/50 backdrop-blur-sm">
-              <div className="bg-white p-0 rounded-lg shadow-2xl border border-gray-100 w-full max-w-sm animate-in zoom-in-95 overflow-hidden">
-                  <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-white">
-                      <h3 className="font-semibold text-gray-900 text-sm">Dependencies for "{dependencyModalTask.title}"</h3>
-                      <button onClick={() => setDependencyModalTask(null)} className="text-gray-400 hover:text-black p-1 hover:bg-gray-100 rounded transition-colors"><X className="w-4 h-4" /></button>
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-white/50 dark:bg-black/50 backdrop-blur-sm">
+              <div className="bg-white dark:bg-gray-900 p-0 rounded-lg shadow-2xl border border-gray-100 dark:border-gray-800 w-full max-w-sm animate-in zoom-in-95 overflow-hidden">
+                  <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-white dark:bg-gray-900">
+                      <h3 className="font-semibold text-gray-900 dark:text-white text-sm">Dependencies for "{dependencyModalTask.title}"</h3>
+                      <button onClick={() => setDependencyModalTask(null)} className="text-gray-400 hover:text-black dark:hover:text-white p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"><X className="w-4 h-4" /></button>
                   </div>
                   <div className="p-2 max-h-80 overflow-y-auto">
                       {tasks.filter(t => t.id !== dependencyModalTask.id).map(t => {
                           const isDep = dependencyModalTask.dependencies?.includes(t.id);
                           return (
-                              <div key={t.id} onClick={() => toggleDependency(t.id)} className={`px-4 py-3 text-sm flex items-center gap-3 cursor-pointer hover:bg-gray-50 rounded-md transition-colors group`}>
+                              <div key={t.id} onClick={() => toggleDependency(t.id)} className={`px-4 py-3 text-sm flex items-center gap-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 rounded-md transition-colors group`}>
                                   {isDep ? (
-                                      <div className="w-5 h-5 bg-black rounded-full flex items-center justify-center shrink-0">
-                                          <CheckCircle className="w-3.5 h-3.5 text-white" />
+                                      <div className="w-5 h-5 bg-black dark:bg-white rounded-full flex items-center justify-center shrink-0">
+                                          <CheckCircle className="w-3.5 h-3.5 text-white dark:text-black" />
                                       </div>
                                   ) : (
-                                      <div className="w-5 h-5 border-2 border-gray-300 rounded-full shrink-0 group-hover:border-gray-400"></div>
+                                      <div className="w-5 h-5 border-2 border-gray-300 dark:border-gray-600 rounded-full shrink-0 group-hover:border-gray-400 dark:group-hover:border-gray-500"></div>
                                   )}
-                                  <span className={`truncate ${isDep ? 'text-black font-medium' : 'text-gray-600'}`}>{t.title}</span>
+                                  <span className={`truncate ${isDep ? 'text-black dark:text-white font-medium' : 'text-gray-600 dark:text-gray-300'}`}>{t.title}</span>
                               </div>
                           );
                       })}
@@ -309,7 +309,7 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
                           <div className="p-4 text-center text-gray-400 text-xs">No other tasks available.</div>
                       )}
                   </div>
-                  <div className="p-4 bg-gray-50 border-t border-gray-100 text-[10px] text-gray-400 text-center">
+                  <div className="p-4 bg-gray-50 dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700 text-[10px] text-gray-400 text-center">
                       Select tasks that must be completed before this one.
                   </div>
               </div>
@@ -318,29 +318,29 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
 
       {/* Suggestions Modal */}
       {isReviewingSuggestions && (
-           <div className="fixed inset-0 z-[60] flex items-center justify-center bg-white/80 backdrop-blur-sm">
-              <div className="bg-white p-6 rounded-lg shadow-xl border border-gray-100 w-full max-w-md animate-in zoom-in-95">
-                   <h3 className="font-medium text-sm mb-4">Suggested Tasks</h3>
+           <div className="fixed inset-0 z-[60] flex items-center justify-center bg-white/80 dark:bg-black/80 backdrop-blur-sm">
+              <div className="bg-white dark:bg-gray-900 p-6 rounded-lg shadow-xl border border-gray-100 dark:border-gray-800 w-full max-w-md animate-in zoom-in-95">
+                   <h3 className="font-medium text-sm mb-4 text-gray-900 dark:text-white">Suggested Tasks</h3>
                    <div className="space-y-2 mb-6 max-h-96 overflow-y-auto">
                        {suggestedTasks.map((t, i) => (
                            <div key={i} onClick={() => {
                                const newSet = new Set(selectedSuggestionIndices);
                                if (newSet.has(i)) newSet.delete(i); else newSet.add(i);
                                setSelectedSuggestionIndices(newSet);
-                           }} className={`p-3 border rounded-lg cursor-pointer transition-all flex items-start gap-3 ${selectedSuggestionIndices.has(i) ? 'border-black bg-gray-50' : 'border-gray-200 hover:border-gray-300'}`}>
-                               <div className={`mt-0.5 w-4 h-4 border rounded flex items-center justify-center shrink-0 ${selectedSuggestionIndices.has(i) ? 'bg-black border-black' : 'border-gray-300'}`}>
-                                   {selectedSuggestionIndices.has(i) && <CheckSquare className="w-3 h-3 text-white" />}
+                           }} className={`p-3 border rounded-lg cursor-pointer transition-all flex items-start gap-3 ${selectedSuggestionIndices.has(i) ? 'border-black dark:border-white bg-gray-50 dark:bg-gray-800' : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'}`}>
+                               <div className={`mt-0.5 w-4 h-4 border rounded flex items-center justify-center shrink-0 ${selectedSuggestionIndices.has(i) ? 'bg-black dark:bg-white border-black dark:border-white' : 'border-gray-300 dark:border-gray-600'}`}>
+                                   {selectedSuggestionIndices.has(i) && <CheckSquare className="w-3 h-3 text-white dark:text-black" />}
                                </div>
                                <div>
-                                   <div className="text-sm font-medium text-gray-900">{t.title}</div>
-                                   <div className="text-xs text-gray-500 mt-0.5">{t.description}</div>
+                                   <div className="text-sm font-medium text-gray-900 dark:text-white">{t.title}</div>
+                                   <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{t.description}</div>
                                </div>
                            </div>
                        ))}
                    </div>
-                   <div className="flex justify-end gap-2 pt-4 border-t border-gray-100">
-                       <button onClick={() => setIsReviewingSuggestions(false)} className="px-4 py-2 text-xs font-medium text-gray-600 hover:text-black hover:bg-gray-100 rounded transition-colors">Cancel</button>
-                       <button onClick={confirmSuggestions} className="px-4 py-2 text-xs font-medium bg-black text-white rounded hover:bg-gray-800 transition-colors">Add Selected</button>
+                   <div className="flex justify-end gap-2 pt-4 border-t border-gray-100 dark:border-gray-800">
+                       <button onClick={() => setIsReviewingSuggestions(false)} className="px-4 py-2 text-xs font-medium text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors">Cancel</button>
+                       <button onClick={confirmSuggestions} className="px-4 py-2 text-xs font-medium bg-black dark:bg-white text-white dark:text-black rounded hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors">Add Selected</button>
                    </div>
               </div>
            </div>

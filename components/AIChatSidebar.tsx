@@ -179,20 +179,20 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="w-full md:w-96 bg-white border-l border-gray-100 flex flex-col shadow-2xl shadow-gray-200/50 absolute right-0 top-0 bottom-0 z-50 transition-transform font-sans">
+    <div className="w-full md:w-96 bg-white dark:bg-gray-900 border-l border-gray-100 dark:border-gray-800 flex flex-col shadow-2xl shadow-gray-200/50 dark:shadow-black/50 absolute right-0 top-0 bottom-0 z-50 transition-transform font-sans">
       {/* Header */}
-      <div className="p-5 border-b border-gray-50 flex items-center justify-between bg-white">
+      <div className="p-5 border-b border-gray-50 dark:border-gray-800 flex items-center justify-between bg-white dark:bg-gray-900">
         <div className="flex items-center space-x-2">
-          <div className="w-2 h-2 bg-black rounded-full animate-pulse" />
-          <span className="font-semibold text-gray-900 text-sm tracking-tight">Assistant</span>
+          <div className="w-2 h-2 bg-black dark:bg-white rounded-full animate-pulse" />
+          <span className="font-semibold text-gray-900 dark:text-white text-sm tracking-tight">Aasani</span>
         </div>
-        <button onClick={onClose} className="text-gray-400 hover:text-black transition-colors">
+        <button onClick={onClose} className="text-gray-400 hover:text-black dark:hover:text-white transition-colors">
           <X className="w-4 h-4" />
         </button>
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-5 space-y-6 bg-white">
+      <div className="flex-1 overflow-y-auto p-5 space-y-6 bg-white dark:bg-gray-900">
         {messages.map((msg) => (
           <div key={msg.id} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
              <div className={`max-w-[90%] ${msg.role === 'user' ? 'text-right' : 'text-left'}`}>
@@ -200,7 +200,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                 {msg.attachments && msg.attachments.length > 0 && (
                     <div className="mb-2 flex flex-wrap gap-2 justify-end">
                         {msg.attachments.map((att, i) => (
-                            <div key={i} className="flex items-center space-x-1 bg-gray-100 px-2 py-1 rounded text-xs text-gray-600">
+                            <div key={i} className="flex items-center space-x-1 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded text-xs text-gray-600 dark:text-gray-300">
                                 {att.mimeType.startsWith('audio/') ? <Music className="w-3 h-3" /> : <FileText className="w-3 h-3" />}
                                 <span className="truncate max-w-[100px]">{att.name || 'File'}</span>
                             </div>
@@ -212,11 +212,11 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                 <div className={`inline-block px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
                     msg.role === 'user' 
                     ? 'bg-black text-white rounded-br-none' 
-                    : 'text-gray-700 bg-gray-50 border border-gray-100 rounded-bl-none'
+                    : 'text-gray-700 dark:text-gray-200 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-bl-none'
                 }`}>
                     {msg.text}
                 </div>
-                <div className="text-[10px] text-gray-300 mt-1 px-1">
+                <div className="text-[10px] text-gray-300 dark:text-gray-600 mt-1 px-1">
                     {msg.role === 'user' ? 'You' : 'Aasani'}
                 </div>
             </div>
@@ -242,14 +242,14 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
       </div>
 
       {/* Input Area (Pill Design) */}
-      <div className="p-4 bg-white pb-6 relative">
+      <div className="p-4 bg-white dark:bg-gray-900 pb-6 relative">
         {/* Active Attachments Preview */}
         {attachments.length > 0 && (
             <div className="flex space-x-2 mb-3 overflow-x-auto px-1">
                 {attachments.map((att, idx) => (
-                    <div key={idx} className="relative group flex items-center space-x-2 bg-gray-50 px-3 py-2 rounded-lg border border-gray-100 shadow-sm">
-                        {att.mimeType.startsWith('audio/') ? <Music className="w-3 h-3 text-gray-500" /> : <FileText className="w-3 h-3 text-gray-500" />}
-                        <span className="text-xs text-gray-600 truncate max-w-[120px]">{att.name || 'Attachment'}</span>
+                    <div key={idx} className="relative group flex items-center space-x-2 bg-gray-50 dark:bg-gray-800 px-3 py-2 rounded-lg border border-gray-100 dark:border-gray-700 shadow-sm">
+                        {att.mimeType.startsWith('audio/') ? <Music className="w-3 h-3 text-gray-500 dark:text-gray-400" /> : <FileText className="w-3 h-3 text-gray-500 dark:text-gray-400" />}
+                        <span className="text-xs text-gray-600 dark:text-gray-300 truncate max-w-[120px]">{att.name || 'Attachment'}</span>
                         <button onClick={() => setAttachments(attachments.filter((_, i) => i !== idx))} className="ml-2 text-gray-400 hover:text-red-500">
                             <X className="w-3 h-3" />
                         </button>
@@ -258,13 +258,13 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
             </div>
         )}
 
-        <div className="bg-gray-100/80 rounded-full px-2 py-1.5 flex items-center gap-2 border border-transparent focus-within:bg-white focus-within:ring-2 focus-within:ring-black/5 focus-within:border-gray-200 transition-all shadow-sm">
+        <div className="bg-gray-100/80 dark:bg-gray-800/80 rounded-full px-2 py-1.5 flex items-center gap-2 border border-transparent focus-within:bg-white dark:focus-within:bg-gray-800 focus-within:ring-2 focus-within:ring-black/5 dark:focus-within:ring-white/10 focus-within:border-gray-200 dark:focus-within:border-gray-700 transition-all shadow-sm">
             
             {/* Left Actions */}
             <div className="flex items-center gap-0.5 pl-1">
                 <button 
                     onClick={() => fileInputRef.current?.click()}
-                    className="p-2 text-gray-400 hover:text-black hover:bg-gray-200 rounded-full transition-colors"
+                    className="p-2 text-gray-400 hover:text-black dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors"
                     title="Attach file"
                 >
                     <Paperclip className="w-4 h-4" />
@@ -273,7 +273,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
 
                 <button 
                     onClick={isRecording ? stopRecording : startRecording}
-                    className={`p-2 rounded-full transition-all ${isRecording ? 'bg-red-500 text-white animate-pulse' : 'text-gray-400 hover:text-black hover:bg-gray-200'}`}
+                    className={`p-2 rounded-full transition-all ${isRecording ? 'bg-red-50 text-white animate-pulse' : 'text-gray-400 hover:text-black dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700'}`}
                     title={isRecording ? "Stop recording" : "Record voice note"}
                 >
                     <Mic className="w-4 h-4" />
@@ -292,14 +292,14 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                     }
                 }}
                 placeholder="Ask Aasani..."
-                className="flex-1 bg-transparent border-none focus:ring-0 text-sm py-2 px-1 placeholder-gray-400 text-gray-900"
+                className="flex-1 bg-transparent border-none focus:ring-0 text-sm py-2 px-1 placeholder-gray-400 dark:placeholder-gray-500 text-gray-900 dark:text-gray-100"
             />
             
             {/* Send Button */}
             <button 
                 onClick={handleSend}
                 disabled={(!input.trim() && attachments.length === 0) || loading}
-                className="p-2 bg-black text-white rounded-full hover:bg-gray-800 disabled:opacity-30 disabled:hover:bg-black transition-colors shadow-sm"
+                className="p-2 bg-black dark:bg-white text-white dark:text-black rounded-full hover:bg-gray-800 dark:hover:bg-gray-200 disabled:opacity-30 disabled:hover:bg-black dark:disabled:hover:bg-white transition-colors shadow-sm"
             >
                 {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5 ml-0.5" />}
             </button>

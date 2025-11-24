@@ -247,16 +247,16 @@ export const GraphView: React.FC<GraphViewProps> = ({ documents, tasks, onNaviga
   return (
     <div 
         ref={containerRef}
-        className="flex-1 h-full bg-slate-50 relative overflow-hidden cursor-move select-none"
+        className="flex-1 h-full bg-slate-50 dark:bg-gray-950 relative overflow-hidden cursor-move select-none transition-colors duration-200"
         onMouseMove={(e) => { handleMouseMove(e); handlePan(e); }}
         onMouseUp={handleMouseUp}
         onWheel={handleWheel}
     >
         {/* Controls Overlay */}
         <div className="absolute top-4 right-4 flex flex-col gap-2 z-10">
-            <button onClick={() => setScale(s => Math.min(4, s + 0.2))} className="p-2 bg-white rounded-lg shadow border border-gray-200 hover:bg-gray-50 text-gray-600"><ZoomIn className="w-4 h-4" /></button>
-            <button onClick={() => setScale(s => Math.max(0.1, s - 0.2))} className="p-2 bg-white rounded-lg shadow border border-gray-200 hover:bg-gray-50 text-gray-600"><ZoomOut className="w-4 h-4" /></button>
-            <button onClick={() => { setScale(1); setOffset({x:0, y:0}); }} className="p-2 bg-white rounded-lg shadow border border-gray-200 hover:bg-gray-50 text-gray-600"><RefreshCw className="w-4 h-4" /></button>
+            <button onClick={() => setScale(s => Math.min(4, s + 0.2))} className="p-2 bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300"><ZoomIn className="w-4 h-4" /></button>
+            <button onClick={() => setScale(s => Math.max(0.1, s - 0.2))} className="p-2 bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300"><ZoomOut className="w-4 h-4" /></button>
+            <button onClick={() => { setScale(1); setOffset({x:0, y:0}); }} className="p-2 bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300"><RefreshCw className="w-4 h-4" /></button>
         </div>
 
         {/* Graph SVG */}
@@ -279,6 +279,7 @@ export const GraphView: React.FC<GraphViewProps> = ({ documents, tasks, onNaviga
                             stroke={isHighlight ? '#94a3b8' : '#e2e8f0'}
                             strokeWidth={isHighlight ? 3 : 1.5}
                             strokeDasharray={link.type === 'dependency' ? "4" : "0"}
+                            className="dark:stroke-gray-700"
                         />
                     );
                 })}
@@ -306,13 +307,13 @@ export const GraphView: React.FC<GraphViewProps> = ({ documents, tasks, onNaviga
 
                         {/* Node Shape */}
                         {node.type === 'document' ? (
-                            <circle r={node.radius} fill="white" stroke={getNodeColor(node)} strokeWidth={3} />
+                            <circle r={node.radius} className="fill-white dark:fill-gray-900" stroke={getNodeColor(node)} strokeWidth={3} />
                         ) : (
                             <rect 
                                 x={-node.radius} y={-node.radius} 
                                 width={node.radius*2} height={node.radius*2} 
                                 rx={6} 
-                                fill="white" 
+                                className="fill-white dark:fill-gray-900"
                                 stroke={getNodeColor(node)} 
                                 strokeWidth={3} 
                             />
@@ -321,8 +322,8 @@ export const GraphView: React.FC<GraphViewProps> = ({ documents, tasks, onNaviga
                         {/* Icon */}
                         <g transform="translate(-8, -8)">
                              {node.type === 'document' ? 
-                                <FileText className="w-4 h-4 text-slate-600" /> : 
-                                <CheckSquare className="w-4 h-4 text-slate-600" />
+                                <FileText className="w-4 h-4 text-slate-600 dark:text-slate-300" /> : 
+                                <CheckSquare className="w-4 h-4 text-slate-600 dark:text-slate-300" />
                              }
                         </g>
 
@@ -330,7 +331,7 @@ export const GraphView: React.FC<GraphViewProps> = ({ documents, tasks, onNaviga
                         <text 
                             y={node.radius + 15} 
                             textAnchor="middle" 
-                            className={`text-[10px] font-medium fill-slate-600 ${hoverNodeId === node.id ? 'font-bold fill-black' : ''}`}
+                            className={`text-[10px] font-medium fill-slate-600 dark:fill-slate-400 ${hoverNodeId === node.id ? 'font-bold fill-black dark:fill-white' : ''}`}
                             style={{ userSelect: 'none' }}
                         >
                             {node.label.length > 15 ? node.label.substring(0, 14) + '...' : node.label}
@@ -341,27 +342,27 @@ export const GraphView: React.FC<GraphViewProps> = ({ documents, tasks, onNaviga
         </svg>
         
         {/* Legend */}
-        <div className="absolute bottom-4 left-4 bg-white/90 backdrop-blur rounded-lg shadow border border-gray-100 p-3 text-xs space-y-2 pointer-events-none select-none">
-            <div className="font-semibold text-gray-900 mb-1">Graph Legend</div>
+        <div className="absolute bottom-4 left-4 bg-white/90 dark:bg-gray-900/90 backdrop-blur rounded-lg shadow border border-gray-100 dark:border-gray-800 p-3 text-xs space-y-2 pointer-events-none select-none text-gray-900 dark:text-gray-100">
+            <div className="font-semibold mb-1">Graph Legend</div>
             <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full border-2 border-blue-500 bg-white"></div>
+                <div className="w-3 h-3 rounded-full border-2 border-blue-500 bg-white dark:bg-gray-800"></div>
                 <span>Document</span>
             </div>
             <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded bg-white border-2 border-green-500"></div>
+                <div className="w-3 h-3 rounded bg-white dark:bg-gray-800 border-2 border-green-500"></div>
                 <span>Task (Done)</span>
             </div>
             <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded bg-white border-2 border-orange-500"></div>
+                <div className="w-3 h-3 rounded bg-white dark:bg-gray-800 border-2 border-orange-500"></div>
                 <span>Task (Active)</span>
             </div>
-            <div className="w-full h-[1px] bg-gray-100 my-1"></div>
+            <div className="w-full h-[1px] bg-gray-100 dark:bg-gray-800 my-1"></div>
             <div className="flex items-center gap-2">
-                <div className="w-6 h-[2px] bg-slate-300"></div>
+                <div className="w-6 h-[2px] bg-slate-300 dark:bg-gray-600"></div>
                 <span>Wiki Link</span>
             </div>
             <div className="flex items-center gap-2">
-                <div className="w-6 h-[2px] bg-slate-300 border-b border-dashed"></div>
+                <div className="w-6 h-[2px] bg-slate-300 dark:bg-gray-600 border-b border-dashed"></div>
                 <span>Dependency</span>
             </div>
         </div>

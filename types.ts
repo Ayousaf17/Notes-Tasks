@@ -77,7 +77,8 @@ export interface Task {
 export interface InboxItem {
   id: string;
   content: string;
-  type: 'text' | 'audio';
+  type: 'text' | 'audio' | 'file';
+  fileName?: string;
   status: 'pending' | 'processed';
   createdAt: Date;
   processedResult?: InboxAction; 
@@ -126,4 +127,13 @@ export interface SearchResult {
   type: 'document' | 'task' | 'command' | 'project';
   subtitle?: string;
   action?: () => void;
+}
+
+export interface Integration {
+  id: string;
+  name: string;
+  description: string;
+  icon: any; // Lucide icon
+  connected: boolean;
+  category: 'Cloud' | 'AI' | 'Finance' | 'Productivity';
 }
