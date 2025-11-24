@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Document, Task, TaskPriority } from '../types';
 import { Wand2, ListChecks, RefreshCw, X, Check, User, Flag, AlignLeft, Tag as TagIcon, Sparkles, MoreHorizontal, Type, Scissors, SpellCheck, ChevronRight, Hash, Table as TableIcon, Link as LinkIcon, Eye, Edit3, FileText } from 'lucide-react';
@@ -8,7 +9,7 @@ interface DocumentEditorProps {
   allDocuments?: Document[]; // Passed for wiki linking
   allTasks?: Task[]; // Passed for wiki linking
   onUpdate: (updatedDoc: Document) => void;
-  onExtractTasks: (tasks: Partial<Task>[]) => void;
+  onExtractTasks: (tasks: Partial<Task>[]) => Task[]; // Returns created tasks for linking
   onNavigate?: (type: 'document' | 'task', id: string) => void;
 }
 
@@ -65,6 +66,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
   const [isReviewingTasks, setIsReviewingTasks] = useState(false);
   const [selectedTaskIndices, setSelectedTaskIndices] = useState<Set<number>>(new Set());
   const [extractionSource, setExtractionSource] = useState<'document' | 'selection'>('document');
+  const [extractionRange, setExtractionRange] = useState<[number, number] | null>(null);
 
   // --- Tagging State ---
   const [tagInput, setTagInput] = useState('');
@@ -256,7 +258,12 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
         if (selectionStart !== selectionEnd) {
             textToAnalyze = value.substring(selectionStart, selectionEnd);
             source = 'selection';
+            setExtractionRange([selectionStart, selectionEnd]);
+        } else {
+            setExtractionRange(null);
         }
+    } else {
+        setExtractionRange(null);
     }
     setExtractionSource(source);
 
@@ -367,10 +374,19 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
 
   const handleConfirmTasks = () => {
     const tasksToAdd = pendingTasks.filter((_, i) => selectedTaskIndices.has(i));
-    onExtractTasks(tasksToAdd);
+    // Get created tasks back from App
+    const createdTasks = onExtractTasks(tasksToAdd);
+    
+    // If source was selection, replace text with smart links
+    if (extractionSource === 'selection' && extractionRange && createdTasks.length > 0) {
+        const links = createdTasks.map(t => `- [ ] [${t.title}](nexus://task/${t.id})`).join('\n');
+        insertTextAtCursor(links, extractionRange);
+    }
+
     setIsReviewingTasks(false);
     setPendingTasks([]);
     setSelectedTaskIndices(new Set());
+    setExtractionRange(null);
   };
 
   const toggleTaskSelection = (index: number) => {

@@ -3,7 +3,8 @@ export enum ViewMode {
   DOCUMENTS = 'DOCUMENTS',
   BOARD = 'BOARD',
   CALENDAR = 'CALENDAR',
-  INBOX = 'INBOX', // NEW
+  GRAPH = 'GRAPH', // NEW
+  INBOX = 'INBOX',
 }
 
 export interface Project {
@@ -45,6 +46,7 @@ export interface Task {
   dueDate?: Date;
   priority?: TaskPriority;
   dependencies?: string[]; // IDs of tasks this task depends on
+  linkedDocumentId?: string; // ID of the document this task has expanded into
 }
 
 export interface InboxItem {

@@ -1,6 +1,7 @@
+
 import React, { useState, useMemo } from 'react';
 import { Task, TaskStatus, TaskPriority } from '../types';
-import { MoreHorizontal, Plus, Calendar as CalendarIcon, User, Filter, X, ArrowUpDown, Flag, Link as LinkIcon, AlertCircle, CheckCircle, Check, Sparkles, Loader2, ListChecks } from 'lucide-react';
+import { MoreHorizontal, Plus, Calendar as CalendarIcon, User, Filter, X, ArrowUpDown, Flag, Link as LinkIcon, AlertCircle, CheckCircle, Check, Sparkles, Loader2, ListChecks, FileText, ArrowUpRight } from 'lucide-react';
 import { geminiService } from '../services/geminiService';
 
 interface TaskBoardProps {
@@ -12,6 +13,8 @@ interface TaskBoardProps {
   onUpdateTaskDependencies: (taskId: string, dependencyIds: string[]) => void;
   contextString?: string;
   onAddTasks: (tasks: Partial<Task>[]) => void;
+  onPromoteTask: (taskId: string) => void;
+  onNavigate: (type: 'document' | 'task', id: string) => void;
 }
 
 type SortOption = 'NONE' | 'PRIORITY_DESC' | 'DUE_DATE_ASC';
@@ -24,7 +27,9 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
     onUpdateTaskPriority,
     onUpdateTaskDependencies,
     contextString,
-    onAddTasks
+    onAddTasks,
+    onPromoteTask,
+    onNavigate
 }) => {
   const [assigneeFilter, setAssigneeFilter] = useState<string>('ALL');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
@@ -384,6 +389,25 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
                              >
                                 <LinkIcon className="w-3 h-3" />
                              </button>
+
+                             {/* Promotion Button */}
+                             {task.linkedDocumentId ? (
+                                 <button
+                                     onClick={() => onNavigate('document', task.linkedDocumentId!)}
+                                     className="w-5 h-5 rounded flex items-center justify-center border bg-blue-50 text-blue-600 border-blue-100 text-[9px] transition-colors hover:bg-blue-100"
+                                     title="Open Linked Page"
+                                 >
+                                     <ArrowUpRight className="w-3 h-3" />
+                                 </button>
+                             ) : (
+                                 <button
+                                     onClick={() => onPromoteTask(task.id)}
+                                     className="w-5 h-5 rounded flex items-center justify-center border bg-slate-50 text-slate-300 border-slate-100 border-dashed hover:border-slate-300 hover:text-slate-600 text-[9px] transition-colors"
+                                     title="Promote to Page"
+                                 >
+                                     <FileText className="w-3 h-3" />
+                                 </button>
+                             )}
                         </div>
 
                         <div className="flex items-center space-x-2">

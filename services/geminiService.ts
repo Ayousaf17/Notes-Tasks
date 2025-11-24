@@ -442,5 +442,30 @@ export const geminiService = {
         });
         return response.text?.trim() || "";
     } catch (e) { return ""; }
+  },
+
+  /**
+   * Expands a task into a full document starter
+   */
+  async expandTaskToContent(taskTitle: string, taskDescription?: string): Promise<string> {
+    if (!apiKey) return `# ${taskTitle}\n\n`;
+
+    try {
+        const response = await ai.models.generateContent({
+            model: MODEL_NAME,
+            contents: `You are Aasani. The user wants to expand a Task into a full Document/Page.
+            
+            Task Title: "${taskTitle}"
+            Task Description: "${taskDescription || ''}"
+            
+            Generate a starter document structure. 
+            Include a title (H1), an Overview section, a Strategy/Details section, and a Next Steps section. 
+            Fill it with placeholder or inferred content based on the task description. 
+            Return the result in Markdown.`
+        });
+        return response.text || `# ${taskTitle}\n\n`;
+    } catch (error) {
+        return `# ${taskTitle}\n\n`;
+    }
   }
 };

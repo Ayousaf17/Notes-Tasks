@@ -8,8 +8,10 @@ import { CalendarView } from './components/CalendarView';
 import { CommandPalette } from './components/CommandPalette';
 import { ContextSidebar } from './components/ContextSidebar';
 import { InboxView } from './components/InboxView';
+import { GraphView } from './components/GraphView';
 import { ViewMode, Document, Task, TaskStatus, ProjectPlan, TaskPriority, ChatMessage, Project, InboxItem, InboxAction } from './types';
 import { Sparkles, Bot, Command, Plus } from 'lucide-react';
+import { geminiService } from './services/geminiService';
 
 const App: React.FC = () => {
   // --- State ---
@@ -111,7 +113,7 @@ const App: React.FC = () => {
     setDocuments(prev => prev.map(doc => doc.id === updatedDoc.id ? updatedDoc : doc));
   };
 
-  const handleExtractTasks = (newTasks: Partial<Task>[]) => {
+  const handleExtractTasks = (newTasks: Partial<Task>[]): Task[] => {
     const finalTasks: Task[] = newTasks.map(t => ({
       id: Date.now().toString() + Math.random(),
       projectId: activeProjectId, // Assign to current project
@@ -124,6 +126,7 @@ const App: React.FC = () => {
       dependencies: []
     }));
     setTasks(prev => [...prev, ...finalTasks]);
+    return finalTasks;
   };
 
   // Task Updaters
@@ -136,6 +139,30 @@ const App: React.FC = () => {
   const handleUpdateTaskDueDate = (id: string, date: Date) => updateTask(id, { dueDate: date });
   const handleUpdateTaskPriority = (id: string, priority: TaskPriority) => updateTask(id, { priority });
   const handleUpdateTaskDependencies = (id: string, dependencies: string[]) => updateTask(id, { dependencies });
+  
+  const handlePromoteTask = async (taskId: string) => {
+      const task = tasks.find(t => t.id === taskId);
+      if (!task || task.linkedDocumentId) return;
+
+      const newContent = await geminiService.expandTaskToContent(task.title, task.description);
+      
+      const newDoc: Document = {
+          id: Date.now().toString(),
+          projectId: task.projectId,
+          title: task.title,
+          content: newContent,
+          updatedAt: new Date(),
+          tags: ['Task Expanded']
+      };
+
+      setDocuments(prev => [...prev, newDoc]);
+      updateTask(taskId, { linkedDocumentId: newDoc.id });
+      
+      // Optionally navigate to it
+      setActiveProjectId(task.projectId);
+      setActiveDocId(newDoc.id);
+      setCurrentView(ViewMode.DOCUMENTS);
+  };
 
   const handleProjectPlanCreated = (plan: ProjectPlan) => {
     // 1. Create the Document in active project
@@ -244,18 +271,10 @@ const App: React.FC = () => {
               // If we just applied the suggestion, remove it from list or mark processed
               return { ...item, status: 'processed' };
           }
-          if (item.id === itemId && !item.processedResult) {
-               // If this was just the AI returning a suggestion (but not applying yet)
-               // The UI component handles the display, but here we store the suggestion
-               // NOTE: In this implementation, the UI calls this method ONLY when Applying.
-               // For saving the suggestion, we'd need a separate handler or modify this one.
-               // Let's assume the UI calls a separate setter for suggestions, OR we treat this as "Apply".
-          }
           return item;
       }).filter(i => i.status !== 'processed')); // Remove processed items for clean inbox
   };
   
-  // This helper is for when the AI just suggests, but user hasn't confirmed
   const handleStoreInboxSuggestion = (itemId: string, action: InboxAction) => {
       setInboxItems(prev => prev.map(item => item.id === itemId ? { ...item, processedResult: action } : item));
   };
@@ -303,6 +322,7 @@ const App: React.FC = () => {
              <span className="text-gray-500">
                  {currentView === ViewMode.DOCUMENTS ? (activeDocument?.title || 'Documents') : 
                   currentView === ViewMode.BOARD ? 'Task Board' : 
+                  currentView === ViewMode.GRAPH ? 'Knowledge Graph' : 
                   currentView === ViewMode.INBOX ? 'Brain Dump' : 'Timeline'}
              </span>
           </div>
@@ -334,11 +354,6 @@ const App: React.FC = () => {
                         items={inboxItems}
                         onAddItem={handleAddInboxItem}
                         onProcessItem={(id, action) => {
-                             // This is a dual-purpose handler in UI:
-                             // If action passed immediately, we store it as suggestion first?
-                             // OR if confirmation button clicked, we apply.
-                             
-                             // Check if the item already has this result stored (meaning it's a confirmation click)
                              const item = inboxItems.find(i => i.id === id);
                              if (item && item.processedResult) {
                                  handleProcessInboxItem(id, action);
@@ -352,7 +367,7 @@ const App: React.FC = () => {
                 ) : currentView === ViewMode.DOCUMENTS && activeDocument ? (
                     <DocumentEditor 
                         document={activeDocument}
-                        allDocuments={documents} // Pass all for linking across projects
+                        allDocuments={documents} 
                         allTasks={tasks}
                         onUpdate={handleUpdateDocument}
                         onExtractTasks={handleExtractTasks}
@@ -376,12 +391,19 @@ const App: React.FC = () => {
                         onUpdateTaskDependencies={handleUpdateTaskDependencies}
                         contextString={getContextForTaskBoard()}
                         onAddTasks={handleExtractTasks}
+                        onPromoteTask={handlePromoteTask}
+                        onNavigate={handleNavigate}
+                    />
+                ) : currentView === ViewMode.GRAPH ? (
+                    <GraphView 
+                        documents={projectDocs}
+                        tasks={projectTasks}
+                        onNavigate={handleNavigate}
                     />
                 ) : (
                     <CalendarView 
                         tasks={projectTasks}
                         onSelectTask={(id) => {
-                             // Simple alert for now, could be better modal
                              const t = tasks.find(t => t.id === id);
                              if(t) alert(`Task: ${t.title}\nStatus: ${t.status}`);
                         }}

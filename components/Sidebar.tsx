@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { FileText, Layout, Calendar, Settings, Plus, Cloud, Command, Briefcase, Folder, Inbox } from 'lucide-react';
+import { FileText, Layout, Calendar, Settings, Plus, Cloud, Command, Briefcase, Folder, Inbox, Network } from 'lucide-react';
 import { ViewMode, Document, Project } from '../types';
 
 interface SidebarProps {
@@ -123,6 +123,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
         >
           <Calendar className="w-4 h-4 opacity-70" />
           <span>Timeline</span>
+        </button>
+         <button
+          onClick={() => onChangeView(ViewMode.GRAPH)}
+          className={`w-full flex items-center space-x-3 px-3 py-1.5 rounded transition-all duration-200 text-sm ${
+            currentView === ViewMode.GRAPH
+              ? 'text-gray-900 font-medium'
+              : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
+          }`}
+        >
+          <Network className="w-4 h-4 opacity-70" />
+          <span>Graph View</span>
         </button>
       </div>
 
