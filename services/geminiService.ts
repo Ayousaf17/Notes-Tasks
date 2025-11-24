@@ -261,5 +261,43 @@ export const geminiService = {
       console.error("Gemini Summary Error:", error);
       return "Error generating summary.";
     }
+  },
+
+  /**
+   * Suggests tags for a document based on content
+   */
+  async suggestTags(text: string): Promise<string[]> {
+      if (!apiKey) return [];
+      
+      try {
+          const response = await ai.models.generateContent({
+              model: MODEL_NAME,
+              contents: `Analyze the following document content and suggest 3-5 relevant tags (keywords) for categorization. 
+              Tags should be single words or short 2-word phrases (e.g., 'Meeting Notes', 'Architecture', 'Q3 Goals').
+              
+              Content: "${text.substring(0, 5000)}"`,
+              config: {
+                  responseMimeType: "application/json",
+                  responseSchema: {
+                      type: Type.OBJECT,
+                      properties: {
+                          tags: {
+                              type: Type.ARRAY,
+                              items: { type: Type.STRING }
+                          }
+                      },
+                      required: ["tags"]
+                  }
+              }
+          });
+          
+          const jsonStr = response.text;
+          if (!jsonStr) return [];
+          const res = JSON.parse(jsonStr);
+          return res.tags || [];
+      } catch (error) {
+          console.error("Gemini Suggest Tags Error:", error);
+          return [];
+      }
   }
 };

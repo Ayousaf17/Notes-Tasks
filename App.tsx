@@ -3,6 +3,7 @@ import { Sidebar } from './components/Sidebar';
 import { DocumentEditor } from './components/DocumentEditor';
 import { TaskBoard } from './components/TaskBoard';
 import { AIChatSidebar } from './components/AIChatSidebar';
+import { CalendarView } from './components/CalendarView';
 import { ViewMode, Document, Task, TaskStatus, ProjectPlan, TaskPriority, ChatMessage } from './types';
 import { Sparkles, Bot } from 'lucide-react';
 
@@ -154,7 +155,7 @@ const App: React.FC = () => {
         {/* Minimalist Header */}
         <header className="h-14 border-b border-gray-50 flex items-center justify-between px-6 bg-white/50 backdrop-blur-sm shrink-0 z-20">
           <div className="flex items-center space-x-2 text-sm text-gray-500">
-             <span>{currentView === ViewMode.DOCUMENTS ? 'Documents' : 'Board'}</span>
+             <span>{currentView === ViewMode.DOCUMENTS ? 'Documents' : currentView === ViewMode.BOARD ? 'Board' : 'Calendar'}</span>
              <span className="text-gray-300">/</span>
              <span className="text-gray-900 font-medium">{currentView === ViewMode.DOCUMENTS ? (activeDocument?.title || 'Untitled') : 'All Tasks'}</span>
           </div>
@@ -193,9 +194,15 @@ const App: React.FC = () => {
                     onAddTasks={handleExtractTasks}
                 />
             ) : (
-                <div className="flex items-center justify-center h-full text-gray-300">
-                    <p>Calendar View (Coming Soon)</p>
-                </div>
+                <CalendarView 
+                    tasks={tasks}
+                    onSelectTask={(id) => {
+                        // For now, just switch to board view to edit.
+                        // Ideally, open a modal.
+                        const t = tasks.find(t => t.id === id);
+                        if(t) alert(`Task: ${t.title}\nStatus: ${t.status}\nDue: ${t.dueDate?.toLocaleDateString()}`);
+                    }}
+                />
             )}
         </div>
 

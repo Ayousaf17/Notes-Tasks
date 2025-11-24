@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Document, Task, TaskPriority } from '../types';
-import { Wand2, ListChecks, RefreshCw, X, Check, User, Flag, Calendar, AlignLeft } from 'lucide-react';
+import { Wand2, ListChecks, RefreshCw, X, Check, User, Flag, Calendar, AlignLeft, Tag as TagIcon, Plus } from 'lucide-react';
 import { geminiService } from '../services/geminiService';
 
 interface DocumentEditorProps {
@@ -22,6 +22,10 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({ document, onUpda
   const [pendingTasks, setPendingTasks] = useState<Partial<Task>[]>([]);
   const [isReviewingTasks, setIsReviewingTasks] = useState(false);
   const [selectedTaskIndices, setSelectedTaskIndices] = useState<Set<number>>(new Set());
+
+  // Tagging State
+  const [tagInput, setTagInput] = useState('');
+  const [isSuggestingTags, setIsSuggestingTags] = useState(false);
 
   const adjustTextareaHeight = (el: HTMLTextAreaElement) => {
     el.style.height = 'auto';
@@ -85,6 +89,33 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({ document, onUpda
     setAiPrompt('');
   };
 
+  const addTag = (tag: string) => {
+      const cleanTag = tag.trim();
+      if (cleanTag && !document.tags?.includes(cleanTag)) {
+          const newTags = [...(document.tags || []), cleanTag];
+          onUpdate({ ...document, tags: newTags });
+      }
+      setTagInput('');
+  };
+
+  const removeTag = (tag: string) => {
+      const newTags = (document.tags || []).filter(t => t !== tag);
+      onUpdate({ ...document, tags: newTags });
+  };
+
+  const handleAutoTag = async () => {
+    if (!document.content) return;
+    setIsSuggestingTags(true);
+    const suggestions = await geminiService.suggestTags(document.content);
+    if (suggestions.length > 0) {
+        // Merge unique tags
+        const currentSet = new Set(document.tags || []);
+        suggestions.forEach(s => currentSet.add(s));
+        onUpdate({ ...document, tags: Array.from(currentSet) });
+    }
+    setIsSuggestingTags(false);
+  };
+
   const getPriorityColor = (p?: TaskPriority | string) => {
       switch(p) {
           case 'High': return 'text-red-600 bg-red-50';
@@ -99,7 +130,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({ document, onUpda
       <div className="max-w-4xl mx-auto px-12 py-16 min-h-[calc(100vh-4rem)]">
         
         {/* Top Metadata (Hidden until hover) */}
-        <div className="group mb-6 flex items-center justify-between opacity-0 hover:opacity-100 transition-opacity duration-300">
+        <div className="group mb-4 flex items-center justify-between opacity-0 hover:opacity-100 transition-opacity duration-300">
            <div className="flex space-x-2">
              {document.updatedAt && (
                <span className="text-[10px] uppercase tracking-widest text-gray-300">
@@ -140,8 +171,45 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({ document, onUpda
           value={document.title}
           onChange={handleTitleChange}
           placeholder="Untitled"
-          className="w-full text-4xl font-bold text-gray-900 placeholder-gray-200 border-none focus:ring-0 focus:outline-none bg-transparent mb-8 p-0"
+          className="w-full text-4xl font-bold text-gray-900 placeholder-gray-200 border-none focus:ring-0 focus:outline-none bg-transparent mb-4 p-0"
         />
+
+        {/* Tags Section */}
+        <div className="flex flex-wrap items-center gap-2 mb-8 animate-in fade-in duration-300">
+            {document.tags?.map(tag => (
+                <div key={tag} className="flex items-center gap-1 px-2 py-1 rounded-md bg-gray-100 text-xs text-gray-600 group hover:bg-gray-200 transition-colors">
+                    <span className="font-medium">#{tag}</span>
+                    <button onClick={() => removeTag(tag)} className="text-gray-400 hover:text-gray-800 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <X className="w-3 h-3" />
+                    </button>
+                </div>
+            ))}
+            
+            <div className="flex items-center gap-2">
+                <div className="relative flex items-center">
+                    <TagIcon className="w-3.5 h-3.5 text-gray-400 absolute left-2" />
+                    <input 
+                        type="text"
+                        value={tagInput}
+                        onChange={(e) => setTagInput(e.target.value)}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter') addTag(tagInput);
+                        }}
+                        placeholder="Add tag..."
+                        className="pl-7 pr-2 py-1 bg-transparent text-xs border-none focus:ring-0 placeholder-gray-300 w-24 focus:w-32 transition-all"
+                    />
+                </div>
+                <button 
+                    onClick={handleAutoTag}
+                    disabled={isSuggestingTags}
+                    className="text-[10px] text-purple-400 hover:text-purple-600 flex items-center gap-1 px-2 py-0.5 rounded hover:bg-purple-50 transition-colors"
+                    title="AI Auto-Tagging"
+                >
+                    {isSuggestingTags ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Wand2 className="w-3 h-3" />}
+                    <span>Auto-Tag</span>
+                </button>
+            </div>
+        </div>
 
         {/* AI Input Overlay */}
         {showAiInput && (
