@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Document, Task, TaskPriority } from '../types';
-import { Wand2, ListChecks, RefreshCw, X, Check, User, Flag, AlignLeft, Tag as TagIcon, Sparkles, Edit3, Eye, SpellCheck, Scissors, Table as TableIcon, Link as LinkIcon, FileText, Maximize2, Minimize2, Heading1, Heading2, List } from 'lucide-react';
+import { Wand2, ListChecks, RefreshCw, X, Check, User, Flag, AlignLeft, Tag as TagIcon, Sparkles, Edit3, Eye, SpellCheck, Scissors, Table as TableIcon, Link as LinkIcon, FileText, Maximize2, Minimize2, Heading1, Heading2, List, CheckSquare, Plus } from 'lucide-react';
 import { geminiService } from '../services/geminiService';
 
 interface DocumentEditorProps {
@@ -26,6 +26,46 @@ const getCaretCoordinates = (element: HTMLTextAreaElement, position: number) => 
     const { offsetLeft: spanLeft, offsetTop: spanTop } = span;
     document.body.removeChild(div);
     return { left: elementLeft + spanLeft, top: elementTop + spanTop };
+};
+
+// Simple Markdown Renderer for Read Mode
+const MarkdownRenderer: React.FC<{ text: string }> = ({ text }) => {
+    const lines = text.split('\n');
+    return (
+        <div className="space-y-4 text-gray-800 dark:text-gray-200 leading-relaxed">
+            {lines.map((line, i) => {
+                // Headers
+                if (line.startsWith('# ')) return <h1 key={i} className="text-3xl font-bold mt-8 mb-4 text-gray-900 dark:text-white">{line.slice(2)}</h1>;
+                if (line.startsWith('## ')) return <h2 key={i} className="text-2xl font-semibold mt-6 mb-3 text-gray-900 dark:text-white">{line.slice(3)}</h2>;
+                if (line.startsWith('### ')) return <h3 key={i} className="text-xl font-medium mt-4 mb-2 text-gray-900 dark:text-white">{line.slice(4)}</h3>;
+                
+                // List Items
+                if (line.trim().startsWith('- [ ]')) return (
+                    <div key={i} className="flex items-start gap-3 pl-1">
+                        <div className="w-4 h-4 mt-1.5 border border-gray-300 dark:border-gray-600 rounded shrink-0" />
+                        <span className="text-gray-600 dark:text-gray-300">{line.replace('- [ ]', '').trim()}</span>
+                    </div>
+                );
+                if (line.trim().startsWith('- ')) return <li key={i} className="ml-4 list-disc pl-2 text-gray-700 dark:text-gray-300">{line.slice(2)}</li>;
+                
+                // Empty lines
+                if (!line.trim()) return <div key={i} className="h-2" />;
+
+                // Paragraphs with bold handling
+                const parts = line.split(/(\*\*.*?\*\*)/g);
+                return (
+                    <p key={i} className="text-lg">
+                        {parts.map((part, j) => {
+                            if (part.startsWith('**') && part.endsWith('**')) {
+                                return <strong key={j} className="font-semibold text-gray-900 dark:text-white">{part.slice(2, -2)}</strong>;
+                            }
+                            return part;
+                        })}
+                    </p>
+                );
+            })}
+        </div>
+    );
 };
 
 export const DocumentEditor: React.FC<DocumentEditorProps> = ({ 
@@ -85,7 +125,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
       const { selectionStart, selectionEnd } = textareaRef.current;
       if (selectionStart !== selectionEnd) {
           const coords = getCaretCoordinates(textareaRef.current, selectionEnd);
-          setHoverMenu({ x: coords.left - 40, y: coords.top - 50, text: doc.content.substring(selectionStart, selectionEnd), range: [selectionStart, selectionEnd] });
+          setHoverMenu({ x: coords.left - 60, y: coords.top - 50, text: doc.content.substring(selectionStart, selectionEnd), range: [selectionStart, selectionEnd] });
       } else {
           setHoverMenu(null);
       }
@@ -96,6 +136,17 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
     const result = await geminiService.summarizeDocument(doc.content);
     setSummary(result);
     setIsSummarizing(false);
+  };
+
+  const handleExtractTaskFromSelection = () => {
+      if (hoverMenu && hoverMenu.text) {
+          onExtractTasks([{
+              title: hoverMenu.text,
+              status: 'To Do',
+              priority: 'Medium'
+          }]);
+          setHoverMenu(null);
+      }
   };
 
   const executeSlashCommand = (command: string) => {
@@ -182,9 +233,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
         {/* Editor */}
         <div className="relative">
             {isReadMode ? (
-                <div className="w-full min-h-[60vh] text-lg text-gray-800 dark:text-gray-200 whitespace-pre-wrap leading-relaxed">
-                    {doc.content}
-                </div>
+                <MarkdownRenderer text={doc.content} />
             ) : (
                 <textarea
                     ref={textareaRef}
@@ -221,8 +270,14 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
 
         {/* Hover Menu */}
         {hoverMenu && !isReadMode && (
-          <div className="fixed z-50 bg-black dark:bg-white text-white dark:text-black rounded shadow-xl flex items-center px-1 py-1" style={{ left: hoverMenu.x, top: hoverMenu.y }}>
-              <button className="p-2 hover:bg-gray-800 dark:hover:bg-gray-200 rounded"><Sparkles className="w-3 h-3" /></button>
+          <div className="fixed z-50 bg-black dark:bg-white text-white dark:text-black rounded-lg shadow-xl flex items-center px-2 py-1.5 gap-2 transform -translate-x-1/2" style={{ left: hoverMenu.x, top: hoverMenu.y }}>
+              <button onClick={handleExtractTaskFromSelection} className="p-1.5 hover:bg-gray-800 dark:hover:bg-gray-200 rounded transition-colors" title="Create Task">
+                  <CheckSquare className="w-4 h-4" />
+              </button>
+              <div className="w-px h-4 bg-gray-700 dark:bg-gray-300" />
+              <button className="p-1.5 hover:bg-gray-800 dark:hover:bg-gray-200 rounded transition-colors" title="Improve Writing">
+                  <Sparkles className="w-4 h-4" />
+              </button>
           </div>
         )}
 

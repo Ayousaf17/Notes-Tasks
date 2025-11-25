@@ -34,7 +34,7 @@ export const ContextSidebar: React.FC<ContextSidebarProps> = ({ currentDoc, allD
 
   // 3. Calculate Related Tasks
   // Logic: If specific tasks are linked/mentioned, show them.
-  // Fallback: If NONE are found, show ALL tasks for this project (Contextual Fallback).
+  // Fallback: If NONE are found, show ALL tasks for this project to ensure visibility.
   const relatedTasks = useMemo(() => {
       const linked = allTasks.filter(t => {
           const inContent = currentDoc.content.includes(`nexus://task/${t.id}`);
