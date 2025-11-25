@@ -12,22 +12,55 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
  * DATABASE SETUP INSTRUCTIONS
  * 
  * 1. Go to Supabase Dashboard -> SQL Editor
- * 2. Run the Table Creation scripts (Projects, Tasks, Documents).
+ * 2. Run the following SQL commands to create the schema:
  * 
- * 3. ENABLE REALTIME:
- *    Run: alter publication supabase_realtime add table projects, tasks, documents;
+ * -- 1. PROJECTS Table
+ * create table projects (
+ *   id text primary key,
+ *   title text not null,
+ *   icon text,
+ *   created_at timestamp with time zone default timezone('utc'::text, now()) not null
+ * );
  * 
- * 4. ROW LEVEL SECURITY (RLS) - ESSENTIAL FOR PRODUCTION:
- *    -- Enable RLS
- *    alter table projects enable row level security;
- *    alter table tasks enable row level security;
- *    alter table documents enable row level security;
- *    
- *    -- Create generic policies (Adjust for auth.uid() in real multi-user app)
- *    create policy "Enable read access for all users" on projects for select using (true);
- *    create policy "Enable insert access for all users" on projects for insert with check (true);
- *    create policy "Enable update access for all users" on projects for update using (true);
- *    create policy "Enable delete access for all users" on projects for delete using (true);
- *    
- *    -- Repeat policies for tasks and documents
+ * -- 2. TASKS Table
+ * create table tasks (
+ *   id text primary key,
+ *   project_id text references projects(id) on delete cascade,
+ *   title text not null,
+ *   description text,
+ *   status text default 'To Do',
+ *   priority text default 'Medium',
+ *   assignee text,
+ *   due_date timestamp with time zone,
+ *   dependencies text[],
+ *   linked_document_id text,
+ *   agent_status text,
+ *   agent_result jsonb,
+ *   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+ *   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+ * );
+ * 
+ * -- 3. DOCUMENTS Table
+ * create table documents (
+ *   id text primary key,
+ *   project_id text references projects(id) on delete cascade,
+ *   title text not null,
+ *   content text,
+ *   tags text[],
+ *   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+ * );
+ * 
+ * -- 4. ENABLE REALTIME
+ * alter publication supabase_realtime add table projects, tasks, documents;
+ * 
+ * -- 5. ROW LEVEL SECURITY (RLS) - OPTIONAL FOR DEMO, ESSENTIAL FOR PROD
+ * alter table projects enable row level security;
+ * alter table tasks enable row level security;
+ * alter table documents enable row level security;
+ * 
+ * create policy "Public Access" on projects for select using (true);
+ * create policy "Public Insert" on projects for insert with check (true);
+ * create policy "Public Update" on projects for update using (true);
+ * create policy "Public Delete" on projects for delete using (true);
+ * -- (Repeat similar policies for tasks and documents for open access in prototype)
  */

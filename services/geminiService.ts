@@ -92,7 +92,11 @@ export const geminiService = {
           const response = await ai.models.generateContent({
               model: MODEL_NAME,
               contents: `Analyze this raw note from the user's inbox and decide if it should be a 'create_task' or 'create_document'. 
-              Then, assign it to the most relevant Project ID from the list below. If no project fits, pick the 'General' or first project.
+              
+              Instructions:
+              1. **Target Project**: Assign to the most relevant Project ID from the list below. If generic, pick the first one.
+              2. **Smart Title**: Generate a concise, descriptive title.
+              3. **Link Everything**: If the content references other concepts or projects, use WikiLinks like [[Project Name]] or [[Concept]] in the 'content' or 'description' fields to ensure the graph is connected.
               
               User Note: "${content}"
               
@@ -112,8 +116,8 @@ export const geminiService = {
                               type: Type.OBJECT,
                               properties: {
                                   title: { type: Type.STRING },
-                                  description: { type: Type.STRING, description: "For tasks, a brief description" },
-                                  content: { type: Type.STRING, description: "For documents, the body content" },
+                                  description: { type: Type.STRING, description: "For tasks, a brief description. Include [[Links]] if relevant." },
+                                  content: { type: Type.STRING, description: "For documents, the body content. Use Markdown and [[WikiLinks]]." },
                                   priority: { type: Type.STRING, enum: [TaskPriority.HIGH, TaskPriority.MEDIUM, TaskPriority.LOW] }
                               },
                               required: ["title"]

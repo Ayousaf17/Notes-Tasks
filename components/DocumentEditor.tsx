@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Document, Task, TaskPriority } from '../types';
-import { Wand2, ListChecks, RefreshCw, X, Check, User, Flag, AlignLeft, Tag as TagIcon, Sparkles, Edit3, Eye, SpellCheck, Scissors, Table as TableIcon, Link as LinkIcon, FileText, Maximize2, Minimize2, Heading1, Heading2, List, CheckSquare, Plus } from 'lucide-react';
+import { Document, Task, TaskPriority, TaskStatus } from '../types';
+import { Wand2, ListChecks, RefreshCw, X, Check, User, Flag, AlignLeft, Tag as TagIcon, Sparkles, Edit3, Eye, SpellCheck, Scissors, Table as TableIcon, Link as LinkIcon, FileText, Maximize2, Minimize2, Heading1, Heading2, List, CheckSquare, Plus, Loader2 } from 'lucide-react';
 import { geminiService } from '../services/geminiService';
 
 interface DocumentEditorProps {
@@ -82,6 +82,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
   const [isReadMode, setIsReadMode] = useState(false);
   const [isZenMode, setIsZenMode] = useState(false);
   const [tagInput, setTagInput] = useState('');
+  const [isExtractingTask, setIsExtractingTask] = useState(false);
   
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [slashMenu, setSlashMenu] = useState<{ x: number, y: number, query: string } | null>(null);
@@ -138,13 +139,28 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
     setIsSummarizing(false);
   };
 
-  const handleExtractTaskFromSelection = () => {
+  const handleExtractTaskFromSelection = async () => {
       if (hoverMenu && hoverMenu.text) {
-          onExtractTasks([{
-              title: hoverMenu.text,
-              status: 'To Do',
-              priority: 'Medium'
-          }]);
+          setIsExtractingTask(true);
+          
+          // If selection is short, use it directly. If long, ask AI to extract actionable items.
+          let tasksToCreate: Partial<Task>[] = [];
+          
+          if (hoverMenu.text.length > 100) {
+              tasksToCreate = await geminiService.extractTasks(hoverMenu.text);
+          } else {
+              tasksToCreate = [{
+                  title: hoverMenu.text,
+                  status: TaskStatus.TODO,
+                  priority: TaskPriority.MEDIUM
+              }];
+          }
+
+          if (tasksToCreate.length > 0) {
+              onExtractTasks(tasksToCreate);
+          }
+          
+          setIsExtractingTask(false);
           setHoverMenu(null);
       }
   };
@@ -272,7 +288,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
         {hoverMenu && !isReadMode && (
           <div className="fixed z-50 bg-black dark:bg-white text-white dark:text-black rounded-lg shadow-xl flex items-center px-2 py-1.5 gap-2 transform -translate-x-1/2" style={{ left: hoverMenu.x, top: hoverMenu.y }}>
               <button onClick={handleExtractTaskFromSelection} className="p-1.5 hover:bg-gray-800 dark:hover:bg-gray-200 rounded transition-colors" title="Create Task">
-                  <CheckSquare className="w-4 h-4" />
+                  {isExtractingTask ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckSquare className="w-4 h-4" />}
               </button>
               <div className="w-px h-4 bg-gray-700 dark:bg-gray-300" />
               <button className="p-1.5 hover:bg-gray-800 dark:hover:bg-gray-200 rounded transition-colors" title="Improve Writing">
