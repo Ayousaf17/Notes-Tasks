@@ -44,10 +44,10 @@ export const ReviewWizard: React.FC<ReviewWizardProps> = ({
 
     useEffect(() => {
         // Identify stuck tasks (Mock logic: In Progress for > 7 days, or created > 7 days ago and not done)
-        // Since we are mocking dates, let's just pick tasks that are In Progress and assume they are old for demo
         const now = new Date();
         const stuck = tasks.filter(t => {
             if (t.status !== TaskStatus.IN_PROGRESS) return false;
+            if (!t.createdAt) return false; // Safety check
             // Mock: If created more than 3 days ago (for demo purposes)
             const diffTime = Math.abs(now.getTime() - new Date(t.createdAt).getTime());
             const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
@@ -105,6 +105,7 @@ export const ReviewWizard: React.FC<ReviewWizardProps> = ({
 
     const handleTaskAction = (action: 'delete' | 'done' | 'delegate') => {
         const task = stuckTasks[currentTaskIndex];
+        if (!task) return; // Safety
         if (action === 'delete') onDeleteTask(task.id);
         if (action === 'done') onUpdateTaskStatus(task.id, TaskStatus.DONE);
         if (action === 'delegate') onUpdateTaskAssignee(task.id, 'AI_RESEARCHER'); // Delegate to AI
@@ -175,6 +176,17 @@ export const ReviewWizard: React.FC<ReviewWizardProps> = ({
 
     if (step === 'STUCK_TASKS') {
         const task = stuckTasks[currentTaskIndex];
+        
+        // If task is missing (e.g. list updated during review), show loading or skip
+        if (!task) {
+             return (
+                 <div className="flex flex-col items-center justify-center h-full p-8 text-center">
+                     <Loader2 className="w-8 h-8 animate-spin text-gray-400 mb-2" />
+                     <p className="text-gray-500">Syncing tasks...</p>
+                 </div>
+             );
+        }
+
         return (
             <div className="flex flex-col items-center justify-center h-full p-8 max-w-2xl mx-auto w-full animate-in slide-in-from-right duration-300 font-sans">
                 <div className="w-full flex justify-between items-center mb-12">
@@ -185,7 +197,7 @@ export const ReviewWizard: React.FC<ReviewWizardProps> = ({
                 <div className="bg-white dark:bg-gray-900 p-8 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-800 w-full mb-4">
                     <div className="flex items-center gap-3 mb-4">
                         <span className="bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 text-xs px-2 py-1 rounded font-bold">STUCK</span>
-                        <span className="text-gray-400 text-xs">Created {new Date(task.createdAt).toLocaleDateString()}</span>
+                        <span className="text-gray-400 text-xs">Created {task.createdAt ? new Date(task.createdAt).toLocaleDateString() : 'Unknown date'}</span>
                     </div>
                     <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">{task.title}</h2>
                     <p className="text-gray-500 dark:text-gray-400">{task.description || "No description provided."}</p>

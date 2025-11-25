@@ -13,7 +13,7 @@ export const dataService = {
         id: p.id,
         title: p.title,
         icon: p.icon,
-        createdAt: new Date(p.created_at)
+        createdAt: p.created_at ? new Date(p.created_at) : new Date()
       })) as Project[],
       
       tasks: (tasks || []).map((t: any) => ({
@@ -29,8 +29,8 @@ export const dataService = {
         linkedDocumentId: t.linked_document_id,
         agentStatus: t.agent_status,
         agentResult: t.agent_result,
-        createdAt: new Date(t.created_at),
-        updatedAt: new Date(t.updated_at)
+        createdAt: t.created_at ? new Date(t.created_at) : new Date(),
+        updatedAt: t.updated_at ? new Date(t.updated_at) : new Date()
       })) as Task[],
       
       documents: (documents || []).map((d: any) => ({
@@ -39,7 +39,7 @@ export const dataService = {
         title: d.title,
         content: d.content,
         tags: d.tags || [],
-        updatedAt: new Date(d.updated_at)
+        updatedAt: d.updated_at ? new Date(d.updated_at) : new Date()
       })) as Document[]
     };
   },
