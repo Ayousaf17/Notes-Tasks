@@ -32,13 +32,20 @@ export const ContextSidebar: React.FC<ContextSidebarProps> = ({ currentDoc, allD
       return links;
   }, [currentDoc, allDocs]);
 
-  // 3. Calculate Related Tasks (Tasks that mention this doc title OR are explicitly linked in content)
+  // 3. Calculate Related Tasks
+  // Logic: If specific tasks are linked/mentioned, show them.
+  // Fallback: If NONE are found, show ALL tasks for this project (Contextual Fallback).
   const relatedTasks = useMemo(() => {
-      return allTasks.filter(t => {
+      const linked = allTasks.filter(t => {
           const inContent = currentDoc.content.includes(`nexus://task/${t.id}`);
           const titleMatch = t.description?.includes(currentDoc.title);
           return inContent || titleMatch;
       });
+
+      if (linked.length > 0) return linked;
+
+      // Fallback: Show all project tasks
+      return allTasks.filter(t => t.projectId === currentDoc.projectId);
   }, [currentDoc, allTasks]);
 
   return (
@@ -56,7 +63,7 @@ export const ContextSidebar: React.FC<ContextSidebarProps> = ({ currentDoc, allD
         <div>
             <h4 className="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase mb-3 flex items-center gap-2">
                 <CheckCircle className="w-3 h-3" />
-                <span>Linked Tasks</span>
+                <span>Project Tasks</span>
             </h4>
             {relatedTasks.length > 0 ? (
                 <div className="space-y-2">
@@ -75,7 +82,7 @@ export const ContextSidebar: React.FC<ContextSidebarProps> = ({ currentDoc, allD
                     ))}
                 </div>
             ) : (
-                <div className="text-xs text-gray-300 dark:text-gray-600 italic">No linked tasks found.</div>
+                <div className="text-xs text-gray-300 dark:text-gray-600 italic">No tasks in this project.</div>
             )}
         </div>
 

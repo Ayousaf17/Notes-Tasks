@@ -24,9 +24,9 @@ const FormattedMessage: React.FC<{ text: string }> = ({ text }) => {
   const flushList = () => {
     if (currentListType && currentListItems.length > 0) {
       if (currentListType === 'ul') {
-        elements.push(<ul key={`list-${elements.length}`} className="list-disc list-outside ml-4 mb-3 space-y-1">{currentListItems}</ul>);
+        elements.push(<ul key={`list-${elements.length}`} className="list-disc list-outside ml-5 mb-4 space-y-2 text-gray-700 dark:text-gray-300">{currentListItems}</ul>);
       } else {
-        elements.push(<ol key={`list-${elements.length}`} className="list-decimal list-outside ml-4 mb-3 space-y-1">{currentListItems}</ol>);
+        elements.push(<ol key={`list-${elements.length}`} className="list-decimal list-outside ml-5 mb-4 space-y-2 text-gray-700 dark:text-gray-300">{currentListItems}</ol>);
       }
       currentListItems = [];
       currentListType = null;
@@ -51,7 +51,7 @@ const FormattedMessage: React.FC<{ text: string }> = ({ text }) => {
         flushList();
         // Don't push too many spacers
         if (elements.length > 0 && (elements[elements.length - 1] as any)?.type !== 'div') {
-             elements.push(<div key={`spacer-${i}`} className="h-2" />);
+             elements.push(<div key={`spacer-${i}`} className="h-3" />);
         }
         return;
     }
@@ -62,7 +62,7 @@ const FormattedMessage: React.FC<{ text: string }> = ({ text }) => {
         if (currentListType !== 'ol') flushList();
         currentListType = 'ol';
         currentListItems.push(
-            <li key={`li-${i}`} className="pl-1 text-gray-700 dark:text-gray-300">
+            <li key={`li-${i}`} className="pl-1">
                 {parseInline(olMatch[2], `li-${i}`)}
             </li>
         );
@@ -75,7 +75,7 @@ const FormattedMessage: React.FC<{ text: string }> = ({ text }) => {
         if (currentListType !== 'ul') flushList();
         currentListType = 'ul';
         currentListItems.push(
-            <li key={`li-${i}`} className="pl-1 text-gray-700 dark:text-gray-300">
+            <li key={`li-${i}`} className="pl-1">
                 {parseInline(ulMatch[1], `li-${i}`)}
             </li>
         );
@@ -87,11 +87,11 @@ const FormattedMessage: React.FC<{ text: string }> = ({ text }) => {
     
     // Check for headers (simple check)
     if (trimmed.startsWith('### ')) {
-        elements.push(<h3 key={`h3-${i}`} className="text-sm font-bold text-gray-900 dark:text-white mb-2 mt-4">{parseInline(trimmed.replace('### ', ''), `h3-${i}`)}</h3>);
+        elements.push(<h3 key={`h3-${i}`} className="text-sm font-bold text-gray-900 dark:text-white mb-2 mt-5">{parseInline(trimmed.replace('### ', ''), `h3-${i}`)}</h3>);
     } else if (trimmed.startsWith('## ')) {
-        elements.push(<h2 key={`h2-${i}`} className="text-base font-bold text-gray-900 dark:text-white mb-2 mt-4">{parseInline(trimmed.replace('## ', ''), `h2-${i}`)}</h2>);
+        elements.push(<h2 key={`h2-${i}`} className="text-base font-bold text-gray-900 dark:text-white mb-3 mt-6 border-b border-gray-100 dark:border-gray-800 pb-1">{parseInline(trimmed.replace('## ', ''), `h2-${i}`)}</h2>);
     } else {
-        elements.push(<p key={`p-${i}`} className="mb-2 last:mb-0 text-gray-700 dark:text-gray-300 leading-relaxed">{parseInline(line, `p-${i}`)}</p>);
+        elements.push(<p key={`p-${i}`} className="mb-3 last:mb-0 text-gray-700 dark:text-gray-300 leading-7">{parseInline(line, `p-${i}`)}</p>);
     }
   });
 
@@ -281,7 +281,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
       <div className="flex-1 overflow-y-auto p-5 space-y-6 bg-white dark:bg-gray-900">
         {messages.map((msg) => (
           <div key={msg.id} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-             <div className={`max-w-[90%] ${msg.role === 'user' ? 'text-right' : 'text-left w-full'}`}>
+             <div className={`max-w-[95%] ${msg.role === 'user' ? 'text-right' : 'text-left w-full'}`}>
                 {/* Attachments */}
                 {msg.attachments && msg.attachments.length > 0 && (
                     <div className="mb-2 flex flex-wrap gap-2 justify-end">
@@ -296,15 +296,15 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                 
                 {/* Text Bubble */}
                 {msg.role === 'user' ? (
-                    <div className="inline-block px-4 py-2.5 rounded-2xl text-sm leading-relaxed bg-black text-white rounded-br-none text-left">
+                    <div className="inline-block px-4 py-2.5 rounded-2xl text-sm leading-relaxed bg-black text-white rounded-br-none text-left shadow-sm">
                         <p className="whitespace-pre-wrap">{msg.text}</p>
                     </div>
                 ) : (
-                    <div className="block w-full px-5 py-4 rounded-2xl text-sm leading-relaxed text-gray-800 dark:text-gray-200 bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700 rounded-bl-none">
+                    <div className="block w-full px-6 py-5 rounded-2xl text-sm leading-relaxed text-gray-800 dark:text-gray-200 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 shadow-sm dark:shadow-none rounded-bl-none">
                         <FormattedMessage text={msg.text} />
                     </div>
                 )}
-                <div className={`text-[10px] text-gray-300 dark:text-gray-600 mt-1 px-1 ${msg.role === 'user' ? 'text-right' : 'text-left'}`}>
+                <div className={`text-[10px] text-gray-300 dark:text-gray-600 mt-1.5 px-1 ${msg.role === 'user' ? 'text-right' : 'text-left'}`}>
                     {msg.role === 'user' ? 'You' : 'Aasani'}
                 </div>
             </div>
