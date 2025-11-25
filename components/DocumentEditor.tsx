@@ -194,7 +194,8 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
 
   return (
     <div className={`flex-1 h-full overflow-y-auto bg-white dark:bg-gray-900 font-sans transition-all duration-500 ${isZenMode ? 'fixed inset-0 z-[100] px-0 py-0' : ''}`}>
-      <div className={`mx-auto transition-all duration-500 min-h-[calc(100vh-4rem)] ${isZenMode ? 'max-w-4xl px-8 py-20' : 'max-w-3xl px-8 py-12'}`}>
+      {/* Adjusted padding here: pt-24 to clear header in normal mode */}
+      <div className={`mx-auto transition-all duration-500 min-h-[calc(100vh-4rem)] ${isZenMode ? 'max-w-4xl px-8 py-20' : 'max-w-3xl px-8 pt-24 pb-12'}`}>
         
         {/* Minimal Toolbar */}
         <div className="flex items-center justify-between mb-8 group">
