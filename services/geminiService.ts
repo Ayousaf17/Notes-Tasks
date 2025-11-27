@@ -95,8 +95,9 @@ export const geminiService = {
               
               Instructions:
               1. **Target Project**: Assign to the most relevant Project ID from the list below. If generic, pick the first one.
-              2. **Smart Title**: Generate a concise, descriptive title.
-              3. **Link Everything**: If the content references other concepts or projects, use WikiLinks like [[Project Name]] or [[Concept]] in the 'content' or 'description' fields to ensure the graph is connected.
+              2. **Smart Title**: Generate a concise, professional title (max 6 words). Do not use generic or overly long sentence-like titles. E.g., "Meeting Notes: Q3 Review" instead of "Notes from the meeting regarding Q3".
+              3. **Link Everything**: If the content references other concepts or projects, use WikiLinks like [[Project Name]] in the 'content' or 'description' fields.
+              4. **Reasoning**: Explain briefly why you chose this action and project (e.g., "Contains action items related to project scope").
               
               User Note: "${content}"
               
@@ -117,7 +118,7 @@ export const geminiService = {
                               properties: {
                                   title: { type: Type.STRING },
                                   description: { type: Type.STRING, description: "For tasks, a brief description. Include [[Links]] if relevant." },
-                                  content: { type: Type.STRING, description: "For documents, the body content. Use Markdown and [[WikiLinks]]." },
+                                  content: { type: Type.STRING, description: "For documents, the body content. Use Markdown headers, lists, and [[WikiLinks]]." },
                                   priority: { type: Type.STRING, enum: [TaskPriority.HIGH, TaskPriority.MEDIUM, TaskPriority.LOW] }
                               },
                               required: ["title"]
@@ -321,7 +322,7 @@ export const geminiService = {
         Context (Current Document Content): "${currentContent}"
         User Request: "${prompt}"
         
-        Generate the requested content to be added to the document. Return ONLY the new text content, formatted in Markdown. Do not include conversational filler.`,
+        Generate the requested content to be added to the document. Return ONLY the new text content, formatted in Markdown. Use headers, lists, and bold text for clarity. Do not include conversational filler.`,
       });
       
       return response.text || "";

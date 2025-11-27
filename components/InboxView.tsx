@@ -1,7 +1,6 @@
-
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { InboxItem, Project, InboxAction } from '../types';
-import { Mic, Send, Sparkles, Archive, ArrowRight, Loader2, CheckCircle, FileText, CheckSquare, Trash2, StopCircle, Paperclip, X, Check } from 'lucide-react';
+import { Mic, Sparkles, Archive, Loader2, CheckCircle, FileText, Trash2, StopCircle, Paperclip, X, Check, ArrowRight, ChevronDown } from 'lucide-react';
 import { geminiService } from '../services/geminiService';
 
 interface InboxViewProps {
@@ -9,6 +8,7 @@ interface InboxViewProps {
   onAddItem: (content: string, type: 'text' | 'audio' | 'file', fileName?: string) => void;
   onProcessItem: (itemId: string, action: InboxAction) => void;
   onDeleteItem: (itemId: string) => void;
+  onUpdateItem?: (itemId: string, updates: Partial<InboxItem>) => void; 
   projects: Project[];
 }
 
@@ -17,12 +17,17 @@ export const InboxView: React.FC<InboxViewProps> = ({
     onAddItem, 
     onProcessItem, 
     onDeleteItem,
+    onUpdateItem,
     projects 
 }) => {
   const [inputText, setInputText] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [processingId, setProcessingId] = useState<string | null>(null);
   
+  // State for new project creation flow inside the card
+  const [newProjectName, setNewProjectName] = useState('');
+  const [creatingProjectId, setCreatingProjectId] = useState<string | null>(null);
+
   // Ref for audio & file
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -78,7 +83,6 @@ export const InboxView: React.FC<InboxViewProps> = ({
       if (e.target.files && e.target.files[0]) {
           const file = e.target.files[0];
           onAddItem(`Attached: ${file.name}`, 'file', file.name);
-          // Reset input
           if (fileInputRef.current) fileInputRef.current.value = '';
       }
   };
@@ -86,18 +90,45 @@ export const InboxView: React.FC<InboxViewProps> = ({
   const handleMagicSort = async (item: InboxItem) => {
       setProcessingId(item.id);
       const result = await geminiService.organizeInboxItem(item.content, projects);
-      if (result) {
-          // We store the result temporarily on the item (in memory/state) 
-          // The parent passes a handler that likely updates the state
-          onProcessItem(item.id, result); // Note: In App.tsx this currently applies it directly if processedResult exists, we need to verify flow
-          // Actually, usually we want to set the 'processedResult' on the item without 'applying' it yet.
-          // Looking at App.tsx: handleStoreInboxSuggestion does exactly this.
+      if (result && onUpdateItem) {
+          onUpdateItem(item.id, { processedResult: result });
+      } else if (result) {
+          onProcessItem(item.id, result);
       }
       setProcessingId(null);
   };
 
+  const handleUpdateProject = (item: InboxItem, projectId: string) => {
+      if (projectId === 'NEW_PROJECT') {
+          setCreatingProjectId(item.id);
+          return;
+      }
+      if (item.processedResult && onUpdateItem) {
+          onUpdateItem(item.id, {
+              processedResult: {
+                  ...item.processedResult,
+                  targetProjectId: projectId
+              }
+          });
+          setCreatingProjectId(null);
+      }
+  };
+
+  const confirmNewProject = (item: InboxItem) => {
+      if (!newProjectName.trim() || !onUpdateItem || !item.processedResult) return;
+      
+      onUpdateItem(item.id, {
+          processedResult: {
+              ...item.processedResult,
+              targetProjectId: `NEW:${newProjectName}`
+          }
+      });
+      setCreatingProjectId(null);
+      setNewProjectName('');
+  };
+
   return (
-    <div className="flex-1 h-full bg-gray-50 dark:bg-gray-950 flex flex-col items-center p-8 overflow-y-auto font-sans transition-colors duration-200">
+    <div className="flex-1 h-full bg-gray-50 dark:bg-black flex flex-col items-center p-8 overflow-y-auto font-sans transition-colors duration-200">
         
         {/* Header */}
         <div className="w-full max-w-2xl mb-8 text-center animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -106,7 +137,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
         </div>
 
         {/* Input Box */}
-        <div className="w-full max-w-2xl bg-white dark:bg-gray-900 rounded-2xl shadow-xl shadow-gray-200/50 dark:shadow-gray-900/50 p-4 mb-12 border border-gray-100 dark:border-gray-800 transition-all focus-within:ring-2 focus-within:ring-black/5 dark:focus-within:ring-white/10 relative animate-in fade-in zoom-in-95 duration-300">
+        <div className="w-full max-w-2xl bg-white dark:bg-gray-900 rounded-2xl shadow-xl shadow-gray-200/50 dark:shadow-black/50 p-4 mb-12 border border-gray-100 dark:border-gray-800 transition-all focus-within:ring-2 focus-within:ring-black/5 dark:focus-within:ring-white/10 relative animate-in fade-in zoom-in-95 duration-300">
             <textarea
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
@@ -152,11 +183,11 @@ export const InboxView: React.FC<InboxViewProps> = ({
             )}
             
             {items.filter(i => i.status === 'pending').map(item => (
-                <div key={item.id} className="bg-white dark:bg-gray-900 p-0 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm flex flex-col group animate-in slide-in-from-bottom-2 overflow-hidden">
+                <div key={item.id} className="bg-white dark:bg-gray-900 p-0 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm flex flex-col group animate-in slide-in-from-bottom-2 overflow-hidden transition-all duration-300">
                     
                     {/* Content Section */}
                     <div className="p-5">
-                        <div className="text-gray-800 dark:text-gray-200 text-sm leading-relaxed whitespace-pre-wrap">{item.content}</div>
+                        <div className="text-gray-800 dark:text-gray-200 text-sm leading-relaxed whitespace-pre-wrap font-medium">{item.content}</div>
                         <div className="flex items-center gap-2 mt-3 text-[10px] text-gray-400">
                             {item.type === 'audio' && <Mic className="w-3 h-3" />}
                             {item.type === 'file' && <FileText className="w-3 h-3" />}
@@ -164,46 +195,81 @@ export const InboxView: React.FC<InboxViewProps> = ({
                         </div>
                     </div>
                     
-                    {/* AI Suggestion Area */}
+                    {/* AI Suggestion Area (Draft Preview Card) */}
                     {item.processedResult ? (
-                        <div className="bg-purple-50/50 dark:bg-purple-900/10 border-t border-purple-100 dark:border-purple-800/30 p-4 flex flex-col gap-3 animate-in slide-in-from-top-2">
-                            <div className="flex items-start gap-3">
-                                <div className="p-2 bg-white dark:bg-gray-800 rounded-lg shadow-sm shrink-0 text-purple-600 dark:text-purple-400">
-                                    <Sparkles className="w-4 h-4" />
+                        <div className="bg-slate-900 text-white border-t border-slate-800 p-5 flex flex-col gap-4 animate-in slide-in-from-top-2 rounded-b-xl">
+                            <div className="flex items-start gap-4">
+                                <div className="p-3 bg-slate-800 rounded-lg shadow-sm shrink-0 text-purple-400 border border-slate-700">
+                                    {item.processedResult.actionType === 'create_task' ? <CheckCircle className="w-5 h-5" /> : <FileText className="w-5 h-5" />}
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <span className="text-xs font-bold text-purple-700 dark:text-purple-300 uppercase tracking-wider">
-                                            {item.processedResult.actionType === 'create_task' ? 'Suggested Task' : 'Suggested Document'}
+                                    <div className="flex items-center justify-between mb-2">
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                            DRAFT PREVIEW
+                                        </span>
+                                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30 font-medium">
+                                            {item.processedResult.actionType === 'create_task' ? 'New Task' : 'New Document'}
                                         </span>
                                     </div>
-                                    <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">{item.processedResult.data.title}</h3>
-                                    <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1 mb-2">
-                                        <span>in</span>
-                                        <span className="font-medium text-gray-700 dark:text-gray-300">{projects.find(p => p.id === item.processedResult?.targetProjectId)?.title || 'General Project'}</span>
+                                    
+                                    <h3 className="text-lg font-semibold text-white mb-3 leading-tight">{item.processedResult.data.title}</h3>
+                                    
+                                    <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400 mb-3">
+                                        <span>Will be filed in:</span>
+                                        {/* Project Selector */}
+                                        {creatingProjectId === item.id ? (
+                                            <div className="flex items-center gap-2">
+                                                <input 
+                                                    autoFocus
+                                                    type="text"
+                                                    value={newProjectName}
+                                                    onChange={(e) => setNewProjectName(e.target.value)}
+                                                    placeholder="New Project Name"
+                                                    className="bg-slate-800 text-white px-2 py-1 rounded border border-slate-600 text-xs focus:ring-1 focus:ring-purple-500 outline-none"
+                                                />
+                                                <button onClick={() => confirmNewProject(item)} className="text-green-400 hover:text-green-300"><Check className="w-4 h-4" /></button>
+                                                <button onClick={() => setCreatingProjectId(null)} className="text-red-400 hover:text-red-300"><X className="w-4 h-4" /></button>
+                                            </div>
+                                        ) : (
+                                            <div className="relative group/project">
+                                                <select 
+                                                    value={item.processedResult.targetProjectId.startsWith('NEW:') ? 'NEW_PROJECT' : item.processedResult.targetProjectId}
+                                                    onChange={(e) => handleUpdateProject(item, e.target.value)}
+                                                    className="appearance-none bg-slate-800 text-white px-3 py-1 pr-7 rounded border border-slate-700 hover:border-slate-600 focus:ring-1 focus:ring-purple-500 focus:border-purple-500 cursor-pointer font-medium transition-colors"
+                                                >
+                                                    {projects.map(p => (
+                                                        <option key={p.id} value={p.id}>{p.title}</option>
+                                                    ))}
+                                                    <option value="NEW_PROJECT">+ Create New Project</option>
+                                                </select>
+                                                <ChevronDown className="w-3 h-3 absolute right-2 top-1.5 text-slate-400 pointer-events-none" />
+                                            </div>
+                                        )}
+                                        {item.processedResult.targetProjectId.startsWith('NEW:') && (
+                                            <span className="text-purple-400 font-bold">{item.processedResult.targetProjectId.substring(4)}</span>
+                                        )}
                                     </div>
+
                                     {item.processedResult.reasoning && (
-                                        <p className="text-xs text-purple-600/80 dark:text-purple-300/70 italic">"{item.processedResult.reasoning}"</p>
+                                        <div className="text-xs text-slate-400 italic border-l-2 border-purple-500/50 pl-3 py-1 mt-2">
+                                            "{item.processedResult.reasoning}"
+                                        </div>
                                     )}
                                 </div>
                             </div>
                             
-                            <div className="flex justify-end gap-2 mt-1">
+                            <div className="flex justify-end gap-3 pt-3 border-t border-slate-800/50">
                                 <button 
-                                    onClick={() => { 
-                                        // Discard suggestion only (reset processedResult) - requires parent handler support or re-request
-                                        // For now, we'll just delete the item if they hate the suggestion, or we could add a 'reset' prop
-                                        onDeleteItem(item.id); 
-                                    }}
-                                    className="px-3 py-1.5 text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                    onClick={() => onDeleteItem(item.id)}
+                                    className="px-4 py-2 text-xs font-medium text-slate-400 hover:text-white hover:bg-white/10 rounded-md transition-colors"
                                 >
                                     Discard
                                 </button>
                                 <button 
                                     onClick={() => onProcessItem(item.id, item.processedResult!)}
-                                    className="px-4 py-1.5 text-xs font-medium bg-black dark:bg-white text-white dark:text-black rounded-lg hover:opacity-90 transition-opacity flex items-center gap-1.5"
+                                    className="px-6 py-2 text-xs font-bold bg-white text-black rounded-md hover:bg-gray-200 transition-colors flex items-center gap-2 shadow-lg shadow-white/10"
                                 >
-                                    <Check className="w-3 h-3" /> Approve
+                                    Approve <ArrowRight className="w-3 h-3" />
                                 </button>
                             </div>
                         </div>

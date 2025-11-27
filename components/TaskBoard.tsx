@@ -1,7 +1,6 @@
-
 import React, { useState, useMemo } from 'react';
-import { Task, TaskStatus, TaskPriority, AgentRole } from '../types';
-import { Plus, Filter, X, ArrowUpDown, User, Flag, Link as LinkIcon, AlertCircle, CheckCircle, Sparkles, Loader2, Bot, ChevronDown, ChevronUp, GripVertical, CheckSquare, Square, Calendar, MoreHorizontal, Paperclip } from 'lucide-react';
+import { Task, TaskStatus, TaskPriority, AgentRole, Project } from '../types';
+import { Plus, Filter, X, ArrowUpDown, User, Flag, Link as LinkIcon, AlertCircle, CheckCircle, Sparkles, Loader2, Bot, ChevronDown, ChevronUp, GripVertical, CheckSquare, Square, Calendar, MoreHorizontal, Paperclip, Folder } from 'lucide-react';
 import { geminiService } from '../services/geminiService';
 
 interface TaskBoardProps {
@@ -11,11 +10,15 @@ interface TaskBoardProps {
   onUpdateTaskDueDate: (taskId: string, date: Date) => void;
   onUpdateTaskPriority: (taskId: string, priority: TaskPriority) => void;
   onUpdateTaskDependencies: (taskId: string, dependencyIds: string[]) => void;
+  onDeleteTask: (taskId: string) => void;
   contextString?: string;
   onAddTasks: (tasks: Partial<Task>[]) => void;
   onPromoteTask: (taskId: string) => void;
   onNavigate: (type: 'document' | 'task', id: string) => void;
   onSelectTask?: (taskId: string) => void;
+  users: string[]; // Dynamic users
+  projects?: Project[]; // For badges
+  isGlobalView?: boolean; // Context flag
 }
 
 type SortOption = 'NONE' | 'PRIORITY_DESC' | 'DUE_DATE_ASC';
@@ -27,11 +30,15 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
     onUpdateTaskDueDate,
     onUpdateTaskPriority,
     onUpdateTaskDependencies,
+    onDeleteTask,
     contextString,
     onAddTasks,
     onPromoteTask,
     onNavigate,
-    onSelectTask
+    onSelectTask,
+    users,
+    projects = [],
+    isGlobalView = false
 }) => {
   const [assigneeFilter, setAssigneeFilter] = useState<string>('ALL');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
@@ -55,7 +62,6 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
     { id: TaskStatus.DONE, label: 'Done' },
   ];
 
-  const MOCK_USERS = ['Me', 'Alice', 'Bob', 'Charlie', 'Dave'];
   const AI_AGENTS = [
       { id: AgentRole.RESEARCHER, name: 'AI Researcher' },
       { id: AgentRole.WRITER, name: 'AI Writer' },
@@ -63,12 +69,12 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
   ];
 
   const availableAssignees = useMemo(() => {
-    const users = new Set(MOCK_USERS);
+    const all = new Set([...(users || [])]);
     tasks.forEach(t => {
-        if (t.assignee && !t.assignee.startsWith('AI_')) users.add(t.assignee);
+        if (t.assignee && !t.assignee.startsWith('AI_')) all.add(t.assignee);
     });
-    return Array.from(users).sort();
-  }, [tasks]);
+    return Array.from(all).sort();
+  }, [tasks, users]);
 
   const filteredAndSortedTasks = useMemo(() => {
       let result = tasks.filter(task => {
@@ -156,14 +162,25 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
       }]);
   };
 
+  const getProjectTitle = (projectId: string) => {
+      return projects.find(p => p.id === projectId)?.title || 'Unknown Project';
+  };
+
+  // Handle empty task blur
+  const handleTaskBlur = (task: Task) => {
+      if (!task.title.trim()) {
+          onDeleteTask(task.id);
+      }
+  };
+
   return (
-    <div className="flex-1 flex flex-col h-full bg-white dark:bg-gray-900 font-sans overflow-hidden transition-colors duration-200">
+    <div className="flex-1 flex flex-col h-full bg-white dark:bg-black font-sans overflow-hidden transition-colors duration-200">
       {/* Header Controls */}
-      <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between shrink-0 bg-white/90 dark:bg-gray-900/90 backdrop-blur z-20 sticky top-0">
+      <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between shrink-0 bg-white/90 dark:bg-black/90 backdrop-blur z-20 sticky top-0">
         <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
                 <Filter className="w-4 h-4 text-gray-400" />
-                <select value={assigneeFilter} onChange={(e) => setAssigneeFilter(e.target.value)} className="bg-transparent border-none text-sm focus:ring-0 p-0 cursor-pointer hover:text-black dark:hover:text-white font-medium dark:bg-gray-900">
+                <select value={assigneeFilter} onChange={(e) => setAssigneeFilter(e.target.value)} className="bg-transparent border-none text-sm focus:ring-0 p-0 cursor-pointer hover:text-black dark:hover:text-white font-medium dark:bg-black">
                     <option value="ALL">All Assignees</option>
                     <option value="Unassigned">Unassigned</option>
                     <option value="AI_AGENTS">AI Agents</option>
@@ -184,11 +201,12 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
       </div>
 
       {/* Board */}
-      <div className="flex-1 overflow-x-auto overflow-y-hidden p-6 bg-gray-50/50 dark:bg-gray-950">
+      <div className="flex-1 overflow-x-auto overflow-y-hidden p-6 bg-gray-50/50 dark:bg-black">
         <div className="flex gap-6 h-full min-w-max">
             {columns.map(col => {
                 const colTasks = filteredAndSortedTasks.filter(t => t.status === col.id);
                 const isActiveDrop = activeDropZone === col.id;
+                const isEmpty = colTasks.length === 0;
                 
                 return (
                     <div 
@@ -198,13 +216,19 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
                         onDrop={(e) => handleDrop(e, col.id)}
                     >
                         {/* Column Header (Sticky) */}
-                        <div className="flex items-center justify-between px-1 py-3 mb-2 sticky top-0 z-10 bg-gray-50/95 dark:bg-gray-950/95 backdrop-blur-sm rounded-lg border border-transparent shadow-sm">
+                        <div className="flex items-center justify-between px-1 py-3 mb-2 sticky top-0 z-10 bg-gray-50/95 dark:bg-black/95 backdrop-blur-sm rounded-lg border border-transparent shadow-sm">
                             <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 pl-2">{col.label}</h3>
                             <span className="text-xs font-medium text-gray-400 pr-2">{colTasks.length}</span>
                         </div>
                         
                         {/* Task List (Scrollable) */}
                         <div className="flex-1 overflow-y-auto px-1 pb-4 space-y-3 no-scrollbar">
+                            {isEmpty && (
+                                <div className="h-32 flex flex-col items-center justify-center text-gray-300 dark:text-gray-700 border-2 border-dashed border-gray-100 dark:border-gray-800 rounded-lg m-1">
+                                    <span className="text-xs font-medium">No tasks</span>
+                                </div>
+                            )}
+                            
                             {colTasks.map(task => {
                                 const blocked = isTaskBlocked(task);
                                 const isAgentWorking = task.agentStatus === 'working';
@@ -217,15 +241,31 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
                                         onDragStart={(e) => handleDragStart(e, task.id)}
                                         onDragEnd={handleDragEnd}
                                         onClick={() => onSelectTask && onSelectTask(task.id)}
-                                        className={`group relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 p-4 rounded-lg shadow-sm hover:shadow-md transition-all cursor-grab active:cursor-grabbing flex flex-col gap-3 ${blocked ? 'opacity-70 bg-gray-50 dark:bg-gray-800' : ''} ${isDragging ? 'opacity-50 ring-2 ring-indigo-400 rotate-2 scale-95 z-50' : 'hover:-translate-y-0.5'}`}
+                                        className={`group relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 p-4 rounded-lg shadow-sm hover:shadow-md transition-all cursor-grab active:cursor-grabbing flex flex-col gap-3 ${blocked ? 'opacity-70 bg-gray-50 dark:bg-gray-900' : ''} ${isDragging ? 'opacity-50 ring-2 ring-indigo-400 rotate-2 scale-95 z-50' : 'hover:-translate-y-0.5'}`}
                                     >
                                         <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity text-gray-300 dark:text-gray-600 pointer-events-none">
                                             <GripVertical className="w-4 h-4" />
                                         </div>
 
                                         <div className="flex flex-col gap-1 pointer-events-none">
+                                            {isGlobalView && (
+                                                <div className="flex items-center gap-1 mb-1">
+                                                    <div className="bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 text-[10px] px-1.5 py-0.5 rounded font-medium flex items-center gap-1 truncate max-w-[150px]">
+                                                        <Folder className="w-3 h-3" />
+                                                        {getProjectTitle(task.projectId)}
+                                                    </div>
+                                                </div>
+                                            )}
                                             <div className="flex justify-between items-start">
-                                                <span className="text-sm text-gray-900 dark:text-gray-100 leading-snug font-medium line-clamp-2 pr-6">{task.title || 'Untitled Task'}</span>
+                                                {/* Editable Title for quick edit and empty detection */}
+                                                <input 
+                                                    className="text-sm text-gray-900 dark:text-gray-100 leading-snug font-medium bg-transparent border-none p-0 focus:ring-0 w-full pointer-events-auto"
+                                                    value={task.title}
+                                                    placeholder="Untitled Task"
+                                                    onChange={(e) => {/* Handled by modal usually, but visual sync needed here if editable */}}
+                                                    onBlur={() => handleTaskBlur(task)}
+                                                    readOnly // Make readonly in board view to prefer modal edit, but allows blur to trigger on focus loss if we enabled editing
+                                                />
                                             </div>
                                             {task.description && <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2">{task.description}</p>}
                                         </div>
@@ -247,7 +287,7 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
                                                      </div>
                                                      <select value={task.assignee || ''} onChange={(e) => onUpdateTaskAssignee(task.id, e.target.value)} className="absolute inset-0 opacity-0 cursor-pointer text-xs">
                                                          <option value="">Unassigned</option>
-                                                         <optgroup label="Team">{MOCK_USERS.map(u => <option key={u} value={u}>{u}</option>)}</optgroup>
+                                                         <optgroup label="Team">{(users || []).map(u => <option key={u} value={u}>{u}</option>)}</optgroup>
                                                          <optgroup label="AI">{AI_AGENTS.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}</optgroup>
                                                      </select>
                                                  </div>

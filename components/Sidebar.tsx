@@ -1,6 +1,5 @@
-
 import React from 'react';
-import { FileText, Layout, Calendar, Settings, Plus, Cloud, Inbox, Network, Home, X, Globe, Layers, User, Moon, Sun } from 'lucide-react';
+import { FileText, Layout, Calendar, Settings, Plus, Cloud, Inbox, Network, Home, X, Globe, Layers, User, Moon, Sun, Loader2 } from 'lucide-react';
 import { ViewMode, Document, Project } from '../types';
 
 interface SidebarProps {
@@ -39,6 +38,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onToggleDarkMode
 }) => {
   
+  // Render loading state if projects are not yet loaded
+  if (!projects) {
+      return (
+          <div className="w-64 h-full bg-white dark:bg-black border-r border-gray-100 dark:border-gray-800 flex items-center justify-center">
+              <Loader2 className="w-6 h-6 animate-spin text-gray-300" />
+          </div>
+      );
+  }
+
   const NavItem = ({ icon: Icon, label, isActive, onClick, className = '' }: any) => (
     <button
       onClick={onClick}
@@ -53,8 +61,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     </button>
   );
 
-  const SidebarContent = () => (
-    <div className="flex flex-col h-full bg-white dark:bg-gray-900 border-r border-gray-100 dark:border-gray-800 font-sans transition-colors duration-200">
+  return (
+    <div className={`fixed md:static inset-y-0 left-0 z-40 w-64 transform transition-transform duration-200 ease-in-out bg-white dark:bg-black border-r border-gray-100 dark:border-gray-800 flex flex-col font-sans ${isMobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
       {/* Brand Header */}
       <div className="p-6 flex items-center justify-between">
         <span className="font-semibold text-xl tracking-tight text-black dark:text-white">Aasani.</span>
@@ -108,19 +116,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     key={project.id}
                     onClick={() => {
                         onSelectProject(project.id);
-                        if ([ViewMode.HOME, ViewMode.INBOX, ViewMode.GLOBAL_BOARD, ViewMode.GLOBAL_CALENDAR].includes(currentView)) {
+                        if ([ViewMode.HOME, ViewMode.INBOX, ViewMode.GLOBAL_BOARD, ViewMode.GLOBAL_CALENDAR, ViewMode.SETTINGS].includes(currentView)) {
                             onChangeView(ViewMode.DOCUMENTS);
                         }
                         onMobileClose();
                     }}
                     className={`w-full flex items-center justify-between px-2 py-1.5 rounded-md text-sm transition-colors text-left group ${
-                        activeProjectId === project.id && ![ViewMode.HOME, ViewMode.INBOX, ViewMode.GLOBAL_BOARD, ViewMode.GLOBAL_CALENDAR].includes(currentView)
+                        activeProjectId === project.id && ![ViewMode.HOME, ViewMode.INBOX, ViewMode.GLOBAL_BOARD, ViewMode.GLOBAL_CALENDAR, ViewMode.SETTINGS].includes(currentView)
                         ? 'text-black dark:text-white font-medium bg-gray-50 dark:bg-gray-800' 
                         : 'text-gray-400 dark:text-gray-500 hover:text-gray-900 dark:hover:text-gray-200'
                     }`}
                 >
                     <span className="truncate">{project.title}</span>
-                    {activeProjectId === project.id && ![ViewMode.HOME, ViewMode.INBOX, ViewMode.GLOBAL_BOARD, ViewMode.GLOBAL_CALENDAR].includes(currentView) && (
+                    {activeProjectId === project.id && ![ViewMode.HOME, ViewMode.INBOX, ViewMode.GLOBAL_BOARD, ViewMode.GLOBAL_CALENDAR, ViewMode.SETTINGS].includes(currentView) && (
                         <div className="w-1.5 h-1.5 rounded-full bg-black dark:bg-white"></div>
                     )}
                 </button>
@@ -128,7 +136,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* Active Project Context */}
-        {![ViewMode.HOME, ViewMode.INBOX, ViewMode.GLOBAL_BOARD, ViewMode.GLOBAL_CALENDAR].includes(currentView) && (
+        {![ViewMode.HOME, ViewMode.INBOX, ViewMode.GLOBAL_BOARD, ViewMode.GLOBAL_CALENDAR, ViewMode.SETTINGS].includes(currentView) && (
              <div className="space-y-0.5 pt-4 border-t border-gray-50 dark:border-gray-800">
                 <div className="px-2 text-[10px] font-semibold text-gray-300 dark:text-gray-600 uppercase tracking-widest mb-2">Current Project</div>
                 <NavItem icon={FileText} label="Documents" isActive={currentView === ViewMode.DOCUMENTS} onClick={() => { onChangeView(ViewMode.DOCUMENTS); onMobileClose(); }} />
@@ -198,28 +206,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <Cloud className="w-3.5 h-3.5" />
             <span>Connect Cloud</span>
             </button>
-            <button className="w-full flex items-center space-x-2 px-2 py-1.5 text-gray-400 hover:text-black dark:hover:text-white text-xs rounded hover:bg-white dark:hover:bg-gray-800">
+            <button 
+              onClick={() => { onChangeView(ViewMode.SETTINGS); onMobileClose(); }}
+              className={`w-full flex items-center space-x-2 px-2 py-1.5 text-xs rounded transition-colors ${
+                currentView === ViewMode.SETTINGS 
+                ? 'text-black dark:text-white font-medium bg-white dark:bg-gray-800' 
+                : 'text-gray-400 hover:text-black dark:hover:text-white hover:bg-white dark:hover:bg-gray-800'
+              }`}
+            >
             <Settings className="w-3.5 h-3.5" />
             <span>Settings</span>
             </button>
          </div>
       </div>
     </div>
-  );
-
-  return (
-    <>
-      <div className="hidden md:flex w-64 h-full shrink-0">
-        <SidebarContent />
-      </div>
-      {isMobileOpen && (
-        <div className="fixed inset-0 z-40 flex md:hidden">
-            <div className="fixed inset-0 bg-white/80 dark:bg-black/80 backdrop-blur-sm" onClick={onMobileClose}></div>
-            <div className="relative w-64 h-full shadow-xl animate-in slide-in-from-left duration-200">
-                <SidebarContent />
-            </div>
-        </div>
-      )}
-    </>
   );
 };

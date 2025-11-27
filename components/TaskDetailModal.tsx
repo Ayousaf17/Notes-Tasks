@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect } from 'react';
-import { Task, TaskStatus, TaskPriority, AgentRole } from '../types';
-import { X, Calendar, User, Flag, CheckSquare, AlignLeft, Trash2 } from 'lucide-react';
+import { Task, TaskStatus, TaskPriority, AgentRole, Project } from '../types';
+import { X, Calendar, User, Flag, CheckSquare, AlignLeft, Trash2, Folder } from 'lucide-react';
 
 interface TaskDetailModalProps {
   task: Task;
@@ -10,16 +9,19 @@ interface TaskDetailModalProps {
   onUpdate: (taskId: string, updates: Partial<Task>) => void;
   onDelete: (taskId: string) => void;
   users: string[];
+  projects: Project[]; 
 }
 
-export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, isOpen, onClose, onUpdate, onDelete, users }) => {
+export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, isOpen, onClose, onUpdate, onDelete, users, projects }) => {
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description || '');
+  const [assigneeInput, setAssigneeInput] = useState(task.assignee || '');
   
   // Sync local state when task changes
   useEffect(() => {
     setTitle(task.title);
     setDescription(task.description || '');
+    setAssigneeInput(task.assignee || '');
   }, [task]);
 
   if (!isOpen) return null;
@@ -37,8 +39,14 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, isOpen, 
     onUpdate(task.id, { priority: e.target.value as TaskPriority });
   };
 
-  const handleAssigneeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    onUpdate(task.id, { assignee: e.target.value });
+  const handleAssigneeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setAssigneeInput(val);
+    onUpdate(task.id, { assignee: val });
+  };
+
+  const handleProjectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    onUpdate(task.id, { projectId: e.target.value });
   };
 
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -65,8 +73,6 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, isOpen, 
                     placeholder="Task Title"
                 />
                 <div className="text-xs text-gray-400 dark:text-gray-500 mt-1 flex items-center gap-2">
-                    <span>in Project</span>
-                    <span className="w-1 h-1 rounded-full bg-gray-300 dark:bg-gray-600"></span>
                     <span>Created {new Date(task.createdAt).toLocaleDateString()}</span>
                 </div>
             </div>
@@ -106,6 +112,23 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, isOpen, 
             {/* Sidebar Properties */}
             <div className="w-full md:w-64 space-y-6">
                 
+                {/* Project */}
+                <div className="space-y-1">
+                    <label className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Project</label>
+                    <div className="relative">
+                        <select 
+                            value={task.projectId} 
+                            onChange={handleProjectChange}
+                            className="w-full appearance-none bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 text-sm rounded-lg px-3 py-2 pr-8 focus:ring-black dark:focus:ring-white focus:border-black dark:focus:border-white"
+                        >
+                            {projects.map(p => (
+                                <option key={p.id} value={p.id}>{p.title}</option>
+                            ))}
+                        </select>
+                        <Folder className="absolute right-3 top-2.5 w-4 h-4 text-gray-400 pointer-events-none" />
+                    </div>
+                </div>
+
                 {/* Status */}
                 <div className="space-y-1">
                     <label className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Status</label>
@@ -140,27 +163,23 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, isOpen, 
                     </div>
                 </div>
 
-                {/* Assignee */}
+                {/* Assignee - Editable with Datalist */}
                 <div className="space-y-1">
                     <label className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Assignee</label>
                     <div className="relative">
-                        <select 
-                            value={task.assignee || ''} 
+                        <input 
+                            list="assignee-options"
+                            value={assigneeInput}
                             onChange={handleAssigneeChange}
-                            className="w-full appearance-none bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 text-sm rounded-lg px-3 py-2 pr-8 focus:ring-black dark:focus:ring-white focus:border-black dark:focus:border-white"
-                        >
-                            <option value="">Unassigned</option>
-                            <optgroup label="People">
-                                {users.filter(u => !u.startsWith('AI_')).map(u => (
-                                    <option key={u} value={u}>{u}</option>
-                                ))}
-                            </optgroup>
-                            <optgroup label="AI Agents">
-                                <option value={AgentRole.RESEARCHER}>AI Researcher</option>
-                                <option value={AgentRole.WRITER}>AI Writer</option>
-                                <option value={AgentRole.PLANNER}>AI Planner</option>
-                            </optgroup>
-                        </select>
+                            placeholder="Unassigned"
+                            className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 text-sm rounded-lg px-3 py-2 focus:ring-black dark:focus:ring-white focus:border-black dark:focus:border-white"
+                        />
+                        <datalist id="assignee-options">
+                            {users.map(u => <option key={u} value={u} />)}
+                            <option value={AgentRole.RESEARCHER}>AI Researcher</option>
+                            <option value={AgentRole.WRITER}>AI Writer</option>
+                            <option value={AgentRole.PLANNER}>AI Planner</option>
+                        </datalist>
                         <User className="absolute right-3 top-2.5 w-4 h-4 text-gray-400 pointer-events-none" />
                     </div>
                 </div>

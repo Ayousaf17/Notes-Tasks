@@ -1,8 +1,7 @@
-
 import React, { useEffect, useState, useMemo } from 'react';
 import { Task, Document, Project, TaskPriority, TaskStatus } from '../types';
 import { geminiService } from '../services/geminiService';
-import { Calendar, ArrowRight, Volume2, StopCircle, FileText, Sparkles } from 'lucide-react';
+import { Calendar, ArrowRight, Volume2, StopCircle, FileText, Sparkles, Plus } from 'lucide-react';
 
 interface DashboardViewProps {
   tasks: Task[];
@@ -11,6 +10,7 @@ interface DashboardViewProps {
   userName: string;
   onNavigate: (type: 'document' | 'task', id: string) => void;
   onStartReview: () => void;
+  onCreateProject: () => void;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({ 
@@ -19,7 +19,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     projects, 
     userName, 
     onNavigate,
-    onStartReview
+    onStartReview,
+    onCreateProject
 }) => {
   const [briefing, setBriefing] = useState<string | null>(null);
   const [loadingBriefing, setLoadingBriefing] = useState(false);
@@ -200,8 +201,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 </div>
 
                 <div className="space-y-3 pt-4">
-                     <button onClick={() => {}} className="w-full text-left px-5 py-4 border border-gray-200 dark:border-gray-700 rounded-xl hover:border-black dark:hover:border-white transition-colors text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white bg-white dark:bg-gray-800">
-                        + New Project
+                     <button 
+                        onClick={onCreateProject}
+                        className="w-full text-left px-5 py-4 border border-gray-200 dark:border-gray-700 rounded-xl hover:border-black dark:hover:border-white transition-colors text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white bg-white dark:bg-gray-800 flex items-center gap-2 group"
+                     >
+                        <Plus className="w-4 h-4 text-gray-400 group-hover:text-black dark:group-hover:text-white" />
+                        Create New Project
                      </button>
                      <button onClick={onStartReview} className="w-full text-left px-5 py-4 bg-black dark:bg-white text-white dark:text-black rounded-xl hover:bg-gray-900 dark:hover:bg-gray-200 transition-colors text-sm font-medium flex items-center justify-between shadow-xl shadow-gray-200 dark:shadow-black/50">
                         <span>Review Inbox</span>

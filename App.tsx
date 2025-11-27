@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { DocumentEditor } from './components/DocumentEditor';
@@ -13,6 +12,7 @@ import { DashboardView } from './components/DashboardView';
 import { ReviewWizard } from './components/ReviewWizard';
 import { TaskDetailModal } from './components/TaskDetailModal';
 import { IntegrationsModal } from './components/IntegrationsModal';
+import { SettingsView } from './components/SettingsView';
 import { ViewMode, Document, Task, TaskStatus, ProjectPlan, TaskPriority, ChatMessage, Project, InboxItem, InboxAction, AgentRole, Integration } from './types';
 import { Sparkles, Command, Plus, Menu, Cloud, MessageSquare } from 'lucide-react';
 import { geminiService } from './services/geminiService';
@@ -23,6 +23,30 @@ const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewMode>(ViewMode.HOME); 
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   
+  // Team Management State
+  const [teamMembers, setTeamMembers] = useState<string[]>(() => {
+      if (typeof window !== 'undefined') {
+          const stored = localStorage.getItem('teamMembers');
+          try {
+             const parsed = stored ? JSON.parse(stored) : null;
+             return Array.isArray(parsed) ? parsed : ['Me', 'Alice', 'Bob', 'Charlie'];
+          } catch (e) {
+             return ['Me', 'Alice', 'Bob', 'Charlie'];
+          }
+      }
+      return ['Me', 'Alice', 'Bob', 'Charlie'];
+  });
+
+  const handleUpdateTeam = (members: string[]) => {
+      setTeamMembers(members);
+      localStorage.setItem('teamMembers', JSON.stringify(members));
+  };
+
+  const handleClearData = async () => {
+      localStorage.clear();
+      window.location.reload();
+  };
+
   // Dark Mode State
   const [isDarkMode, setIsDarkMode] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -356,11 +380,30 @@ const App: React.FC = () => {
       setInboxItems(prev => prev.filter(i => i.id !== id));
   };
 
+  const handleUpdateInboxItem = (id: string, updates: Partial<InboxItem>) => {
+      setInboxItems(prev => prev.map(item => item.id === id ? { ...item, ...updates } : item));
+  };
+
   const handleProcessInboxItem = (itemId: string, action: InboxAction) => {
+      let targetProjectId = action.targetProjectId;
+      
+      if (targetProjectId.startsWith('NEW:')) {
+          const title = targetProjectId.substring(4);
+          const newProject: Project = {
+              id: crypto.randomUUID(),
+              title: title,
+              icon: '📁',
+              createdAt: new Date()
+          };
+          dataService.createProject(newProject);
+          setProjects(prev => [...prev, newProject]);
+          targetProjectId = newProject.id;
+      }
+
       if (action.actionType === 'create_task') {
           const newTask: Task = {
               id: crypto.randomUUID(),
-              projectId: action.targetProjectId,
+              projectId: targetProjectId,
               title: action.data.title,
               description: action.data.description || '',
               status: TaskStatus.TODO,
@@ -376,7 +419,7 @@ const App: React.FC = () => {
       } else if (action.actionType === 'create_document') {
            const newDoc: Document = {
               id: crypto.randomUUID(),
-              projectId: action.targetProjectId,
+              projectId: targetProjectId,
               title: action.data.title,
               content: action.data.content || '# ' + action.data.title,
               tags: ['Inbox Processed'],
@@ -433,13 +476,15 @@ const App: React.FC = () => {
                  <Menu className="w-5 h-5" />
              </button>
              <span className="font-medium text-black dark:text-white hidden md:inline">
-                 {currentView === ViewMode.HOME ? 'Home' : viewTitle}
+                 {currentView === ViewMode.HOME ? 'Home' : 
+                  currentView === ViewMode.SETTINGS ? 'Settings' : viewTitle}
              </span>
              <span className="text-gray-300 dark:text-gray-700 hidden md:inline">/</span>
              <span className="text-gray-500 dark:text-gray-400 truncate">
                  {currentView === ViewMode.DOCUMENTS ? (activeDocument?.title || 'Untitled') : 
                   currentView === ViewMode.BOARD ? 'Board' : 
                   currentView === ViewMode.HOME ? 'Dashboard' :
+                  currentView === ViewMode.SETTINGS ? 'Preferences' :
                   currentView.toLowerCase().replace('_', ' ')}
              </span>
           </div>
@@ -456,9 +501,32 @@ const App: React.FC = () => {
         <div className="flex-1 overflow-hidden relative flex">
             <div className="flex-1 flex flex-col overflow-hidden w-full">
                 {currentView === ViewMode.HOME ? (
-                    <DashboardView tasks={tasks} documents={documents} projects={projects} userName="User" onNavigate={handleNavigate} onStartReview={() => setCurrentView(ViewMode.REVIEW)} />
+                    <DashboardView 
+                        tasks={tasks} 
+                        documents={documents} 
+                        projects={projects} 
+                        userName="User" 
+                        onNavigate={handleNavigate} 
+                        onStartReview={() => setCurrentView(ViewMode.REVIEW)} 
+                        onCreateProject={handleCreateProject}
+                    />
                 ) : currentView === ViewMode.INBOX ? (
-                    <InboxView items={inboxItems} onAddItem={handleAddInboxItem} onProcessItem={(id, action) => { const item = inboxItems.find(i => i.id === id); if (item && item.processedResult) handleProcessInboxItem(id, action); else handleStoreInboxSuggestion(id, action); }} onDeleteItem={handleDeleteInboxItem} projects={projects} />
+                    <InboxView 
+                        items={inboxItems} 
+                        onAddItem={handleAddInboxItem} 
+                        onProcessItem={(id, action) => { const item = inboxItems.find(i => i.id === id); if (item && item.processedResult) handleProcessInboxItem(id, action); else handleStoreInboxSuggestion(id, action); }} 
+                        onDeleteItem={handleDeleteInboxItem} 
+                        onUpdateItem={handleUpdateInboxItem}
+                        projects={projects} 
+                    />
+                ) : currentView === ViewMode.SETTINGS ? (
+                    <SettingsView 
+                        teamMembers={teamMembers}
+                        onUpdateTeam={handleUpdateTeam}
+                        isDarkMode={isDarkMode}
+                        onToggleDarkMode={() => setIsDarkMode(!isDarkMode)}
+                        onClearData={handleClearData}
+                    />
                 ) : currentView === ViewMode.REVIEW ? (
                     <ReviewWizard inboxItems={inboxItems} tasks={tasks} projects={projects} onProcessInboxItem={handleProcessInboxItem} onDeleteInboxItem={handleDeleteInboxItem} onDeleteTask={handleDeleteTask} onUpdateTaskStatus={handleUpdateTaskStatus} onUpdateTaskAssignee={handleUpdateTaskAssignee} onClose={() => setCurrentView(ViewMode.HOME)} />
                 ) : currentView === ViewMode.DOCUMENTS && activeDocument ? (
@@ -476,11 +544,15 @@ const App: React.FC = () => {
                       onUpdateTaskDueDate={handleUpdateTaskDueDate} 
                       onUpdateTaskPriority={handleUpdateTaskPriority} 
                       onUpdateTaskDependencies={handleUpdateTaskDependencies} 
+                      onDeleteTask={handleDeleteTask}
                       contextString={getContextForTaskBoard()} 
                       onAddTasks={handleExtractTasks} 
                       onPromoteTask={handlePromoteTask} 
                       onNavigate={handleNavigate} 
                       onSelectTask={setSelectedTaskId}
+                      users={teamMembers}
+                      projects={projects}
+                      isGlobalView={currentView === ViewMode.GLOBAL_BOARD}
                     />
                 ) : currentView === ViewMode.GRAPH ? (
                     <GraphView documents={projectDocs} tasks={projectTasks} onNavigate={handleNavigate} />
@@ -518,7 +590,6 @@ const App: React.FC = () => {
           onToggleIntegration={handleToggleIntegration}
         />
 
-        {/* Task Details Modal */}
         {selectedTask && (
             <TaskDetailModal 
                 task={selectedTask}
@@ -526,7 +597,8 @@ const App: React.FC = () => {
                 onClose={() => setSelectedTaskId(null)}
                 onUpdate={updateTask}
                 onDelete={handleDeleteTask}
-                users={['Me', 'Alice', 'Bob', 'Charlie']}
+                users={teamMembers}
+                projects={projects}
             />
         )}
 

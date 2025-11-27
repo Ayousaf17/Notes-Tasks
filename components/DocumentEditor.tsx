@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Document, Task, TaskPriority, TaskStatus } from '../types';
 import { Wand2, ListChecks, RefreshCw, X, Check, User, Flag, AlignLeft, Tag as TagIcon, Sparkles, Edit3, Eye, SpellCheck, Scissors, Table as TableIcon, Link as LinkIcon, FileText, Maximize2, Minimize2, Heading1, Heading2, List, CheckSquare, Plus, Loader2 } from 'lucide-react';
@@ -28,36 +27,80 @@ const getCaretCoordinates = (element: HTMLTextAreaElement, position: number) => 
     return { left: elementLeft + spanLeft, top: elementTop + spanTop };
 };
 
-// Simple Markdown Renderer for Read Mode
+// Enhanced Markdown Renderer for Read Mode
 const MarkdownRenderer: React.FC<{ text: string }> = ({ text }) => {
     const lines = text.split('\n');
+    let inCodeBlock = false;
+
     return (
         <div className="space-y-4 text-gray-800 dark:text-gray-200 leading-relaxed">
             {lines.map((line, i) => {
+                // Code Block handling
+                if (line.startsWith('```')) {
+                    inCodeBlock = !inCodeBlock;
+                    return null; // Hide the delimiter
+                }
+                if (inCodeBlock) {
+                    return <div key={i} className="font-mono text-sm bg-gray-100 dark:bg-gray-800 p-3 rounded-lg text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 overflow-x-auto">{line}</div>
+                }
+
+                // Blockquote
+                if (line.startsWith('> ')) {
+                    return (
+                        <div key={i} className="border-l-4 border-purple-300 dark:border-purple-600 pl-4 py-1 italic text-gray-600 dark:text-gray-400 my-4 bg-gray-50 dark:bg-gray-900/50 rounded-r-lg">
+                            {line.slice(2)}
+                        </div>
+                    );
+                }
+
+                // Horizontal Rule
+                if (line.trim() === '---') {
+                    return <hr key={i} className="my-8 border-gray-200 dark:border-gray-800" />;
+                }
+
                 // Headers
-                if (line.startsWith('# ')) return <h1 key={i} className="text-3xl font-bold mt-8 mb-4 text-gray-900 dark:text-white">{line.slice(2)}</h1>;
-                if (line.startsWith('## ')) return <h2 key={i} className="text-2xl font-semibold mt-6 mb-3 text-gray-900 dark:text-white">{line.slice(3)}</h2>;
-                if (line.startsWith('### ')) return <h3 key={i} className="text-xl font-medium mt-4 mb-2 text-gray-900 dark:text-white">{line.slice(4)}</h3>;
+                if (line.startsWith('# ')) return <h1 key={i} className="text-4xl font-bold mt-10 mb-6 text-gray-900 dark:text-white tracking-tight">{line.slice(2)}</h1>;
+                if (line.startsWith('## ')) return <h2 key={i} className="text-2xl font-semibold mt-8 mb-4 text-gray-900 dark:text-white border-b border-gray-100 dark:border-gray-800 pb-2">{line.slice(3)}</h2>;
+                if (line.startsWith('### ')) return <h3 key={i} className="text-xl font-medium mt-6 mb-3 text-gray-900 dark:text-white">{line.slice(4)}</h3>;
                 
                 // List Items
                 if (line.trim().startsWith('- [ ]')) return (
-                    <div key={i} className="flex items-start gap-3 pl-1">
+                    <div key={i} className="flex items-start gap-3 pl-1 my-2">
                         <div className="w-4 h-4 mt-1.5 border border-gray-300 dark:border-gray-600 rounded shrink-0" />
                         <span className="text-gray-600 dark:text-gray-300">{line.replace('- [ ]', '').trim()}</span>
                     </div>
                 );
-                if (line.trim().startsWith('- ')) return <li key={i} className="ml-4 list-disc pl-2 text-gray-700 dark:text-gray-300">{line.slice(2)}</li>;
-                
+                if (line.trim().startsWith('- [x]')) return (
+                    <div key={i} className="flex items-start gap-3 pl-1 my-2">
+                        <div className="w-4 h-4 mt-1.5 bg-black dark:bg-white border border-black dark:border-white rounded shrink-0 flex items-center justify-center">
+                            <Check className="w-3 h-3 text-white dark:text-black" />
+                        </div>
+                        <span className="text-gray-400 dark:text-gray-500 line-through">{line.replace('- [x]', '').trim()}</span>
+                    </div>
+                );
+                if (line.trim().startsWith('- ')) return <li key={i} className="ml-4 list-disc pl-2 text-gray-700 dark:text-gray-300 my-1 marker:text-gray-400">{line.slice(2)}</li>;
+                if (line.trim().match(/^\d+\. /)) return <li key={i} className="ml-4 list-decimal pl-2 text-gray-700 dark:text-gray-300 my-1 marker:text-gray-400">{line.replace(/^\d+\. /, '')}</li>;
+
                 // Empty lines
-                if (!line.trim()) return <div key={i} className="h-2" />;
+                if (!line.trim()) return <div key={i} className="h-4" />;
 
                 // Paragraphs with bold handling
                 const parts = line.split(/(\*\*.*?\*\*)/g);
                 return (
-                    <p key={i} className="text-lg">
+                    <p key={i} className="text-lg text-gray-700 dark:text-gray-300">
                         {parts.map((part, j) => {
                             if (part.startsWith('**') && part.endsWith('**')) {
                                 return <strong key={j} className="font-semibold text-gray-900 dark:text-white">{part.slice(2, -2)}</strong>;
+                            }
+                            // Link handling [[Link]]
+                            const linkParts = part.split(/(\[\[.*?\]\])/g);
+                            if (linkParts.length > 1) {
+                                return linkParts.map((lp, k) => {
+                                    if (lp.startsWith('[[') && lp.endsWith(']]')) {
+                                        return <span key={`${j}-${k}`} className="text-purple-600 dark:text-purple-400 underline decoration-purple-300 dark:decoration-purple-700 underline-offset-2 cursor-pointer hover:text-purple-800 dark:hover:text-purple-300">{lp.slice(2, -2)}</span>;
+                                    }
+                                    return lp;
+                                });
                             }
                             return part;
                         })}
@@ -115,7 +158,6 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
         const coords = getCaretCoordinates(e.target, selectionStart);
         setSlashMenu({ x: coords.left, y: coords.top + 30, query: '' });
     } else if (slashMenu) {
-        // Simple close if they keep typing for now, ideally would filter menu
         setSlashMenu(null); 
     }
     handleUpdate({ ...doc, content: newVal, updatedAt: new Date() });
@@ -143,7 +185,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
       if (hoverMenu && hoverMenu.text) {
           setIsExtractingTask(true);
           
-          // If selection is short, use it directly. If long, ask AI to extract actionable items.
+          // AI Logic: Short selection = single task title. Long selection = parsing request.
           let tasksToCreate: Partial<Task>[] = [];
           
           if (hoverMenu.text.length > 100) {
@@ -168,7 +210,6 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
   const executeSlashCommand = (command: string) => {
       if (!textareaRef.current) return;
       const { selectionStart } = textareaRef.current;
-      // Find position of '/'
       const textBefore = doc.content.substring(0, selectionStart);
       const slashIndex = textBefore.lastIndexOf('/');
       if (slashIndex === -1) return;
@@ -184,7 +225,6 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
       handleUpdate({ ...doc, content: newContent, updatedAt: new Date() });
       setSlashMenu(null);
       
-      // Refocus
       setTimeout(() => {
           textareaRef.current?.focus();
           const newPos = slashIndex + insertText.length;
@@ -194,7 +234,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
 
   return (
     <div className={`flex-1 h-full overflow-y-auto bg-white dark:bg-gray-900 font-sans transition-all duration-500 ${isZenMode ? 'fixed inset-0 z-[100] px-0 py-0' : ''}`}>
-      {/* Adjusted padding here: pt-24 to clear header in normal mode */}
+      {/* Top Padding increased to pt-24 to prevent overlap with header */}
       <div className={`mx-auto transition-all duration-500 min-h-[calc(100vh-4rem)] ${isZenMode ? 'max-w-4xl px-8 py-20' : 'max-w-3xl px-8 pt-24 pb-12'}`}>
         
         {/* Minimal Toolbar */}
@@ -288,7 +328,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
         {/* Hover Menu */}
         {hoverMenu && !isReadMode && (
           <div className="fixed z-50 bg-black dark:bg-white text-white dark:text-black rounded-lg shadow-xl flex items-center px-2 py-1.5 gap-2 transform -translate-x-1/2" style={{ left: hoverMenu.x, top: hoverMenu.y }}>
-              <button onClick={handleExtractTaskFromSelection} className="p-1.5 hover:bg-gray-800 dark:hover:bg-gray-200 rounded transition-colors" title="Create Task">
+              <button onClick={handleExtractTaskFromSelection} className="p-1.5 hover:bg-gray-800 dark:hover:bg-gray-200 rounded transition-colors" title="Create Task from Selection">
                   {isExtractingTask ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckSquare className="w-4 h-4" />}
               </button>
               <div className="w-px h-4 bg-gray-700 dark:bg-gray-300" />
