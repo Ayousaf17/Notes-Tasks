@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { DocumentEditor } from './components/DocumentEditor';
@@ -13,6 +14,7 @@ import { ReviewWizard } from './components/ReviewWizard';
 import { TaskDetailModal } from './components/TaskDetailModal';
 import { IntegrationsModal } from './components/IntegrationsModal';
 import { SettingsView } from './components/SettingsView';
+import { CreateProjectModal } from './components/CreateProjectModal';
 import { ViewMode, Document, Task, TaskStatus, ProjectPlan, TaskPriority, ChatMessage, Project, InboxItem, InboxAction, AgentRole, Integration } from './types';
 import { Sparkles, Command, Plus, Menu, Cloud, MessageSquare } from 'lucide-react';
 import { geminiService } from './services/geminiService';
@@ -102,6 +104,7 @@ const App: React.FC = () => {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [isCreateProjectModalOpen, setIsCreateProjectModalOpen] = useState(false);
 
   // Load Data from Supabase on Mount & Setup Realtime Subscription
   useEffect(() => {
@@ -169,23 +172,26 @@ const App: React.FC = () => {
       }
   }, [activeProjectId, activeDocId, documents]);
 
-  const handleCreateProject = async () => {
-      const name = prompt("Enter Project Name:");
-      if (name) {
-          const newProject: Project = {
-              id: crypto.randomUUID(),
-              title: name,
-              icon: '📁',
-              createdAt: new Date()
-          };
-          setProjects(prev => [...prev, newProject]);
-          setActiveProjectId(newProject.id);
-          setActiveDocId(null);
-          setCurrentView(ViewMode.DOCUMENTS);
-          
-          // Sync to DB
-          await dataService.createProject(newProject);
-      }
+  // Handler to open modal
+  const handleOpenCreateProject = () => {
+      setIsCreateProjectModalOpen(true);
+  };
+
+  // Logic for creating project from modal
+  const handleCreateProjectConfirm = async (title: string) => {
+      const newProject: Project = {
+          id: crypto.randomUUID(),
+          title: title,
+          icon: '📁',
+          createdAt: new Date()
+      };
+      setProjects(prev => [...prev, newProject]);
+      setActiveProjectId(newProject.id);
+      setActiveDocId(null);
+      setCurrentView(ViewMode.DOCUMENTS);
+      
+      // Sync to DB
+      await dataService.createProject(newProject);
   };
 
   const handleCreateDocument = async () => {
@@ -448,7 +454,7 @@ const App: React.FC = () => {
   const selectedTask = tasks.find(t => t.id === selectedTaskId);
 
   return (
-    <div className="flex h-screen w-full bg-white dark:bg-gray-900 overflow-hidden font-sans text-gray-900 dark:text-gray-100 transition-colors duration-200">
+    <div className="flex h-screen w-full bg-white dark:bg-black overflow-hidden font-sans text-gray-900 dark:text-gray-100 transition-colors duration-200">
       
       <Sidebar
         currentView={currentView}
@@ -456,7 +462,7 @@ const App: React.FC = () => {
         projects={projects}
         activeProjectId={activeProjectId}
         onSelectProject={setActiveProjectId}
-        onCreateProject={handleCreateProject}
+        onCreateProject={handleOpenCreateProject} // Use Modal Opener
         documents={projectDocs}
         onSelectDocument={setActiveDocId}
         onCreateDocument={handleCreateDocument}
@@ -468,9 +474,9 @@ const App: React.FC = () => {
         onToggleDarkMode={() => setIsDarkMode(!isDarkMode)}
       />
 
-      <main className="flex-1 flex flex-col h-full relative w-full bg-white dark:bg-gray-900">
+      <main className="flex-1 flex flex-col h-full relative w-full bg-white dark:bg-black">
         {/* Minimalist Header */}
-        <header className="h-14 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between px-6 bg-white dark:bg-gray-900 shrink-0 z-20">
+        <header className="h-14 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between px-6 bg-white dark:bg-black shrink-0 z-20">
           <div className="flex items-center space-x-3 text-sm">
              <button onClick={() => setIsMobileSidebarOpen(true)} className="md:hidden text-gray-500 hover:text-black dark:hover:text-white">
                  <Menu className="w-5 h-5" />
@@ -508,7 +514,7 @@ const App: React.FC = () => {
                         userName="User" 
                         onNavigate={handleNavigate} 
                         onStartReview={() => setCurrentView(ViewMode.REVIEW)} 
-                        onCreateProject={handleCreateProject}
+                        onCreateProject={handleOpenCreateProject} // Use Modal Opener
                     />
                 ) : currentView === ViewMode.INBOX ? (
                     <InboxView 
@@ -588,6 +594,12 @@ const App: React.FC = () => {
           onClose={() => setIsIntegrationsOpen(false)} 
           integrations={integrations}
           onToggleIntegration={handleToggleIntegration}
+        />
+
+        <CreateProjectModal 
+          isOpen={isCreateProjectModalOpen}
+          onClose={() => setIsCreateProjectModalOpen(false)}
+          onCreate={handleCreateProjectConfirm}
         />
 
         {selectedTask && (
