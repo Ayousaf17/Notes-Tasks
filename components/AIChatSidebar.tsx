@@ -15,7 +15,6 @@ interface AIChatSidebarProps {
   allTasks: Task[];
 }
 
-// Helper for rendering cleaner markdown-like text
 const FormattedMessage: React.FC<{ text: string }> = ({ text }) => {
   const lines = text.split('\n');
   const elements: React.ReactNode[] = [];
@@ -36,7 +35,6 @@ const FormattedMessage: React.FC<{ text: string }> = ({ text }) => {
   };
 
   const parseInline = (str: string, keyPrefix: string) => {
-    // Handle bold (**text**)
     const parts = str.split(/(\*\*.*?\*\*)/g);
     return parts.map((part, i) => {
       if (part.startsWith('**') && part.endsWith('**')) {
@@ -48,13 +46,11 @@ const FormattedMessage: React.FC<{ text: string }> = ({ text }) => {
 
   lines.forEach((line, i) => {
     const trimmed = line.trim();
-    // Empty line -> spacer
     if (!trimmed) {
         flushList();
         return;
     }
 
-    // Check for Ordered List (e.g. "1. ")
     const olMatch = line.match(/^(\d+)\.\s+(.*)/);
     if (olMatch) {
         if (currentListType !== 'ol') flushList();
@@ -67,7 +63,6 @@ const FormattedMessage: React.FC<{ text: string }> = ({ text }) => {
         return;
     }
 
-    // Check for Unordered List (e.g. "- " or "* ")
     const ulMatch = line.match(/^[-*]\s+(.*)/);
     if (ulMatch) {
         if (currentListType !== 'ul') flushList();
@@ -80,10 +75,8 @@ const FormattedMessage: React.FC<{ text: string }> = ({ text }) => {
         return;
     }
 
-    // Regular paragraph
     flushList();
     
-    // Check for headers (simple check)
     if (trimmed.startsWith('### ')) {
         elements.push(<h3 key={`h3-${i}`} className="text-sm font-bold text-gray-900 dark:text-white mb-2 mt-6">{parseInline(trimmed.replace('### ', ''), `h3-${i}`)}</h3>);
     } else if (trimmed.startsWith('## ')) {
@@ -119,14 +112,12 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
 
-  // Auto-save messages to local storage
   useEffect(() => {
     if (messages.length > 0) {
       localStorage.setItem('chat_history', JSON.stringify(messages));
     }
   }, [messages]);
 
-  // Load messages on mount
   useEffect(() => {
     const stored = localStorage.getItem('chat_history');
     if (stored) {
@@ -135,7 +126,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
           ...m,
           timestamp: new Date(m.timestamp)
         }));
-        if (parsed.length > 0 && messages.length <= 1) { // Only restore if we haven't already added a new message
+        if (parsed.length > 0 && messages.length <= 1) { 
              setMessages(parsed);
         }
       } catch(e) { console.error("Failed to load chat history", e); }
@@ -269,14 +260,11 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
         }
         setIsAnalysingPlan(false);
     } else {
-        // --- RAG-Lite Implementation ---
         setRetrievingContext(true);
         
-        // 1. Get relevant context from other docs if query implies it
         let retrievedContext = "";
         let sources: Source[] = [];
         
-        // Simple heuristic: If prompt is short, don't search everything. If it looks like a question, search.
         if (currentInput.split(' ').length > 2) {
              const result = await geminiService.findRelevantContext(currentInput, allDocuments, allTasks);
              retrievedContext = result.text;
@@ -285,13 +273,10 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
         
         setRetrievingContext(false);
 
-        // 2. Prepare Context
-        // Combine Active Doc + Retrieved Context + Recent Chat History
         let fullSystemContext = "";
         if (contextData) fullSystemContext += `ACTIVE DOCUMENT CONTENT:\n${contextData}\n\n`;
         if (retrievedContext) fullSystemContext += `RETRIEVED KNOWLEDGE (From other files):\n${retrievedContext}\n\n`;
         
-        // 3. Send to Chat
         const history = messages.slice(-10).map(m => ({
             role: m.role,
             parts: [{ text: m.text }]
@@ -316,8 +301,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="w-full md:w-[420px] bg-white dark:bg-black border-l border-gray-100 dark:border-gray-800 flex flex-col shadow-2xl shadow-gray-200/50 dark:shadow-black/50 absolute right-0 top-0 bottom-0 z-50 transition-transform font-sans">
-      {/* Header */}
+    <div className="fixed inset-0 z-50 md:absolute md:top-0 md:bottom-0 md:right-0 md:w-[420px] bg-white dark:bg-black border-l border-gray-100 dark:border-gray-800 flex flex-col shadow-2xl shadow-gray-200/50 dark:shadow-black/50 transition-transform font-sans">
       <div className="p-5 border-b border-gray-50 dark:border-gray-800 flex items-center justify-between bg-white dark:bg-black">
         <div className="flex items-center space-x-2">
           <div className="w-2 h-2 bg-black dark:bg-white rounded-full" />
@@ -333,12 +317,10 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
         </div>
       </div>
 
-      {/* Messages */}
       <div className="flex-1 overflow-y-auto p-5 space-y-8 bg-white dark:bg-black">
         {messages.map((msg) => (
           <div key={msg.id} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
              <div className={`max-w-[95%] ${msg.role === 'user' ? 'text-right' : 'text-left w-full'}`}>
-                {/* Attachments */}
                 {msg.attachments && msg.attachments.length > 0 && (
                     <div className="mb-2 flex flex-wrap gap-2 justify-end">
                         {msg.attachments.map((att, i) => (
@@ -350,7 +332,6 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                     </div>
                 )}
                 
-                {/* Text Bubble */}
                 {msg.role === 'user' ? (
                     <div className="inline-block px-5 py-3 rounded-2xl text-sm leading-relaxed bg-black text-white rounded-br-sm text-left shadow-sm">
                         <p className="whitespace-pre-wrap">{msg.text}</p>
@@ -359,7 +340,6 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                     <div className="block w-full px-6 py-6 rounded-xl text-sm leading-relaxed text-gray-800 dark:text-gray-200 bg-zinc-50 dark:bg-zinc-900 border-none shadow-none">
                         <FormattedMessage text={msg.text} />
                         
-                        {/* Citations / Sources */}
                         {msg.sources && msg.sources.length > 0 && (
                             <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800">
                                 <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase mb-2 flex items-center gap-1">
@@ -408,9 +388,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
         <div ref={bottomRef} />
       </div>
 
-      {/* Input Area (Pill Design) */}
-      <div className="p-4 bg-white dark:bg-black pb-6 relative">
-        {/* Active Attachments Preview */}
+      <div className="p-4 bg-white dark:bg-black pb-6 relative safe-area-bottom">
         {attachments.length > 0 && (
             <div className="flex space-x-2 mb-3 overflow-x-auto px-1">
                 {attachments.map((att, idx) => (
@@ -426,8 +404,6 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
         )}
 
         <div className="bg-zinc-100 dark:bg-zinc-800 rounded-full px-2 py-1.5 flex items-center gap-2 border border-transparent focus-within:bg-white dark:focus-within:bg-gray-900 focus-within:ring-2 focus-within:ring-black/5 dark:focus-within:ring-white/10 focus-within:border-zinc-200 dark:focus-within:border-gray-700 transition-all shadow-sm">
-            
-            {/* Left Actions */}
             <div className="flex items-center gap-0.5 pl-1">
                 <button 
                     onClick={() => fileInputRef.current?.click()}
@@ -447,7 +423,6 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                 </button>
             </div>
 
-            {/* Input */}
             <input
                 type="text"
                 value={input}
@@ -462,7 +437,6 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                 className="flex-1 bg-transparent border-none focus:ring-0 text-sm py-2 px-1 placeholder-gray-400 dark:placeholder-gray-500 text-gray-900 dark:text-gray-100"
             />
             
-            {/* Send Button */}
             <button 
                 onClick={handleSend}
                 disabled={(!input.trim() && attachments.length === 0) || loading}

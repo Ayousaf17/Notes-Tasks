@@ -15,6 +15,7 @@ import { TaskDetailModal } from './components/TaskDetailModal';
 import { IntegrationsModal } from './components/IntegrationsModal';
 import { SettingsView } from './components/SettingsView';
 import { CreateProjectModal } from './components/CreateProjectModal';
+import { CanvasView } from './components/CanvasView'; // NEW
 import { ViewMode, Document, Task, TaskStatus, ProjectPlan, TaskPriority, ChatMessage, Project, InboxItem, InboxAction, AgentRole, Integration } from './types';
 import { Sparkles, Command, Plus, Menu, Cloud, MessageSquare } from 'lucide-react';
 import { geminiService } from './services/geminiService';
@@ -484,6 +485,7 @@ const App: React.FC = () => {
                   currentView === ViewMode.BOARD ? 'Board' : 
                   currentView === ViewMode.HOME ? 'Dashboard' :
                   currentView === ViewMode.SETTINGS ? 'Preferences' :
+                  currentView === ViewMode.CANVAS ? 'Whiteboard' : 
                   currentView.toLowerCase().replace('_', ' ')}
              </span>
           </div>
@@ -566,6 +568,8 @@ const App: React.FC = () => {
                       />
                   ) : currentView === ViewMode.GRAPH ? (
                       <GraphView documents={projectDocs} tasks={projectTasks} onNavigate={handleNavigate} />
+                  ) : currentView === ViewMode.CANVAS ? (
+                      <CanvasView />
                   ) : (
                       <CalendarView 
                         tasks={tasksToDisplay} 

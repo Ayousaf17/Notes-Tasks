@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { FileText, Layout, Calendar, Settings, Plus, Cloud, Inbox, Network, Home, X, Globe, Layers, User, Moon, Sun, Loader2 } from 'lucide-react';
+import { FileText, Layout, Calendar, Settings, Plus, Cloud, Inbox, Network, Home, X, Globe, Layers, User, Moon, Sun, Loader2, Shapes } from 'lucide-react';
 import { ViewMode, Document, Project } from '../types';
 
 interface SidebarProps {
@@ -65,7 +65,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     </button>
   );
 
-  const isProjectContext = ![ViewMode.HOME, ViewMode.INBOX, ViewMode.GLOBAL_BOARD, ViewMode.GLOBAL_CALENDAR, ViewMode.SETTINGS].includes(currentView);
+  const isProjectContext = ![ViewMode.HOME, ViewMode.INBOX, ViewMode.GLOBAL_BOARD, ViewMode.GLOBAL_CALENDAR, ViewMode.SETTINGS, ViewMode.CANVAS].includes(currentView);
 
   return (
     <>
@@ -107,6 +107,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   label="Inbox" 
                   isActive={currentView === ViewMode.INBOX} 
                   onClick={() => { onChangeView(ViewMode.INBOX); onMobileClose(); }} 
+              />
+              <NavItem 
+                  icon={Shapes} 
+                  label="Canvas" 
+                  isActive={currentView === ViewMode.CANVAS} 
+                  onClick={() => { onChangeView(ViewMode.CANVAS); onMobileClose(); }} 
               />
           </div>
 

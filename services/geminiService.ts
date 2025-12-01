@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type, Schema } from "@google/genai";
-import { Task, TaskStatus, TaskPriority, ProjectPlan, Attachment, Project, InboxAction, AgentRole, AgentResult, Document, Source } from "../types";
+import { Task, TaskStatus, TaskPriority, ProjectPlan, Attachment, Project, InboxAction, AgentRole, AgentResult, Document, Source, CanvasNode } from "../types";
 
 const apiKey = process.env.API_KEY;
 const ai = new GoogleGenAI({ apiKey: apiKey || 'dummy_key' });
@@ -651,6 +651,62 @@ export const geminiService = {
           return response.text || "Consider breaking this task down.";
       } catch (e) {
           return "Consider reviewing this task.";
+      }
+  },
+
+  /**
+   * Generates new nodes for the whiteboard based on a prompt
+   */
+  async brainstormCanvasNodes(prompt: string, existingNodesContext: string): Promise<CanvasNode[]> {
+      if (!apiKey) return [];
+
+      try {
+          const response = await ai.models.generateContent({
+              model: MODEL_NAME,
+              contents: `The user is brainstorming on a whiteboard canvas.
+              Prompt: "${prompt}"
+              
+              Existing Content on Board:
+              ${existingNodesContext}
+              
+              Generate 3-5 brief, creative ideas (Sticky Notes) related to the prompt. 
+              Assign them hypothetical (x,y) coordinates relative to a center point (0,0), spread out reasonably.
+              Return JSON array.`,
+              config: {
+                  responseMimeType: "application/json",
+                  responseSchema: {
+                      type: Type.ARRAY,
+                      items: {
+                          type: Type.OBJECT,
+                          properties: {
+                              content: { type: Type.STRING, description: "Short sticky note text (max 10 words)" },
+                              x: { type: Type.NUMBER },
+                              y: { type: Type.NUMBER },
+                              color: { type: Type.STRING, enum: ['bg-yellow-200', 'bg-blue-200', 'bg-green-200', 'bg-pink-200'] }
+                          },
+                          required: ["content", "x", "y"]
+                      }
+                  }
+              }
+          });
+
+          const jsonStr = response.text;
+          if (!jsonStr) return [];
+          const rawNodes = JSON.parse(jsonStr);
+          
+          // Map to internal type
+          return rawNodes.map((n: any) => ({
+              id: crypto.randomUUID(),
+              type: 'note',
+              content: n.content,
+              x: n.x || 0,
+              y: n.y || 0,
+              color: n.color || 'bg-yellow-200'
+          }));
+
+      } catch (error) {
+          console.error("Gemini Canvas Brainstorm Error:", error);
+          return [];
       }
   }
 };

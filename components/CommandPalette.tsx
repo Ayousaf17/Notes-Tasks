@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, FileText, CheckSquare, Command, ArrowRight, Sparkles, Folder } from 'lucide-react';
+import { Search, FileText, CheckSquare, Command, ArrowRight, Sparkles, Folder, Shapes } from 'lucide-react';
 import { Document, Task, SearchResult, ViewMode, Project } from '../types';
 import { geminiService } from '../services/geminiService';
 
@@ -47,6 +47,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
     if (!query) {
         setResults([
             { id: 'new-doc', title: 'Create new document', type: 'command', subtitle: 'Action', action: onCreateDocument },
+            { id: 'go-canvas', title: 'Open Whiteboard', type: 'command', subtitle: 'View', action: () => onChangeView(ViewMode.CANVAS) },
             ...projects.map(p => ({
                 id: p.id,
                 title: p.title,
@@ -201,7 +202,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                             }`}>
                                 {result.type === 'document' && <FileText className="w-4 h-4" />}
                                 {result.type === 'task' && <CheckSquare className="w-4 h-4" />}
-                                {result.type === 'command' && <Command className="w-4 h-4" />}
+                                {result.type === 'command' && (result.id === 'go-canvas' ? <Shapes className="w-4 h-4" /> : <Command className="w-4 h-4" />)}
                                 {result.type === 'project' && <Folder className="w-4 h-4" />}
                             </div>
                             <div>
