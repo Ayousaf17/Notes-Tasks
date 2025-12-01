@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { FileText, Layout, Calendar, Settings, Plus, Inbox, Network, Home, X, Globe, Layers, User, Moon, Sun, Loader2, Folder, Trash2 } from 'lucide-react';
+import { FileText, Layout, Calendar, Settings, Plus, Inbox, Network, Home, X, Globe, Layers, User, Moon, Sun, Loader2, Folder, Trash2, CheckSquare } from 'lucide-react';
 import { ViewMode, Document, Project } from '../types';
 
 interface SidebarProps {
@@ -21,7 +21,6 @@ interface SidebarProps {
   onMobileClose: () => void;
   isDarkMode: boolean;
   onToggleDarkMode: () => void;
-  // New props for controlled expansion
   isExpanded: boolean;
   onHover: (expanded: boolean) => void;
 }
@@ -47,7 +46,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onHover
 }) => {
   
-  // Render loading state if projects are not yet loaded
   if (!projects) {
       return (
           <div className="fixed inset-y-0 left-0 w-16 bg-white dark:bg-black border-r border-gray-100 dark:border-gray-800 flex items-center justify-center z-50">
@@ -68,12 +66,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
     >
       <Icon strokeWidth={1.5} className={`w-4 h-4 min-w-[1rem] ${isActive ? 'text-black dark:text-white' : 'text-gray-400 dark:text-gray-500 group-hover/item:text-gray-900 dark:group-hover/item:text-gray-200'}`} />
       
-      {/* Desktop Label - strictly hidden on mobile */}
       <span className={`hidden md:block overflow-hidden whitespace-nowrap transition-all duration-300 ease-in-out origin-left text-[13px] ${isExpanded ? 'opacity-100 w-auto ml-2' : 'opacity-0 w-0'}`}>
           {label}
       </span>
       
-      {/* Mobile Label - strictly visible only on mobile */}
       <span className="md:hidden ml-2 text-[13px]">{label}</span>
     </button>
   );
@@ -82,7 +78,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <>
-      {/* Mobile Backdrop */}
       {isMobileOpen && (
         <div 
             className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 md:hidden animate-in fade-in duration-200"
@@ -90,7 +85,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
         />
       )}
 
-      {/* Sidebar Container */}
       <div 
         onMouseEnter={() => onHover(true)}
         onMouseLeave={() => onHover(false)}
@@ -99,7 +93,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
         md:translate-x-0 ${isExpanded ? 'md:w-64 shadow-2xl md:shadow-xl' : 'md:w-16'} group`}
       >
         
-        {/* Brand Header */}
         <div className={`h-14 flex items-center transition-all border-b border-gray-50 dark:border-gray-800 shrink-0 overflow-hidden ${isExpanded || isMobileOpen ? 'px-5 justify-start' : 'px-0 justify-center'}`}>
           <span className={`font-serif text-lg font-bold tracking-tight text-black dark:text-white whitespace-nowrap transition-all duration-300`}>
              {(isExpanded || isMobileOpen) ? 'Aasani.' : 'A.'}
@@ -110,7 +103,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         <div className="flex-1 overflow-y-auto overflow-x-hidden px-2 py-4 space-y-6 no-scrollbar">
-          {/* Core */}
           <div className="space-y-0.5">
               <NavItem 
                   icon={Home} 
@@ -126,7 +118,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
               />
           </div>
 
-          {/* Global */}
           <div className="space-y-0.5">
               <div className={`hidden md:block px-3 text-[10px] font-semibold text-gray-400 dark:text-gray-600 uppercase tracking-widest mb-1.5 transition-opacity duration-200 truncate h-4 ${isExpanded ? 'opacity-100' : 'opacity-0'}`}>
                   Overview
@@ -149,7 +140,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
               />
           </div>
 
-          {/* Projects */}
           <div className="space-y-0.5">
               <div className={`hidden md:flex px-3 items-center justify-between mb-1.5 transition-opacity duration-200 h-4 overflow-hidden ${isExpanded ? 'opacity-100' : 'opacity-0'}`}>
                   <span className="text-[10px] font-semibold text-gray-400 dark:text-gray-600 uppercase tracking-widest truncate">Projects</span>
@@ -177,11 +167,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           <span className="min-w-[1rem] flex items-center justify-center">
                             <Folder strokeWidth={1.5} className={`w-4 h-4 ${activeProjectId === project.id && isProjectContext ? 'fill-gray-200 dark:fill-gray-700' : ''}`} />
                           </span>
-                          {/* Desktop Label */}
                           <span className={`hidden md:block ml-2 truncate whitespace-nowrap transition-all duration-300 delay-75 text-[13px] ${isExpanded ? 'opacity-100 w-auto' : 'opacity-0 w-0'}`}>
                               {project.title}
                           </span>
-                          {/* Mobile Label */}
                           <span className="md:hidden ml-2 truncate whitespace-nowrap text-[13px]">
                               {project.title}
                           </span>
@@ -195,7 +183,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             e.stopPropagation(); 
                             onDeleteProject(project.id); 
                         }}
-                        className={`absolute right-1 p-1 text-gray-400 hover:text-red-500 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200 ${isExpanded ? 'opacity-0 group-hover/project-item:opacity-100' : 'hidden'}`}
+                        className={`absolute right-1 p-1 text-gray-400 hover:text-red-500 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200 
+                        ${(isExpanded || isMobileOpen) ? 'opacity-100 md:opacity-0 md:group-hover/project-item:opacity-100' : 'hidden'}`}
                         title="Delete Project"
                       >
                           <Trash2 className="w-3 h-3" />
@@ -204,7 +193,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
               ))}
           </div>
 
-          {/* Active Project Context */}
           {isProjectContext && (
               <div className="space-y-0.5 pt-3 border-t border-gray-50 dark:border-gray-800">
                   <div className={`hidden md:block px-3 text-[10px] font-semibold text-gray-300 dark:text-gray-600 uppercase tracking-widest mb-1.5 transition-opacity duration-200 truncate h-4 ${isExpanded ? 'opacity-100' : 'opacity-0'}`}>
@@ -214,12 +202,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       Current Project
                   </div>
                   
-                  {/* Views */}
-                  <NavItem icon={Layout} label="Board" isActive={currentView === ViewMode.BOARD} onClick={() => { onChangeView(ViewMode.BOARD); onMobileClose(); }} />
+                  {/* Overview Item */}
+                  <NavItem 
+                      icon={Layout} 
+                      label="Overview" 
+                      isActive={currentView === ViewMode.PROJECT_OVERVIEW} 
+                      onClick={() => { onChangeView(ViewMode.PROJECT_OVERVIEW); onMobileClose(); }} 
+                  />
+
+                  <NavItem icon={CheckSquare} label="Board" isActive={currentView === ViewMode.BOARD} onClick={() => { onChangeView(ViewMode.BOARD); onMobileClose(); }} />
                   <NavItem icon={Calendar} label="Calendar" isActive={currentView === ViewMode.CALENDAR} onClick={() => { onChangeView(ViewMode.CALENDAR); onMobileClose(); }} />
                   <NavItem icon={Network} label="Graph" isActive={currentView === ViewMode.GRAPH} onClick={() => { onChangeView(ViewMode.GRAPH); onMobileClose(); }} />
                   
-                  {/* Pages / Documents List */}
                   <div className="mt-4">
                       <div className={`hidden md:flex px-3 items-center justify-between mb-1.5 transition-opacity duration-200 h-4 overflow-hidden group/header ${isExpanded ? 'opacity-100' : 'opacity-0'}`}>
                            <span className="text-[10px] font-semibold text-gray-400 dark:text-gray-600 uppercase tracking-widest">Pages</span>
@@ -254,11 +248,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                             : 'text-gray-400 dark:text-gray-500'
                                         }`} 
                                     />
-                                    {/* Desktop */}
                                     <span className={`hidden md:block ml-2 truncate whitespace-nowrap transition-all duration-300 delay-75 text-[13px] ${isExpanded ? 'opacity-100 w-auto' : 'opacity-0 w-0'}`}>
                                         {doc.title || 'Untitled'}
                                     </span>
-                                    {/* Mobile */}
                                     <span className="md:hidden ml-2 truncate whitespace-nowrap text-[13px]">
                                         {doc.title || 'Untitled'}
                                     </span>
@@ -268,7 +260,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                         e.stopPropagation(); 
                                         onDeleteDocument(doc.id); 
                                     }}
-                                    className={`absolute right-1 p-1 text-gray-400 hover:text-red-500 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200 ${isExpanded ? 'opacity-0 group-hover/doc-item:opacity-100' : 'hidden'}`}
+                                    className={`absolute right-1 p-1 text-gray-400 hover:text-red-500 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200 
+                                    ${(isExpanded || isMobileOpen) ? 'opacity-100 md:opacity-0 md:group-hover/doc-item:opacity-100' : 'hidden'}`}
                                     title="Delete Page"
                                  >
                                      <Trash2 className="w-3 h-3" />
@@ -292,7 +285,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           )}
         </div>
 
-        {/* Footer / Profile */}
         <div className="p-3 mt-auto border-t border-gray-50 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/50 overflow-hidden shrink-0">
           <div 
             className="flex items-center gap-3 px-1 py-1 mb-1 overflow-hidden cursor-pointer rounded hover:bg-gray-200/50 dark:hover:bg-gray-800/50 transition-colors"
@@ -318,7 +310,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
           
           <div className="space-y-0.5">
-              {/* Settings Link */}
               <button 
                 onClick={() => { onChangeView(ViewMode.SETTINGS); onMobileClose(); }}
                 className={`w-full flex items-center space-x-3 px-2 py-1.5 text-xs rounded transition-colors ${
@@ -335,7 +326,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <span className="md:hidden whitespace-nowrap ml-1">Settings</span>
               </button>
 
-              {/* Dark Mode Toggle */}
               <button 
                 onClick={onToggleDarkMode}
                 className="w-full flex items-center space-x-3 px-2 py-1.5 text-xs rounded transition-colors text-gray-400 hover:text-black dark:hover:text-white hover:bg-white dark:hover:bg-gray-800"

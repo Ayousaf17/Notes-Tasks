@@ -1,5 +1,4 @@
 
-
 export enum ViewMode {
   HOME = 'HOME', 
   DOCUMENTS = 'DOCUMENTS',
@@ -11,7 +10,7 @@ export enum ViewMode {
   SETTINGS = 'SETTINGS',
   GLOBAL_BOARD = 'GLOBAL_BOARD',
   GLOBAL_CALENDAR = 'GLOBAL_CALENDAR',
-  CANVAS = 'CANVAS'
+  PROJECT_OVERVIEW = 'PROJECT_OVERVIEW'
 }
 
 export interface Project {
@@ -150,19 +149,4 @@ export interface Integration {
     requiresAuth?: boolean;
   };
   status?: 'idle' | 'connecting' | 'connected';
-}
-
-export interface CanvasNode {
-  id: string;
-  type: 'note' | 'task';
-  content: string;
-  x: number;
-  y: number;
-  color?: string;
-}
-
-export interface CanvasEdge {
-  id: string;
-  from: string;
-  to: string;
 }

@@ -10,11 +10,13 @@ import { ContextSidebar } from './components/ContextSidebar';
 import { InboxView } from './components/InboxView';
 import { GraphView } from './components/GraphView';
 import { DashboardView } from './components/DashboardView'; 
+import { ProjectOverview } from './components/ProjectOverview';
 import { ReviewWizard } from './components/ReviewWizard';
 import { TaskDetailModal } from './components/TaskDetailModal';
 import { IntegrationsModal } from './components/IntegrationsModal';
 import { SettingsView } from './components/SettingsView';
 import { CreateProjectModal } from './components/CreateProjectModal';
+import { ConfirmationModal } from './components/ConfirmationModal';
 import { ViewMode, Document, Task, TaskStatus, ProjectPlan, TaskPriority, ChatMessage, Project, InboxItem, InboxAction, AgentRole, Integration } from './types';
 import { Sparkles, Command, Plus, Menu, Cloud, MessageSquare, Home, Inbox, Search, CheckSquare } from 'lucide-react';
 import { geminiService } from './services/geminiService';
@@ -78,9 +80,33 @@ const App: React.FC = () => {
       localStorage.setItem('teamMembers', JSON.stringify(members));
   };
 
+  // Confirmation Modal State
+  const [confirmationModal, setConfirmationModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    isDanger?: boolean;
+    confirmText?: string;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
+
   const handleClearData = async () => {
-      localStorage.clear();
-      window.location.reload();
+      setConfirmationModal({
+          isOpen: true,
+          title: 'Reset Workspace',
+          message: 'Are you sure you want to wipe all data? This cannot be undone.',
+          isDanger: true,
+          confirmText: 'Reset Data',
+          onConfirm: () => {
+              localStorage.clear();
+              window.location.reload();
+          }
+      });
   };
 
   // Dark Mode State
@@ -112,9 +138,9 @@ const App: React.FC = () => {
   ]);
   
   const [projects, setProjects] = useState<Project[]>([
-      { id: 'p1', title: 'V2 Redesign', icon: '🎨', createdAt: new Date() },
-      { id: 'p2', title: 'Marketing Launch', icon: '🚀', createdAt: new Date() },
-      { id: 'p3', title: 'Backend Migration', icon: '⚙️', createdAt: new Date() }
+      { id: 'p1', title: 'V2 Redesign', createdAt: new Date() },
+      { id: 'p2', title: 'Marketing Launch', createdAt: new Date() },
+      { id: 'p3', title: 'Backend Migration', createdAt: new Date() }
   ]);
   const [activeProjectId, setActiveProjectId] = useState<string>('p1');
 
@@ -223,21 +249,38 @@ const App: React.FC = () => {
       await dataService.createProject(newProject);
   };
 
-  const handleDeleteProject = async (projectId: string) => {
-      setProjects(prev => prev.filter(p => p.id !== projectId));
-      setTasks(prev => prev.filter(t => t.projectId !== projectId));
-      setDocuments(prev => prev.filter(d => d.projectId !== projectId));
-      
-      if (activeProjectId === projectId) {
-          const remaining = projects.filter(p => p.id !== projectId);
-          if (remaining.length > 0) {
-              setActiveProjectId(remaining[0].id);
-          } else {
-              setCurrentView(ViewMode.HOME);
-          }
-      }
+  // Improved Select Project Handler
+  const handleSelectProject = (projectId: string) => {
+      setActiveProjectId(projectId);
+      setActiveDocId(null);
+      // Switch to Project Overview instead of auto-opening documents
+      setCurrentView(ViewMode.PROJECT_OVERVIEW); 
+  };
 
-      await dataService.deleteProject(projectId);
+  const handleDeleteProject = (projectId: string) => {
+      const project = projects.find(p => p.id === projectId);
+      setConfirmationModal({
+          isOpen: true,
+          title: 'Delete Project',
+          message: `Are you sure you want to delete "${project?.title}"? All associated documents and tasks will be permanently removed.`,
+          isDanger: true,
+          confirmText: 'Delete Project',
+          onConfirm: async () => {
+              setProjects(prev => prev.filter(p => p.id !== projectId));
+              setTasks(prev => prev.filter(t => t.projectId !== projectId));
+              setDocuments(prev => prev.filter(d => d.projectId !== projectId));
+              
+              if (activeProjectId === projectId) {
+                  const remaining = projects.filter(p => p.id !== projectId);
+                  if (remaining.length > 0) {
+                      handleSelectProject(remaining[0].id);
+                  } else {
+                      setCurrentView(ViewMode.HOME);
+                  }
+              }
+              await dataService.deleteProject(projectId);
+          }
+      });
   };
 
   const handleCreateDocument = async () => {
@@ -253,6 +296,23 @@ const App: React.FC = () => {
     setActiveDocId(newDoc.id);
     setCurrentView(ViewMode.DOCUMENTS);
     await dataService.createDocument(newDoc);
+  };
+
+  const handleDeleteDocument = (id: string) => {
+      setConfirmationModal({
+          isOpen: true,
+          title: 'Delete Page',
+          message: 'Are you sure you want to delete this page? This cannot be undone.',
+          isDanger: true,
+          confirmText: 'Delete Page',
+          onConfirm: async () => {
+              setDocuments(prev => prev.filter(d => d.id !== id));
+              if (activeDocId === id) {
+                  setActiveDocId(null);
+              }
+              await dataService.deleteDocument(id);
+          }
+      });
   };
 
   const handleUpdateDocument = (updatedDoc: Document) => {
@@ -494,11 +554,13 @@ const App: React.FC = () => {
         onChangeView={setCurrentView}
         projects={projects}
         activeProjectId={activeProjectId}
-        onSelectProject={setActiveProjectId}
+        onSelectProject={handleSelectProject}
         onCreateProject={handleOpenCreateProject}
+        onDeleteProject={handleDeleteProject}
         documents={projectDocs}
         onSelectDocument={setActiveDocId}
         onCreateDocument={handleCreateDocument}
+        onDeleteDocument={handleDeleteDocument}
         activeDocumentId={activeDocId}
         onOpenIntegrations={() => setIsIntegrationsOpen(true)}
         isMobileOpen={isMobileSidebarOpen}
@@ -551,6 +613,14 @@ const App: React.FC = () => {
                           onCreateProject={handleOpenCreateProject}
                           teamMembers={teamMembers}
                       />
+                  ) : currentView === ViewMode.PROJECT_OVERVIEW ? (
+                      <ProjectOverview 
+                          project={activeProject}
+                          tasks={projectTasks}
+                          documents={projectDocs}
+                          onNavigate={handleNavigate}
+                          onChangeView={setCurrentView}
+                      />
                   ) : currentView === ViewMode.INBOX ? (
                       <InboxView 
                           items={inboxItems} 
@@ -575,7 +645,15 @@ const App: React.FC = () => {
                   ) : currentView === ViewMode.REVIEW ? (
                       <ReviewWizard inboxItems={inboxItems} tasks={tasks} projects={projects} onProcessInboxItem={handleProcessInboxItem} onDeleteInboxItem={handleDeleteInboxItem} onDeleteTask={handleDeleteTask} onUpdateTaskStatus={handleUpdateTaskStatus} onUpdateTaskAssignee={handleUpdateTaskAssignee} onClose={() => setCurrentView(ViewMode.HOME)} />
                   ) : currentView === ViewMode.DOCUMENTS && activeDocument ? (
-                      <DocumentEditor document={activeDocument} allDocuments={documents} allTasks={tasks} onUpdate={handleUpdateDocument} onExtractTasks={handleExtractTasks} onNavigate={handleNavigate} />
+                      <DocumentEditor 
+                        document={activeDocument} 
+                        allDocuments={documents} 
+                        allTasks={tasks} 
+                        onUpdate={handleUpdateDocument} 
+                        onExtractTasks={handleExtractTasks} 
+                        onNavigate={handleNavigate} 
+                        onDelete={() => handleDeleteDocument(activeDocument.id)}
+                      />
                   ) : currentView === ViewMode.DOCUMENTS && !activeDocument ? (
                       <button 
                           onClick={handleCreateDocument} 
@@ -635,7 +713,7 @@ const App: React.FC = () => {
             allTasks={tasks}
         />
 
-        <CommandPalette isOpen={isCommandPaletteOpen} onClose={() => setIsCommandPaletteOpen(false)} documents={documents} tasks={tasks} projects={projects} onNavigate={handleNavigate} onCreateDocument={handleCreateDocument} onChangeView={setCurrentView} onSelectProject={setActiveProjectId} />
+        <CommandPalette isOpen={isCommandPaletteOpen} onClose={() => setIsCommandPaletteOpen(false)} documents={documents} tasks={tasks} projects={projects} onNavigate={handleNavigate} onCreateDocument={handleCreateDocument} onChangeView={setCurrentView} onSelectProject={handleSelectProject} />
         
         <CreateProjectModal 
           isOpen={isCreateProjectModalOpen}
@@ -648,6 +726,17 @@ const App: React.FC = () => {
           onClose={() => setIsIntegrationsOpen(false)} 
           integrations={integrations}
           onToggleIntegration={handleToggleIntegration}
+        />
+
+        {/* Global Confirmation Modal */}
+        <ConfirmationModal 
+            isOpen={confirmationModal.isOpen}
+            title={confirmationModal.title}
+            message={confirmationModal.message}
+            onClose={() => setConfirmationModal(prev => ({ ...prev, isOpen: false }))}
+            onConfirm={confirmationModal.onConfirm}
+            isDanger={confirmationModal.isDanger}
+            confirmText={confirmationModal.confirmText}
         />
 
         {selectedTask && (

@@ -1,5 +1,4 @@
 
-
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { Task, TaskStatus, TaskPriority, ProjectPlan, Attachment, Project, InboxAction, AgentRole, AgentResult, Document, Source } from "../types";
 
@@ -653,64 +652,5 @@ export const geminiService = {
       } catch (e) {
           return "Consider reviewing this task.";
       }
-  },
-
-  /**
-   * Brainstorms ideas for the Infinite Canvas
-   */
-  async brainstormCanvasNodes(prompt: string, context: string): Promise<any[]> {
-    if (!apiKey) return [];
-
-    try {
-        const response = await ai.models.generateContent({
-            model: MODEL_NAME,
-            contents: `You are a creative brainstorming partner.
-            User Prompt: "${prompt}"
-            Current Ideas on Canvas: "${context}"
-            
-            Generate 5 creative sticky notes (ideas) related to the prompt.
-            Return a JSON object with a list of nodes.
-            Each node should have:
-            - content: string (short idea, max 10 words)
-            - type: 'note'
-            - x: number (random offset between -200 and 200)
-            - y: number (random offset between -200 and 200)
-            - color: string (choose from 'bg-yellow-200', 'bg-blue-200', 'bg-green-200', 'bg-red-200', 'bg-purple-200')
-            `,
-            config: {
-                responseMimeType: "application/json",
-                responseSchema: {
-                    type: Type.OBJECT,
-                    properties: {
-                        nodes: {
-                            type: Type.ARRAY,
-                            items: {
-                                type: Type.OBJECT,
-                                properties: {
-                                    content: { type: Type.STRING },
-                                    type: { type: Type.STRING, enum: ['note'] },
-                                    x: { type: Type.NUMBER },
-                                    y: { type: Type.NUMBER },
-                                    color: { type: Type.STRING }
-                                },
-                                required: ["content", "type", "x", "y", "color"]
-                            }
-                        }
-                    }
-                }
-            }
-        });
-
-        const jsonStr = response.text;
-        if (!jsonStr) return [];
-        const res = JSON.parse(jsonStr);
-        return res.nodes.map((n: any) => ({
-            ...n,
-            id: crypto.randomUUID()
-        }));
-    } catch (error) {
-        console.error("Gemini Brainstorm Error:", error);
-        return [];
-    }
   }
 };
