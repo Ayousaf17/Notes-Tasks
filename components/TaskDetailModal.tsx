@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Task, TaskStatus, TaskPriority, AgentRole, Project } from '../types';
 import { X, Calendar, User, Flag, CheckSquare, AlignLeft, Trash2, Folder } from 'lucide-react';
@@ -39,7 +40,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, isOpen, 
     onUpdate(task.id, { priority: e.target.value as TaskPriority });
   };
 
-  const handleAssigneeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAssigneeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const val = e.target.value;
     setAssigneeInput(val);
     onUpdate(task.id, { assignee: val });
@@ -119,7 +120,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, isOpen, 
                         <select 
                             value={task.projectId} 
                             onChange={handleProjectChange}
-                            className="w-full appearance-none bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 text-sm rounded-lg px-3 py-2 pr-8 focus:ring-black dark:focus:ring-white focus:border-black dark:focus:border-white"
+                            className="w-full appearance-none bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 text-sm rounded-lg px-3 py-2 pr-8 focus:ring-black dark:focus:ring-white focus:border-black dark:focus:border-white cursor-pointer"
                         >
                             {projects.map(p => (
                                 <option key={p.id} value={p.id}>{p.title}</option>
@@ -136,7 +137,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, isOpen, 
                         <select 
                             value={task.status} 
                             onChange={handleStatusChange}
-                            className="w-full appearance-none bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 text-sm rounded-lg px-3 py-2 pr-8 focus:ring-black dark:focus:ring-white focus:border-black dark:focus:border-white"
+                            className="w-full appearance-none bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 text-sm rounded-lg px-3 py-2 pr-8 focus:ring-black dark:focus:ring-white focus:border-black dark:focus:border-white cursor-pointer"
                         >
                             <option value={TaskStatus.TODO}>To Do</option>
                             <option value={TaskStatus.IN_PROGRESS}>In Progress</option>
@@ -153,7 +154,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, isOpen, 
                         <select 
                             value={task.priority} 
                             onChange={handlePriorityChange}
-                            className="w-full appearance-none bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 text-sm rounded-lg px-3 py-2 pr-8 focus:ring-black dark:focus:ring-white focus:border-black dark:focus:border-white"
+                            className="w-full appearance-none bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 text-sm rounded-lg px-3 py-2 pr-8 focus:ring-black dark:focus:ring-white focus:border-black dark:focus:border-white cursor-pointer"
                         >
                             <option value={TaskPriority.HIGH}>High</option>
                             <option value={TaskPriority.MEDIUM}>Medium</option>
@@ -163,23 +164,27 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, isOpen, 
                     </div>
                 </div>
 
-                {/* Assignee - Editable with Datalist */}
+                {/* Assignee - Dropdown Select */}
                 <div className="space-y-1">
                     <label className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Assignee</label>
                     <div className="relative">
-                        <input 
-                            list="assignee-options"
+                        <select 
                             value={assigneeInput}
                             onChange={handleAssigneeChange}
-                            placeholder="Unassigned"
-                            className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 text-sm rounded-lg px-3 py-2 focus:ring-black dark:focus:ring-white focus:border-black dark:focus:border-white"
-                        />
-                        <datalist id="assignee-options">
-                            {users.map(u => <option key={u} value={u} />)}
-                            <option value={AgentRole.RESEARCHER}>AI Researcher</option>
-                            <option value={AgentRole.WRITER}>AI Writer</option>
-                            <option value={AgentRole.PLANNER}>AI Planner</option>
-                        </datalist>
+                            className="w-full appearance-none bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 text-sm rounded-lg px-3 py-2 pr-8 focus:ring-black dark:focus:ring-white focus:border-black dark:focus:border-white cursor-pointer"
+                        >
+                            <option value="">Unassigned</option>
+                            <optgroup label="Team">
+                                {users.map(u => (
+                                    <option key={u} value={u}>{u}</option>
+                                ))}
+                            </optgroup>
+                            <optgroup label="AI Agents">
+                                <option value={AgentRole.RESEARCHER}>AI Researcher</option>
+                                <option value={AgentRole.WRITER}>AI Writer</option>
+                                <option value={AgentRole.PLANNER}>AI Planner</option>
+                            </optgroup>
+                        </select>
                         <User className="absolute right-3 top-2.5 w-4 h-4 text-gray-400 pointer-events-none" />
                     </div>
                 </div>

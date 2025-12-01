@@ -37,6 +37,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   activeDocumentId,
   isMobileOpen,
   onMobileClose,
+  isDarkMode,
+  onToggleDarkMode,
   isExpanded,
   onHover
 }) => {
@@ -266,9 +268,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* Footer / Profile */}
-        <div className="p-4 mt-auto border-t border-gray-50 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/50 overflow-hidden">
+        <div className="p-3 mt-auto border-t border-gray-50 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/50 overflow-hidden shrink-0">
           <div 
-            className="flex items-center gap-3 px-1 py-1 mb-2 overflow-hidden cursor-pointer rounded hover:bg-gray-200/50 dark:hover:bg-gray-800/50 transition-colors"
+            className="flex items-center gap-3 px-1 py-1 mb-1 overflow-hidden cursor-pointer rounded hover:bg-gray-200/50 dark:hover:bg-gray-800/50 transition-colors"
             onClick={() => { onChangeView(ViewMode.SETTINGS); onMobileClose(); }}
           >
               <div className="w-8 h-8 rounded-full bg-black dark:bg-white shrink-0 flex items-center justify-center text-white dark:text-black">
@@ -288,15 +290,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       Online
                   </div>
               </div>
-              
-              {/* Settings Gear directly in profile row for collapsed view access or just easy access */}
-              {(!isExpanded && !isMobileOpen) && (
-                 // If collapsed, clicking profile picture is effectively settings
-                 <></>
-              )}
           </div>
           
           <div className="space-y-1">
+              {/* Settings Link */}
               <button 
                 onClick={() => { onChangeView(ViewMode.SETTINGS); onMobileClose(); }}
                 className={`w-full flex items-center space-x-3 px-2 py-2 text-xs rounded transition-colors ${
@@ -311,6 +308,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     Settings
                 </span>
                 <span className="md:hidden whitespace-nowrap ml-1">Settings</span>
+              </button>
+
+              {/* Dark Mode Toggle */}
+              <button 
+                onClick={onToggleDarkMode}
+                className="w-full flex items-center space-x-3 px-2 py-2 text-xs rounded transition-colors text-gray-400 hover:text-black dark:hover:text-white hover:bg-white dark:hover:bg-gray-800"
+                title={isDarkMode ? "Light Mode" : "Dark Mode"}
+              >
+                {isDarkMode ? <Sun className="w-4 h-4 min-w-[1rem]" /> : <Moon className="w-4 h-4 min-w-[1rem]" />}
+                <span className={`hidden md:block whitespace-nowrap transition-all duration-300 delay-75 ml-1 ${isExpanded ? 'opacity-100 w-auto' : 'opacity-0 w-0'}`}>
+                    {isDarkMode ? 'Light Mode' : 'Dark Mode'}
+                </span>
+                <span className="md:hidden whitespace-nowrap ml-1">{isDarkMode ? 'Light Mode' : 'Dark Mode'}</span>
               </button>
           </div>
         </div>
