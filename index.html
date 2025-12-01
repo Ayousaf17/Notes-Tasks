@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>Aasani OS</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
@@ -60,6 +60,14 @@
       
       .animate-page-slide {
         animation: slideInRight 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      }
+
+      /* iOS Safe Area Support */
+      .safe-area-bottom {
+        padding-bottom: env(safe-area-inset-bottom);
+      }
+      .safe-area-top {
+        padding-top: env(safe-area-inset-top);
       }
     </style>
   <script type="importmap">

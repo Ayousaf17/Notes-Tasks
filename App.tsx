@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { DocumentEditor } from './components/DocumentEditor';
@@ -17,10 +16,30 @@ import { SettingsView } from './components/SettingsView';
 import { CreateProjectModal } from './components/CreateProjectModal';
 import { CanvasView } from './components/CanvasView'; 
 import { ViewMode, Document, Task, TaskStatus, ProjectPlan, TaskPriority, ChatMessage, Project, InboxItem, InboxAction, AgentRole, Integration } from './types';
-import { Sparkles, Command, Plus, Menu, Cloud, MessageSquare } from 'lucide-react';
+import { Sparkles, Command, Plus, Menu, Cloud, MessageSquare, Home, Inbox, Shapes, Search } from 'lucide-react';
 import { geminiService } from './services/geminiService';
 import { dataService } from './services/dataService';
 import { supabase } from './services/supabase';
+
+const MobileBottomNav = ({ currentView, onChangeView, onOpenMenu, onSearch }: { currentView: ViewMode, onChangeView: (v: ViewMode) => void, onOpenMenu: () => void, onSearch: () => void }) => (
+  <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-black/95 backdrop-blur-lg border-t border-gray-100 dark:border-gray-800 z-40 px-6 py-3 safe-area-bottom flex items-center justify-between transition-transform duration-300">
+    <button onClick={() => onChangeView(ViewMode.HOME)} className={`flex flex-col items-center gap-1 ${currentView === ViewMode.HOME ? 'text-black dark:text-white' : 'text-gray-400 dark:text-gray-500'}`}>
+       <Home className="w-6 h-6" />
+    </button>
+    <button onClick={() => onChangeView(ViewMode.INBOX)} className={`flex flex-col items-center gap-1 ${currentView === ViewMode.INBOX ? 'text-black dark:text-white' : 'text-gray-400 dark:text-gray-500'}`}>
+       <Inbox className="w-6 h-6" />
+    </button>
+    <button onClick={() => onChangeView(ViewMode.CANVAS)} className={`flex flex-col items-center gap-1 ${currentView === ViewMode.CANVAS ? 'text-black dark:text-white' : 'text-gray-400 dark:text-gray-500'}`}>
+       <Shapes className="w-6 h-6" />
+    </button>
+    <button onClick={onSearch} className="flex flex-col items-center gap-1 text-gray-400 dark:text-gray-500 active:text-black dark:active:text-white">
+       <Search className="w-6 h-6" />
+    </button>
+    <button onClick={onOpenMenu} className="flex flex-col items-center gap-1 text-gray-400 dark:text-gray-500 active:text-black dark:active:text-white">
+       <Menu className="w-6 h-6" />
+    </button>
+  </div>
+);
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewMode>(ViewMode.HOME); 
@@ -472,17 +491,15 @@ const App: React.FC = () => {
         onHover={setIsSidebarExpanded}
       />
 
-      <main className={`flex-1 flex flex-col h-full relative w-full bg-white dark:bg-black transition-all duration-300 ease-in-out ${isSidebarExpanded ? 'md:pl-64' : 'md:pl-16'}`}>
+      <main className={`flex-1 flex flex-col h-full relative w-full bg-white dark:bg-black transition-all duration-300 ease-in-out pb-20 md:pb-0 ${isSidebarExpanded ? 'md:pl-64' : 'md:pl-16'}`}>
         <header className="h-14 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between px-6 bg-white dark:bg-black shrink-0 z-20">
           <div className="flex items-center space-x-3 text-sm">
-             <button onClick={() => setIsMobileSidebarOpen(true)} className="md:hidden text-gray-500 hover:text-black dark:hover:text-white">
-                 <Menu className="w-5 h-5" />
-             </button>
-             <span className="font-medium text-black dark:text-white hidden md:inline">
+             {/* Hamburger removed for mobile as requested */}
+             <span className="font-medium text-black dark:text-white inline">
                  {currentView === ViewMode.HOME ? 'Home' : 
                   currentView === ViewMode.SETTINGS ? 'Settings' : viewTitle}
              </span>
-             <span className="text-gray-300 dark:text-gray-700 hidden md:inline">/</span>
+             <span className="text-gray-300 dark:text-gray-700 inline">/</span>
              <span className="text-gray-500 dark:text-gray-400 truncate">
                  {currentView === ViewMode.DOCUMENTS ? (activeDocument?.title || 'Untitled') : 
                   currentView === ViewMode.BOARD ? 'Board' : 
@@ -629,8 +646,15 @@ const App: React.FC = () => {
                 projects={projects}
             />
         )}
-
       </main>
+
+      {/* Mobile Bottom Navigation Bar */}
+      <MobileBottomNav 
+        currentView={currentView}
+        onChangeView={setCurrentView}
+        onOpenMenu={() => setIsMobileSidebarOpen(true)}
+        onSearch={() => setIsCommandPaletteOpen(true)}
+      />
     </div>
   );
 };

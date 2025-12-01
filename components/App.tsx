@@ -13,23 +13,64 @@ import { ReviewWizard } from './components/ReviewWizard';
 import { TaskDetailModal } from './components/TaskDetailModal';
 import { IntegrationsModal } from './components/IntegrationsModal';
 import { SettingsView } from './components/SettingsView';
+import { CreateProjectModal } from './components/CreateProjectModal';
+import { CanvasView } from './components/CanvasView'; 
 import { ViewMode, Document, Task, TaskStatus, ProjectPlan, TaskPriority, ChatMessage, Project, InboxItem, InboxAction, AgentRole, Integration } from './types';
-import { Sparkles, Command, Plus, Menu, Cloud, MessageSquare } from 'lucide-react';
+import { Sparkles, Command, Plus, Menu, Cloud, MessageSquare, Home, Inbox, Shapes, Search, CheckSquare } from 'lucide-react';
 import { geminiService } from './services/geminiService';
 import { dataService } from './services/dataService';
 import { supabase } from './services/supabase';
 
+const MobileBottomNav = ({ currentView, onChangeView, onOpenMenu, onSearch }: { currentView: ViewMode, onChangeView: (v: ViewMode) => void, onOpenMenu: () => void, onSearch: () => void }) => (
+  <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-black/95 backdrop-blur-lg border-t border-gray-100 dark:border-gray-800 z-40 px-6 py-2 safe-area-bottom flex items-center justify-between transition-transform duration-300">
+    {/* Left Group */}
+    <div className="flex items-center gap-8">
+      <button onClick={() => onChangeView(ViewMode.HOME)} className={`flex flex-col items-center gap-1 ${currentView === ViewMode.HOME ? 'text-black dark:text-white' : 'text-gray-400 dark:text-gray-500'}`}>
+         <Home className="w-6 h-6" />
+         <span className="text-[9px] font-medium">Home</span>
+      </button>
+      <button onClick={onSearch} className="flex flex-col items-center gap-1 text-gray-400 dark:text-gray-500 active:text-black dark:active:text-white">
+         <Search className="w-6 h-6" />
+         <span className="text-[9px] font-medium">Search</span>
+      </button>
+    </div>
+
+    {/* Center Hero Button (Tasks) */}
+    <div className="relative -top-6">
+      <button
+          onClick={() => onChangeView(ViewMode.GLOBAL_BOARD)}
+          className={`flex items-center justify-center w-14 h-14 rounded-full shadow-2xl border-4 border-gray-50 dark:border-black transition-transform active:scale-95 ${currentView === ViewMode.GLOBAL_BOARD ? 'bg-black dark:bg-white text-white dark:text-black' : 'bg-black dark:bg-white text-white dark:text-black'}`}
+      >
+         <CheckSquare className="w-6 h-6" />
+      </button>
+    </div>
+
+    {/* Right Group */}
+    <div className="flex items-center gap-8">
+      <button onClick={() => onChangeView(ViewMode.INBOX)} className={`flex flex-col items-center gap-1 ${currentView === ViewMode.INBOX ? 'text-black dark:text-white' : 'text-gray-400 dark:text-gray-500'}`}>
+         <Inbox className="w-6 h-6" />
+         <span className="text-[9px] font-medium">Inbox</span>
+      </button>
+      <button onClick={onOpenMenu} className="flex flex-col items-center gap-1 text-gray-400 dark:text-gray-500 active:text-black dark:active:text-white">
+         <Menu className="w-6 h-6" />
+         <span className="text-[9px] font-medium">Menu</span>
+      </button>
+    </div>
+  </div>
+);
+
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewMode>(ViewMode.HOME); 
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [isSidebarExpanded, setIsSidebarExpanded] = useState(false); 
   
   // Team Management State
   const [teamMembers, setTeamMembers] = useState<string[]>(() => {
       if (typeof window !== 'undefined') {
           const stored = localStorage.getItem('teamMembers');
-          return stored ? JSON.parse(stored) : ['Me', 'Alice', 'Bob', 'Charlie'];
+          return stored ? JSON.parse(stored) : ['Me', 'Kate'];
       }
-      return ['Me', 'Alice', 'Bob', 'Charlie'];
+      return ['Me', 'Kate'];
   });
 
   const handleUpdateTeam = (members: string[]) => {
@@ -97,6 +138,7 @@ const App: React.FC = () => {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [isCreateProjectModalOpen, setIsCreateProjectModalOpen] = useState(false);
 
   // Load Data from Supabase on Mount & Setup Realtime Subscription
   useEffect(() => {
@@ -162,21 +204,40 @@ const App: React.FC = () => {
       }
   }, [activeProjectId, activeDocId, documents]);
 
-  const handleCreateProject = async () => {
-      const name = prompt("Enter Project Name:");
-      if (name) {
-          const newProject: Project = {
-              id: crypto.randomUUID(),
-              title: name,
-              icon: '📁',
-              createdAt: new Date()
-          };
-          setProjects(prev => [...prev, newProject]);
-          setActiveProjectId(newProject.id);
-          setActiveDocId(null);
-          setCurrentView(ViewMode.DOCUMENTS);
-          await dataService.createProject(newProject);
+  // Handler to open modal
+  const handleOpenCreateProject = () => {
+      setIsCreateProjectModalOpen(true);
+  };
+
+  const handleCreateProjectConfirm = async (title: string) => {
+      const newProject: Project = {
+          id: crypto.randomUUID(),
+          title: title,
+          icon: '📁',
+          createdAt: new Date()
+      };
+      setProjects(prev => [...prev, newProject]);
+      setActiveProjectId(newProject.id);
+      setActiveDocId(null);
+      setCurrentView(ViewMode.DOCUMENTS);
+      await dataService.createProject(newProject);
+  };
+
+  const handleDeleteProject = async (projectId: string) => {
+      setProjects(prev => prev.filter(p => p.id !== projectId));
+      setTasks(prev => prev.filter(t => t.projectId !== projectId));
+      setDocuments(prev => prev.filter(d => d.projectId !== projectId));
+      
+      if (activeProjectId === projectId) {
+          const remaining = projects.filter(p => p.id !== projectId);
+          if (remaining.length > 0) {
+              setActiveProjectId(remaining[0].id);
+          } else {
+              setCurrentView(ViewMode.HOME);
+          }
       }
+
+      await dataService.deleteProject(projectId);
   };
 
   const handleCreateDocument = async () => {
@@ -434,7 +495,7 @@ const App: React.FC = () => {
         projects={projects}
         activeProjectId={activeProjectId}
         onSelectProject={setActiveProjectId}
-        onCreateProject={handleCreateProject}
+        onCreateProject={handleOpenCreateProject}
         documents={projectDocs}
         onSelectDocument={setActiveDocId}
         onCreateDocument={handleCreateDocument}
@@ -444,24 +505,25 @@ const App: React.FC = () => {
         onMobileClose={() => setIsMobileSidebarOpen(false)}
         isDarkMode={isDarkMode}
         onToggleDarkMode={() => setIsDarkMode(!isDarkMode)}
+        isExpanded={isSidebarExpanded}
+        onHover={setIsSidebarExpanded}
       />
 
-      <main className="flex-1 flex flex-col h-full relative w-full bg-white dark:bg-black">
+      <main className={`flex-1 flex flex-col h-full relative w-full bg-white dark:bg-black transition-all duration-300 ease-in-out pb-20 md:pb-0 ${isSidebarExpanded ? 'md:pl-64' : 'md:pl-16'}`}>
         <header className="h-14 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between px-6 bg-white dark:bg-black shrink-0 z-20">
           <div className="flex items-center space-x-3 text-sm">
-             <button onClick={() => setIsMobileSidebarOpen(true)} className="md:hidden text-gray-500 hover:text-black dark:hover:text-white">
-                 <Menu className="w-5 h-5" />
-             </button>
-             <span className="font-medium text-black dark:text-white hidden md:inline">
+             {/* Hamburger removed for mobile as requested */}
+             <span className="font-medium text-black dark:text-white inline">
                  {currentView === ViewMode.HOME ? 'Home' : 
                   currentView === ViewMode.SETTINGS ? 'Settings' : viewTitle}
              </span>
-             <span className="text-gray-300 dark:text-gray-700 hidden md:inline">/</span>
+             <span className="text-gray-300 dark:text-gray-700 inline">/</span>
              <span className="text-gray-500 dark:text-gray-400 truncate">
                  {currentView === ViewMode.DOCUMENTS ? (activeDocument?.title || 'Untitled') : 
                   currentView === ViewMode.BOARD ? 'Board' : 
                   currentView === ViewMode.HOME ? 'Dashboard' :
                   currentView === ViewMode.SETTINGS ? 'Preferences' :
+                  currentView === ViewMode.CANVAS ? 'Whiteboard' : 
                   currentView.toLowerCase().replace('_', ' ')}
              </span>
           </div>
@@ -477,68 +539,85 @@ const App: React.FC = () => {
 
         <div className="flex-1 overflow-hidden relative flex">
             <div className="flex-1 flex flex-col overflow-hidden w-full">
-                {currentView === ViewMode.HOME ? (
-                    <DashboardView 
-                        tasks={tasks} 
-                        documents={documents} 
-                        projects={projects} 
-                        userName="User" 
+                {/* View Animation Wrapper */}
+                <div key={currentView} className="flex-1 h-full w-full animate-page-slide flex flex-col overflow-hidden">
+                  {currentView === ViewMode.HOME ? (
+                      <DashboardView 
+                          tasks={tasks} 
+                          documents={documents} 
+                          projects={projects} 
+                          userName="User" 
+                          onNavigate={handleNavigate} 
+                          onStartReview={() => setCurrentView(ViewMode.REVIEW)} 
+                          onCreateProject={handleOpenCreateProject}
+                          teamMembers={teamMembers}
+                      />
+                  ) : currentView === ViewMode.INBOX ? (
+                      <InboxView 
+                          items={inboxItems} 
+                          onAddItem={handleAddInboxItem} 
+                          onProcessItem={(id, action) => { const item = inboxItems.find(i => i.id === id); if (item && item.processedResult) handleProcessInboxItem(id, action); else handleStoreInboxSuggestion(id, action); }} 
+                          onDeleteItem={handleDeleteInboxItem} 
+                          onUpdateItem={handleUpdateInboxItem}
+                          projects={projects} 
+                      />
+                  ) : currentView === ViewMode.SETTINGS ? (
+                      <SettingsView 
+                          teamMembers={teamMembers}
+                          onUpdateTeam={handleUpdateTeam}
+                          isDarkMode={isDarkMode}
+                          onToggleDarkMode={() => setIsDarkMode(!isDarkMode)}
+                          onClearData={handleClearData}
+                          onDeleteProject={handleDeleteProject}
+                          projects={projects}
+                          integrations={integrations}
+                          onToggleIntegration={handleToggleIntegration}
+                      />
+                  ) : currentView === ViewMode.REVIEW ? (
+                      <ReviewWizard inboxItems={inboxItems} tasks={tasks} projects={projects} onProcessInboxItem={handleProcessInboxItem} onDeleteInboxItem={handleDeleteInboxItem} onDeleteTask={handleDeleteTask} onUpdateTaskStatus={handleUpdateTaskStatus} onUpdateTaskAssignee={handleUpdateTaskAssignee} onClose={() => setCurrentView(ViewMode.HOME)} />
+                  ) : currentView === ViewMode.DOCUMENTS && activeDocument ? (
+                      <DocumentEditor document={activeDocument} allDocuments={documents} allTasks={tasks} onUpdate={handleUpdateDocument} onExtractTasks={handleExtractTasks} onNavigate={handleNavigate} />
+                  ) : currentView === ViewMode.DOCUMENTS && !activeDocument ? (
+                      <button 
+                          onClick={handleCreateDocument} 
+                          className="flex flex-col items-center justify-center h-full w-full text-gray-400 dark:text-gray-600 hover:text-gray-600 dark:hover:text-gray-300 transition-colors cursor-pointer"
+                      >
+                          <div className="w-20 h-20 rounded-full bg-gray-50 dark:bg-gray-900 border-2 border-dashed border-gray-200 dark:border-gray-800 flex items-center justify-center mb-6 shadow-sm group hover:border-gray-300 dark:hover:border-gray-600 hover:bg-white dark:hover:bg-gray-800 transition-all">
+                              <Plus className="w-10 h-10 text-gray-300 dark:text-gray-700 group-hover:text-black dark:group-hover:text-white transition-colors" />
+                          </div>
+                          <p className="text-base font-medium">Create a new page</p>
+                          <p className="text-xs text-gray-300 dark:text-gray-700 mt-2">or select one from the sidebar</p>
+                      </button>
+                  ) : currentView === ViewMode.BOARD || currentView === ViewMode.GLOBAL_BOARD ? (
+                      <TaskBoard 
+                        tasks={tasksToDisplay} 
+                        onUpdateTaskStatus={handleUpdateTaskStatus} 
+                        onUpdateTaskAssignee={handleUpdateTaskAssignee} 
+                        onUpdateTaskDueDate={handleUpdateTaskDueDate} 
+                        onUpdateTaskPriority={handleUpdateTaskPriority} 
+                        onUpdateTaskDependencies={handleUpdateTaskDependencies} 
+                        onDeleteTask={handleDeleteTask}
+                        contextString={getContextForTaskBoard()} 
+                        onAddTasks={handleExtractTasks} 
+                        onPromoteTask={handlePromoteTask} 
                         onNavigate={handleNavigate} 
-                        onStartReview={() => setCurrentView(ViewMode.REVIEW)} 
-                        onCreateProject={handleCreateProject}
-                    />
-                ) : currentView === ViewMode.INBOX ? (
-                    <InboxView 
-                        items={inboxItems} 
-                        onAddItem={handleAddInboxItem} 
-                        onProcessItem={(id, action) => { const item = inboxItems.find(i => i.id === id); if (item && item.processedResult) handleProcessInboxItem(id, action); else handleStoreInboxSuggestion(id, action); }} 
-                        onDeleteItem={handleDeleteInboxItem} 
-                        onUpdateItem={handleUpdateInboxItem}
-                        projects={projects} 
-                    />
-                ) : currentView === ViewMode.SETTINGS ? (
-                    <SettingsView 
-                        teamMembers={teamMembers}
-                        onUpdateTeam={handleUpdateTeam}
-                        isDarkMode={isDarkMode}
-                        onToggleDarkMode={() => setIsDarkMode(!isDarkMode)}
-                        onClearData={handleClearData}
-                    />
-                ) : currentView === ViewMode.REVIEW ? (
-                    <ReviewWizard inboxItems={inboxItems} tasks={tasks} projects={projects} onProcessInboxItem={handleProcessInboxItem} onDeleteInboxItem={handleDeleteInboxItem} onDeleteTask={handleDeleteTask} onUpdateTaskStatus={handleUpdateTaskStatus} onUpdateTaskAssignee={handleUpdateTaskAssignee} onClose={() => setCurrentView(ViewMode.HOME)} />
-                ) : currentView === ViewMode.DOCUMENTS && activeDocument ? (
-                    <DocumentEditor document={activeDocument} allDocuments={documents} allTasks={tasks} onUpdate={handleUpdateDocument} onExtractTasks={handleExtractTasks} onNavigate={handleNavigate} />
-                ) : currentView === ViewMode.DOCUMENTS && !activeDocument ? (
-                    <div className="flex flex-col items-center justify-center h-full text-gray-300 dark:text-gray-600">
-                        <Plus className="w-8 h-8 mb-4 text-gray-200 dark:text-gray-700" />
-                        <p className="text-sm">Select or create a page</p>
-                    </div>
-                ) : currentView === ViewMode.BOARD || currentView === ViewMode.GLOBAL_BOARD ? (
-                    <TaskBoard 
-                      tasks={tasksToDisplay} 
-                      onUpdateTaskStatus={handleUpdateTaskStatus} 
-                      onUpdateTaskAssignee={handleUpdateTaskAssignee} 
-                      onUpdateTaskDueDate={handleUpdateTaskDueDate} 
-                      onUpdateTaskPriority={handleUpdateTaskPriority} 
-                      onUpdateTaskDependencies={handleUpdateTaskDependencies} 
-                      contextString={getContextForTaskBoard()} 
-                      onAddTasks={handleExtractTasks} 
-                      onPromoteTask={handlePromoteTask} 
-                      onNavigate={handleNavigate} 
-                      onSelectTask={setSelectedTaskId}
-                      users={teamMembers}
-                      projects={projects}
-                      isGlobalView={currentView === ViewMode.GLOBAL_BOARD}
-                    />
-                ) : currentView === ViewMode.GRAPH ? (
-                    <GraphView documents={projectDocs} tasks={projectTasks} onNavigate={handleNavigate} />
-                ) : (
-                    <CalendarView 
-                      tasks={tasksToDisplay} 
-                      onSelectTask={setSelectedTaskId} 
-                      onUpdateTaskDueDate={handleUpdateTaskDueDate}
-                    />
-                )}
+                        onSelectTask={setSelectedTaskId}
+                        users={teamMembers}
+                        projects={projects}
+                        isGlobalView={currentView === ViewMode.GLOBAL_BOARD}
+                      />
+                  ) : currentView === ViewMode.GRAPH ? (
+                      <GraphView documents={projectDocs} tasks={projectTasks} onNavigate={handleNavigate} />
+                  ) : currentView === ViewMode.CANVAS ? (
+                      <CanvasView />
+                  ) : (
+                      <CalendarView 
+                        tasks={tasksToDisplay} 
+                        onSelectTask={setSelectedTaskId} 
+                        onUpdateTaskDueDate={handleUpdateTaskDueDate}
+                      />
+                  )}
+                </div>
             </div>
             
             {currentView === ViewMode.DOCUMENTS && activeDocument && (
@@ -555,10 +634,18 @@ const App: React.FC = () => {
             onProjectPlanCreated={handleProjectPlanCreated}
             messages={chatMessages}
             setMessages={setChatMessages}
+            allDocuments={documents}
+            allTasks={tasks}
         />
 
         <CommandPalette isOpen={isCommandPaletteOpen} onClose={() => setIsCommandPaletteOpen(false)} documents={documents} tasks={tasks} projects={projects} onNavigate={handleNavigate} onCreateDocument={handleCreateDocument} onChangeView={setCurrentView} onSelectProject={setActiveProjectId} />
         
+        <CreateProjectModal 
+          isOpen={isCreateProjectModalOpen}
+          onClose={() => setIsCreateProjectModalOpen(false)}
+          onCreate={handleCreateProjectConfirm}
+        />
+
         <IntegrationsModal 
           isOpen={isIntegrationsOpen} 
           onClose={() => setIsIntegrationsOpen(false)} 
@@ -577,8 +664,15 @@ const App: React.FC = () => {
                 projects={projects}
             />
         )}
-
       </main>
+
+      {/* Mobile Bottom Navigation Bar */}
+      <MobileBottomNav 
+        currentView={currentView}
+        onChangeView={setCurrentView}
+        onOpenMenu={() => setIsMobileSidebarOpen(true)}
+        onSearch={() => setIsCommandPaletteOpen(true)}
+      />
     </div>
   );
 };
