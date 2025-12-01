@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Task, Document, Project, TaskPriority, TaskStatus } from '../types';
 import { geminiService } from '../services/geminiService';
-import { Calendar, ArrowRight, Volume2, StopCircle, FileText, Sparkles, Plus } from 'lucide-react';
+import { Calendar, ArrowRight, Volume2, StopCircle, FileText, Sparkles, Plus, Users, BarChart2 } from 'lucide-react';
 
 interface DashboardViewProps {
   tasks: Task[];
@@ -12,6 +12,7 @@ interface DashboardViewProps {
   onNavigate: (type: 'document' | 'task', id: string) => void;
   onStartReview: () => void;
   onCreateProject: () => void;
+  teamMembers?: string[]; // New Prop
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({ 
@@ -21,7 +22,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     userName, 
     onNavigate,
     onStartReview,
-    onCreateProject
+    onCreateProject,
+    teamMembers = ['Me']
 }) => {
   const [briefing, setBriefing] = useState<string | null>(null);
   const [loadingBriefing, setLoadingBriefing] = useState(false);
@@ -60,6 +62,23 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
       }).slice(0, 4);
   }, [documents]);
+
+  const workloadStats = useMemo(() => {
+    const stats: Record<string, number> = {};
+    // Initialize with known members
+    teamMembers.forEach(m => stats[m] = 0);
+    stats['Unassigned'] = 0;
+    
+    tasks.forEach(t => {
+        if (t.status !== TaskStatus.DONE) {
+            const assignee = t.assignee || 'Unassigned';
+            // Only count if it's a team member or unassigned, group others into 'Other' if needed? 
+            // For now, assume assignee matches team members or is AI
+            stats[assignee] = (stats[assignee] || 0) + 1;
+        }
+    });
+    return Object.entries(stats).sort((a, b) => b[1] - a[1]); // Sort by count desc
+  }, [tasks, teamMembers]);
 
   useEffect(() => {
       if (focusList.length > 0 && !briefing) {
@@ -101,12 +120,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const getProjectName = (id: string) => projects.find(p => p.id === id)?.title || 'Unknown Project';
 
   return (
-    <div className="flex-1 h-full bg-white dark:bg-black overflow-y-auto p-8 font-sans transition-colors duration-200">
-      <div className="max-w-6xl mx-auto space-y-16">
+    <div className="flex-1 h-full bg-white dark:bg-black overflow-y-auto p-4 md:p-8 font-sans transition-colors duration-200">
+      <div className="max-w-6xl mx-auto space-y-12 md:space-y-16">
         
         {/* Minimal Daily Pulse */}
-        <div className="pt-8 pb-4">
-            <div className="flex justify-between items-center mb-8">
+        <div className="pt-4 md:pt-8 pb-4">
+            <div className="flex justify-between items-center mb-6 md:mb-8">
                 <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em]">Daily Pulse</p>
                 {briefing && (
                     <button 
@@ -121,17 +140,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             
             {loadingBriefing ? (
                 <div className="animate-pulse space-y-4 max-w-2xl">
-                    <div className="h-8 bg-gray-50 dark:bg-gray-800 rounded w-full"></div>
-                    <div className="h-8 bg-gray-50 dark:bg-gray-800 rounded w-3/4"></div>
+                    <div className="h-6 md:h-8 bg-gray-50 dark:bg-gray-800 rounded w-full"></div>
+                    <div className="h-6 md:h-8 bg-gray-50 dark:bg-gray-800 rounded w-3/4"></div>
                 </div>
             ) : (
-                <h1 className="text-3xl md:text-4xl font-serif font-normal text-gray-900 dark:text-gray-100 leading-snug tracking-tight max-w-4xl">
+                <h1 className="text-2xl md:text-4xl font-serif font-normal text-gray-900 dark:text-gray-100 leading-snug tracking-tight max-w-4xl">
                     {briefing}
                 </h1>
             )}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-16">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 lg:gap-16">
             
             {/* Focus List */}
             <div className="lg:col-span-2 space-y-8">
@@ -145,17 +164,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         <div 
                             key={task.id}
                             onClick={() => onNavigate('task', task.id)}
-                            className="group py-6 border-b border-gray-50 dark:border-gray-800 flex items-start gap-5 cursor-pointer hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition-colors -mx-4 px-4 rounded-xl"
+                            className="group py-5 md:py-6 border-b border-gray-50 dark:border-gray-800 flex items-start gap-4 md:gap-5 cursor-pointer hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition-colors -mx-2 md:-mx-4 px-2 md:px-4 rounded-xl"
                         >
                             <div className={`mt-2 w-2 h-2 rounded-full flex-shrink-0 ${
                                 task.priority === TaskPriority.HIGH ? 'bg-black dark:bg-white' : 'bg-gray-300 dark:bg-gray-600'
                             }`}>
                             </div>
                             <div className="flex-1 min-w-0">
-                                <h3 className="text-xl text-gray-900 dark:text-gray-100 group-hover:text-black dark:group-hover:text-white transition-colors truncate font-light font-serif">
+                                <h3 className="text-lg md:text-xl text-gray-900 dark:text-gray-100 group-hover:text-black dark:group-hover:text-white transition-colors truncate font-light font-serif">
                                     {task.title}
                                 </h3>
-                                <div className="flex items-center gap-4 mt-2 text-xs text-gray-400 dark:text-gray-500 font-medium tracking-wide">
+                                <div className="flex flex-wrap items-center gap-2 md:gap-4 mt-2 text-xs text-gray-400 dark:text-gray-500 font-medium tracking-wide">
                                     <span className="uppercase">{getProjectName(task.projectId)}</span>
                                     {task.dueDate && (
                                         <span className="flex items-center gap-1.5">
@@ -173,9 +192,33 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 </div>
             </div>
 
-            {/* Sidebar: Actions */}
+            {/* Sidebar: Actions & Insights */}
             <div className="space-y-12">
                 
+                {/* Team Workload */}
+                <div className="space-y-6">
+                    <h2 className="text-[10px] font-bold text-gray-900 dark:text-white uppercase tracking-[0.2em] border-b border-gray-100 dark:border-gray-800 pb-4 flex items-center justify-between">
+                        <span>Team Workload</span>
+                        <BarChart2 className="w-3.5 h-3.5 text-gray-400" />
+                    </h2>
+                    <div className="space-y-3">
+                        {workloadStats.map(([member, count]) => (
+                            <div key={member} className="flex items-center gap-3 text-sm">
+                                <div className="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-[10px] font-medium text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700">
+                                    {member.startsWith('AI_') ? 'AI' : member.charAt(0)}
+                                </div>
+                                <div className="flex-1 h-1.5 bg-gray-50 dark:bg-gray-800 rounded-full overflow-hidden">
+                                    <div 
+                                        className={`h-full rounded-full ${count > 5 ? 'bg-red-400' : count > 2 ? 'bg-black dark:bg-white' : 'bg-gray-300 dark:bg-gray-600'}`} 
+                                        style={{ width: `${Math.min((count / 10) * 100, 100)}%` }}
+                                    ></div>
+                                </div>
+                                <span className="text-xs font-medium text-gray-600 dark:text-gray-300 w-4 text-right">{count}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
                 <div className="space-y-6">
                     <h2 className="text-[10px] font-bold text-gray-900 dark:text-white uppercase tracking-[0.2em] border-b border-gray-100 dark:border-gray-800 pb-4">Jump Back In</h2>
                     <div className="space-y-1">

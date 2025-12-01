@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { ChatMessage, Attachment, ProjectPlan, Document, Task } from '../types';
-import { Send, X, Bot, Paperclip, Mic, Loader2, FileText, Sparkles, Music, Trash2, BrainCircuit } from 'lucide-react';
+import { ChatMessage, Attachment, ProjectPlan, Document, Task, Source } from '../types';
+import { Send, X, Bot, Paperclip, Mic, Loader2, FileText, Sparkles, Music, Trash2, BrainCircuit, CheckSquare, Search } from 'lucide-react';
 import { geminiService } from '../services/geminiService';
 
 interface AIChatSidebarProps {
@@ -274,10 +274,13 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
         
         // 1. Get relevant context from other docs if query implies it
         let retrievedContext = "";
+        let sources: Source[] = [];
         
         // Simple heuristic: If prompt is short, don't search everything. If it looks like a question, search.
         if (currentInput.split(' ').length > 2) {
-             retrievedContext = await geminiService.findRelevantContext(currentInput, allDocuments, allTasks);
+             const result = await geminiService.findRelevantContext(currentInput, allDocuments, allTasks);
+             retrievedContext = result.text;
+             sources = result.sources;
         }
         
         setRetrievingContext(false);
@@ -300,7 +303,8 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
             id: (Date.now() + 1).toString(),
             role: 'model',
             text: responseText,
-            timestamp: new Date()
+            timestamp: new Date(),
+            sources: sources
         };
 
         setMessages(prev => [...prev, aiMsg]);
@@ -354,6 +358,24 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                 ) : (
                     <div className="block w-full px-6 py-6 rounded-xl text-sm leading-relaxed text-gray-800 dark:text-gray-200 bg-zinc-50 dark:bg-zinc-900 border-none shadow-none">
                         <FormattedMessage text={msg.text} />
+                        
+                        {/* Citations / Sources */}
+                        {msg.sources && msg.sources.length > 0 && (
+                            <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800">
+                                <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase mb-2 flex items-center gap-1">
+                                    <Search className="w-3 h-3" />
+                                    Used {msg.sources.length} Reference{msg.sources.length > 1 ? 's' : ''}
+                                </p>
+                                <div className="flex flex-wrap gap-2">
+                                    {msg.sources.map((src, idx) => (
+                                        <div key={idx} className="flex items-center gap-1.5 px-2 py-1 bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded text-[10px] text-gray-500 dark:text-gray-400">
+                                            {src.type === 'document' ? <FileText className="w-3 h-3 text-blue-500" /> : <CheckSquare className="w-3 h-3 text-green-500" />}
+                                            <span className="truncate max-w-[150px]">{src.title}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
                 <div className={`text-[10px] text-gray-300 dark:text-gray-600 mt-2 px-1 ${msg.role === 'user' ? 'text-right' : 'text-left'}`}>

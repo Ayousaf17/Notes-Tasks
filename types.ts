@@ -100,12 +100,19 @@ export interface InboxAction {
   reasoning: string;
 }
 
+export interface Source {
+  id: string;
+  title: string;
+  type: 'document' | 'task';
+}
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'model';
   text: string;
   timestamp: Date;
   attachments?: Attachment[];
+  sources?: Source[]; // NEW: Citations
 }
 
 export interface Attachment {

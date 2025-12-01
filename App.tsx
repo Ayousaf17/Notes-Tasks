@@ -535,6 +535,7 @@ const App: React.FC = () => {
                         onNavigate={handleNavigate} 
                         onStartReview={() => setCurrentView(ViewMode.REVIEW)} 
                         onCreateProject={handleOpenCreateProject} // Use Modal Opener
+                        teamMembers={teamMembers} // Pass team members
                     />
                 ) : currentView === ViewMode.INBOX ? (
                     <InboxView 

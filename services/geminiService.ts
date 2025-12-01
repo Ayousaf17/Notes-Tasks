@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type, Schema } from "@google/genai";
-import { Task, TaskStatus, TaskPriority, ProjectPlan, Attachment, Project, InboxAction, AgentRole, AgentResult, Document } from "../types";
+import { Task, TaskStatus, TaskPriority, ProjectPlan, Attachment, Project, InboxAction, AgentRole, AgentResult, Document, Source } from "../types";
 
 const apiKey = process.env.API_KEY;
 const ai = new GoogleGenAI({ apiKey: apiKey || 'dummy_key' });
@@ -29,7 +29,8 @@ export const geminiService = {
           Guidelines:
           - You help organize projects, simplify workflows, and connect information. 
           - You are concise, proactive, and structured.
-          - If the user asks about a specific document or task mentioned in the context, use that info.`,
+          - If the user asks about a specific document or task mentioned in the context, use that info.
+          - If you use information from the context, you don't need to explicitly say "According to the document...", just answer naturally.`,
         }
       });
 
@@ -64,15 +65,15 @@ export const geminiService = {
   },
 
   /**
-   * RAG-lite: Selects relevant documents based on the query
+   * RAG-lite: Selects relevant documents based on the query and returns context + source metadata
    */
-  async findRelevantContext(query: string, documents: Document[], tasks: Task[]): Promise<string> {
-    if (!apiKey) return "";
-    if (documents.length === 0 && tasks.length === 0) return "";
+  async findRelevantContext(query: string, documents: Document[], tasks: Task[]): Promise<{ text: string, sources: Source[] }> {
+    if (!apiKey) return { text: "", sources: [] };
+    if (documents.length === 0 && tasks.length === 0) return { text: "", sources: [] };
 
     // 1. Create a lightweight index of available data
     const docIndex = documents.map(d => `DOC_ID: ${d.id}, TITLE: ${d.title}, TAGS: ${d.tags.join(',')}`).join('\n');
-    const taskIndex = tasks.map(t => `TASK_ID: ${t.id}, TITLE: ${t.title}, STATUS: ${t.status}`).join('\n');
+    const taskIndex = tasks.map(t => `TASK_ID: ${t.id}, TITLE: ${t.title}, STATUS: ${t.status}, ASSIGNEE: ${t.assignee || 'Unassigned'}`).join('\n');
 
     try {
       // 2. Ask Gemini to pick relevant IDs
@@ -104,27 +105,30 @@ export const geminiService = {
       const relevantDocIds = result.documentIds || [];
       const relevantTaskIds = result.taskIds || [];
 
-      // 3. Construct the full context string from the actual content
+      // 3. Construct the full context string and source list
       let contextBuilder = "Here is the retrieved context from the workspace:\n\n";
+      const sources: Source[] = [];
 
       documents.filter(d => relevantDocIds.includes(d.id)).forEach(d => {
         contextBuilder += `--- DOCUMENT: ${d.title} ---\n${d.content}\n----------------\n\n`;
+        sources.push({ id: d.id, title: d.title, type: 'document' });
       });
 
       const relevantTasks = tasks.filter(t => relevantTaskIds.includes(t.id));
       if (relevantTasks.length > 0) {
         contextBuilder += `--- RELEVANT TASKS ---\n`;
         relevantTasks.forEach(t => {
-          contextBuilder += `- [${t.status}] ${t.title} (${t.assignee || 'Unassigned'})\n`;
+          contextBuilder += `- [${t.status}] ${t.title} (Assignee: ${t.assignee || 'Unassigned'}, Due: ${t.dueDate || 'None'})\n`;
+          sources.push({ id: t.id, title: t.title, type: 'task' });
         });
         contextBuilder += `----------------------\n`;
       }
 
-      return contextBuilder;
+      return { text: contextBuilder, sources };
 
     } catch (error) {
       console.error("Context Retrieval Error:", error);
-      return "";
+      return { text: "", sources: [] };
     }
   },
 
