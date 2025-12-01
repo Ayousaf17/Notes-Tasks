@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { Task, TaskStatus, TaskPriority, AgentRole, Project } from '../types';
 import { Plus, Filter, X, ArrowUpDown, User, Flag, Link as LinkIcon, AlertCircle, CheckCircle, Sparkles, Loader2, Bot, ChevronDown, ChevronUp, GripVertical, CheckSquare, Square, Calendar, MoreHorizontal, Paperclip, Folder } from 'lucide-react';
@@ -44,6 +45,7 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [priorityFilter, setPriorityFilter] = useState<string>('ALL');
   const [sortBy, setSortBy] = useState<SortOption>('NONE');
+  const [activeMobileTab, setActiveMobileTab] = useState<TaskStatus>(TaskStatus.TODO);
   
   const [dependencyModalTask, setDependencyModalTask] = useState<Task | null>(null);
 
@@ -195,34 +197,61 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
         <div className="flex items-center gap-4">
              <button onClick={handleSuggestTasks} disabled={isSuggesting} className="flex items-center gap-2 text-sm text-purple-600 hover:text-purple-800 dark:text-purple-400 dark:hover:text-purple-300 disabled:opacity-50 transition-colors font-medium">
                 {isSuggesting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                <span>Suggest Tasks</span>
+                <span className="hidden md:inline">Suggest Tasks</span>
             </button>
         </div>
       </div>
 
-      {/* Board */}
-      <div className="flex-1 overflow-x-auto overflow-y-hidden p-6 bg-gray-50/50 dark:bg-black">
-        <div className="flex gap-6 h-full min-w-max">
+      {/* Mobile Tabs */}
+      <div className="md:hidden flex p-2 border-b border-gray-100 dark:border-gray-800 gap-1 bg-gray-50/50 dark:bg-black">
+          {columns.map(col => (
+              <button
+                key={col.id}
+                onClick={() => setActiveMobileTab(col.id)}
+                className={`flex-1 py-2 text-xs font-medium rounded-lg transition-colors ${
+                    activeMobileTab === col.id 
+                    ? 'bg-white dark:bg-gray-800 text-black dark:text-white shadow-sm border border-gray-200 dark:border-gray-700' 
+                    : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+                }`}
+              >
+                  {col.label}
+                  <span className="ml-1.5 text-[10px] opacity-60">
+                      {filteredAndSortedTasks.filter(t => t.status === col.id).length}
+                  </span>
+              </button>
+          ))}
+      </div>
+
+      {/* Board Content */}
+      <div className="flex-1 overflow-x-auto overflow-y-hidden p-4 md:p-6 bg-gray-50/50 dark:bg-black">
+        <div className="flex flex-col md:flex-row gap-6 h-full min-w-full md:min-w-max">
             {columns.map(col => {
                 const colTasks = filteredAndSortedTasks.filter(t => t.status === col.id);
                 const isActiveDrop = activeDropZone === col.id;
                 const isEmpty = colTasks.length === 0;
                 
+                // On mobile, hide columns that are not active
+                const isHiddenOnMobile = activeMobileTab !== col.id;
+                
                 return (
                     <div 
                         key={col.id} 
-                        className={`w-80 flex-shrink-0 flex flex-col h-full rounded-xl transition-all duration-200 ${isActiveDrop ? 'bg-indigo-50/50 dark:bg-indigo-900/20' : 'bg-transparent'}`}
+                        className={`
+                            ${isHiddenOnMobile ? 'hidden md:flex' : 'flex'}
+                            w-full md:w-80 flex-shrink-0 flex-col h-full rounded-xl transition-all duration-200 
+                            ${isActiveDrop ? 'bg-indigo-50/50 dark:bg-indigo-900/20' : 'bg-transparent'}
+                        `}
                         onDragOver={(e) => handleDragOver(e, col.id)}
                         onDrop={(e) => handleDrop(e, col.id)}
                     >
-                        {/* Column Header (Sticky) */}
-                        <div className="flex items-center justify-between px-1 py-3 mb-2 sticky top-0 z-10 bg-gray-50/95 dark:bg-black/95 backdrop-blur-sm rounded-lg border border-transparent shadow-sm">
+                        {/* Column Header (Desktop only) */}
+                        <div className="hidden md:flex items-center justify-between px-1 py-3 mb-2 sticky top-0 z-10 bg-gray-50/95 dark:bg-black/95 backdrop-blur-sm rounded-lg border border-transparent shadow-sm">
                             <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 pl-2">{col.label}</h3>
                             <span className="text-xs font-medium text-gray-400 pr-2">{colTasks.length}</span>
                         </div>
                         
                         {/* Task List (Scrollable) */}
-                        <div className="flex-1 overflow-y-auto px-1 pb-4 space-y-3 no-scrollbar">
+                        <div className="flex-1 overflow-y-auto px-1 pb-20 md:pb-4 space-y-3 no-scrollbar">
                             {isEmpty && (
                                 <div className="h-32 flex flex-col items-center justify-center text-gray-300 dark:text-gray-700 border-2 border-dashed border-gray-100 dark:border-gray-800 rounded-lg m-1">
                                     <span className="text-xs font-medium">No tasks</span>
@@ -243,7 +272,7 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
                                         onClick={() => onSelectTask && onSelectTask(task.id)}
                                         className={`group relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 p-4 rounded-lg shadow-sm hover:shadow-md transition-all cursor-grab active:cursor-grabbing flex flex-col gap-3 ${blocked ? 'opacity-70 bg-gray-50 dark:bg-gray-900' : ''} ${isDragging ? 'opacity-50 ring-2 ring-indigo-400 rotate-2 scale-95 z-50' : 'hover:-translate-y-0.5'}`}
                                     >
-                                        <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity text-gray-300 dark:text-gray-600 pointer-events-none">
+                                        <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity text-gray-300 dark:text-gray-600 pointer-events-none hidden md:block">
                                             <GripVertical className="w-4 h-4" />
                                         </div>
 
