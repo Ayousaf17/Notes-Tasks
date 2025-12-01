@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useMemo } from 'react';
 import { Task, Document, Project, TaskPriority, TaskStatus } from '../types';
 import { geminiService } from '../services/geminiService';
@@ -177,7 +176,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       <div className="max-w-6xl mx-auto space-y-12 pb-12">
         
         {/* Daily Pulse */}
-        <div className="pt-4 md:pt-8">
+        <div className="pt-4 md:pt-8 animate-slide-up">
             <div className="flex justify-between items-center mb-6">
                 <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em]">Daily Pulse</p>
                 {briefing && (
@@ -204,7 +203,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
 
         {/* Project Health Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 animate-slide-up delay-100">
             <div className="col-span-1 md:col-span-2 lg:col-span-1 p-5 rounded-2xl bg-gray-50 dark:bg-zinc-900/50 border border-gray-100 dark:border-gray-800 flex flex-col justify-between">
                 <div>
                     <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">Global Completion</h3>
@@ -219,8 +218,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 </div>
             </div>
 
-            {projectStats.slice(0, 3).map(p => (
-                <div key={p.id} className="p-5 rounded-2xl bg-white dark:bg-black border border-gray-100 dark:border-gray-800 shadow-sm hover:border-gray-300 dark:hover:border-gray-700 transition-all group cursor-pointer" onClick={() => onNavigate('document', '')}>
+            {projectStats.slice(0, 3).map((p, idx) => (
+                <div key={p.id} className={`p-5 rounded-2xl bg-white dark:bg-black border border-gray-100 dark:border-gray-800 shadow-sm hover:border-gray-300 dark:hover:border-gray-700 transition-all group cursor-pointer animate-slide-up`} style={{ animationDelay: `${(idx + 1) * 100 + 100}ms` }} onClick={() => onNavigate('document', '')}>
                     <div className="flex justify-between items-start mb-4">
                         <div className="w-8 h-8 rounded-lg bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-lg shadow-sm border border-gray-100 dark:border-gray-700">
                             {p.icon || '📁'}
@@ -241,18 +240,19 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 lg:gap-16">
             
             {/* Focus List */}
-            <div className="lg:col-span-2 space-y-8">
+            <div className="lg:col-span-2 space-y-8 animate-slide-up delay-200">
                 <div className="flex items-baseline justify-between border-b border-gray-100 dark:border-gray-800 pb-4">
                     <h2 className="text-[10px] font-bold text-gray-900 dark:text-white uppercase tracking-[0.2em]">Urgent Focus</h2>
                     <span className="text-[10px] font-medium text-gray-400">items: {focusList.length}</span>
                 </div>
 
                 <div className="space-y-1">
-                    {focusList.length > 0 ? focusList.map(task => (
+                    {focusList.length > 0 ? focusList.map((task, idx) => (
                         <div 
                             key={task.id}
                             onClick={() => onNavigate('task', task.id)}
-                            className="group py-5 md:py-6 border-b border-gray-50 dark:border-gray-800 flex items-start gap-4 md:gap-5 cursor-pointer hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition-colors -mx-2 md:-mx-4 px-2 md:px-4 rounded-xl"
+                            className="group py-5 md:py-6 border-b border-gray-50 dark:border-gray-800 flex items-start gap-4 md:gap-5 cursor-pointer hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition-colors -mx-2 md:-mx-4 px-2 md:px-4 rounded-xl animate-slide-up"
+                            style={{ animationDelay: `${(idx * 50) + 200}ms` }}
                         >
                             <div className={`mt-2 w-2 h-2 rounded-full flex-shrink-0 ${
                                 task.priority === TaskPriority.HIGH ? 'bg-red-500' : 'bg-orange-400'
@@ -281,7 +281,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
 
             {/* Sidebar: Actions & Insights */}
-            <div className="space-y-12">
+            <div className="space-y-12 animate-slide-up delay-300">
                 
                 {/* Team Workload */}
                 <div className="space-y-6">

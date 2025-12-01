@@ -22,24 +22,24 @@ import { dataService } from './services/dataService';
 import { supabase } from './services/supabase';
 
 const MobileBottomNav = ({ currentView, onChangeView, onOpenMenu, onSearch }: { currentView: ViewMode, onChangeView: (v: ViewMode) => void, onOpenMenu: () => void, onSearch: () => void }) => (
-  <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-black/95 backdrop-blur-lg border-t border-gray-100 dark:border-gray-800 z-40 px-6 py-2 safe-area-bottom flex items-center justify-between transition-transform duration-300">
+  <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-black/90 backdrop-blur-xl border-t border-gray-100 dark:border-gray-800 z-50 px-6 py-2 safe-area-bottom flex items-center justify-between transition-transform duration-300 shadow-2xl">
     {/* Left Group */}
     <div className="flex items-center gap-8">
-      <button onClick={() => onChangeView(ViewMode.HOME)} className={`flex flex-col items-center gap-1 ${currentView === ViewMode.HOME ? 'text-black dark:text-white' : 'text-gray-400 dark:text-gray-500'}`}>
+      <button onClick={() => onChangeView(ViewMode.HOME)} className={`flex flex-col items-center gap-1 transition-colors ${currentView === ViewMode.HOME ? 'text-black dark:text-white' : 'text-gray-400 dark:text-gray-500'}`}>
          <Home className="w-6 h-6" />
          <span className="text-[9px] font-medium">Home</span>
       </button>
-      <button onClick={onSearch} className="flex flex-col items-center gap-1 text-gray-400 dark:text-gray-500 active:text-black dark:active:text-white">
+      <button onClick={onSearch} className="flex flex-col items-center gap-1 text-gray-400 dark:text-gray-500 active:text-black dark:active:text-white transition-colors">
          <Search className="w-6 h-6" />
          <span className="text-[9px] font-medium">Search</span>
       </button>
     </div>
 
     {/* Center Hero Button (Tasks) */}
-    <div className="relative -top-6">
+    <div className="relative -top-6 group">
       <button
           onClick={() => onChangeView(ViewMode.GLOBAL_BOARD)}
-          className={`flex items-center justify-center w-14 h-14 rounded-full shadow-2xl border-4 border-gray-50 dark:border-black transition-transform active:scale-95 ${currentView === ViewMode.GLOBAL_BOARD ? 'bg-black dark:bg-white text-white dark:text-black' : 'bg-black dark:bg-white text-white dark:text-black'}`}
+          className={`flex items-center justify-center w-14 h-14 rounded-full shadow-xl shadow-black/20 dark:shadow-white/10 border-4 border-gray-50 dark:border-black transition-all duration-300 active:scale-95 group-hover:-translate-y-1 ${currentView === ViewMode.GLOBAL_BOARD ? 'bg-black dark:bg-white text-white dark:text-black' : 'bg-black dark:bg-white text-white dark:text-black'}`}
       >
          <CheckSquare className="w-6 h-6" />
       </button>
@@ -47,11 +47,11 @@ const MobileBottomNav = ({ currentView, onChangeView, onOpenMenu, onSearch }: { 
 
     {/* Right Group */}
     <div className="flex items-center gap-8">
-      <button onClick={() => onChangeView(ViewMode.INBOX)} className={`flex flex-col items-center gap-1 ${currentView === ViewMode.INBOX ? 'text-black dark:text-white' : 'text-gray-400 dark:text-gray-500'}`}>
+      <button onClick={() => onChangeView(ViewMode.INBOX)} className={`flex flex-col items-center gap-1 transition-colors ${currentView === ViewMode.INBOX ? 'text-black dark:text-white' : 'text-gray-400 dark:text-gray-500'}`}>
          <Inbox className="w-6 h-6" />
          <span className="text-[9px] font-medium">Inbox</span>
       </button>
-      <button onClick={onOpenMenu} className="flex flex-col items-center gap-1 text-gray-400 dark:text-gray-500 active:text-black dark:active:text-white">
+      <button onClick={onOpenMenu} className="flex flex-col items-center gap-1 text-gray-400 dark:text-gray-500 active:text-black dark:active:text-white transition-colors">
          <Menu className="w-6 h-6" />
          <span className="text-[9px] font-medium">Menu</span>
       </button>

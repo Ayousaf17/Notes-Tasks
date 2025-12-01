@@ -35,8 +35,16 @@
       }
     </script>
     <style>
-      body { font-family: 'Inter', sans-serif; }
+      html {
+        scroll-behavior: smooth;
+      }
+      body { 
+        font-family: 'Inter', sans-serif; 
+        /* Subtle texture/gradient for depth */
+        background-attachment: fixed;
+      }
       .font-serif { font-family: 'Playfair Display', serif; }
+      
       /* Hide scrollbar for clean UI in specific areas */
       .no-scrollbar::-webkit-scrollbar {
         display: none;
@@ -48,19 +56,30 @@
       
       /* Page Slide Animation */
       @keyframes slideInRight {
-        0% {
-          opacity: 0;
-          transform: translateX(30px);
-        }
-        100% {
-          opacity: 1;
-          transform: translateX(0);
-        }
+        0% { opacity: 0; transform: translateX(30px); }
+        100% { opacity: 1; transform: translateX(0); }
+      }
+      
+      /* Staggered Upward Animation for Dashboard */
+      @keyframes slideInUp {
+        0% { opacity: 0; transform: translateY(20px); }
+        100% { opacity: 1; transform: translateY(0); }
       }
       
       .animate-page-slide {
         animation: slideInRight 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
       }
+
+      .animate-slide-up {
+        opacity: 0; /* Start hidden */
+        animation: slideInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      }
+
+      .delay-100 { animation-delay: 100ms; }
+      .delay-200 { animation-delay: 200ms; }
+      .delay-300 { animation-delay: 300ms; }
+      .delay-400 { animation-delay: 400ms; }
+      .delay-500 { animation-delay: 500ms; }
 
       /* iOS Safe Area Support */
       .safe-area-bottom {
