@@ -112,9 +112,9 @@ const App: React.FC = () => {
   ]);
   
   const [projects, setProjects] = useState<Project[]>([
-      { id: 'p1', title: 'V2 Redesign', icon: '🎨', createdAt: new Date() },
-      { id: 'p2', title: 'Marketing Launch', icon: '🚀', createdAt: new Date() },
-      { id: 'p3', title: 'Backend Migration', icon: '⚙️', createdAt: new Date() }
+      { id: 'p1', title: 'V2 Redesign', createdAt: new Date() },
+      { id: 'p2', title: 'Marketing Launch', createdAt: new Date() },
+      { id: 'p3', title: 'Backend Migration', createdAt: new Date() }
   ]);
   const [activeProjectId, setActiveProjectId] = useState<string>('p1');
 

@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Task, Document, Project, TaskPriority, TaskStatus } from '../types';
 import { geminiService } from '../services/geminiService';
-import { Calendar, ArrowRight, Volume2, StopCircle, FileText, Sparkles, Plus, Users, BarChart2, PieChart, Activity, CheckCircle2 } from 'lucide-react';
+import { Calendar, ArrowRight, Volume2, StopCircle, FileText, Sparkles, Plus, Users, BarChart2, PieChart, Activity, CheckCircle2, Folder } from 'lucide-react';
 
 interface DashboardViewProps {
   tasks: Task[];
@@ -225,7 +225,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 <div key={p.id} className={`p-5 rounded-2xl bg-white dark:bg-black border border-gray-100 dark:border-gray-800 shadow-sm hover:border-gray-300 dark:hover:border-gray-700 transition-all group cursor-pointer animate-slide-up`} style={{ animationDelay: `${(idx + 1) * 100 + 100}ms` }} onClick={() => onNavigate('document', '')}>
                     <div className="flex justify-between items-start mb-4">
                         <div className="w-8 h-8 rounded-lg bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-lg shadow-sm border border-gray-100 dark:border-gray-700">
-                            {p.icon || '📁'}
+                            <Folder className="w-4 h-4 text-gray-600 dark:text-gray-300" />
                         </div>
                         <CircularProgress percent={p.percent} size={32} />
                     </div>

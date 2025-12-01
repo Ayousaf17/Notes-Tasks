@@ -262,7 +262,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                             {projects.map(project => (
                                 <div key={project.id} className="flex items-center justify-between p-3 rounded-lg border border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
                                     <div className="flex items-center gap-3">
-                                        <div className="text-xl">{project.icon || '📁'}</div>
+                                        <div className="text-lg text-gray-500 dark:text-gray-400">
+                                            <Folder className="w-5 h-5" />
+                                        </div>
                                         <div className="flex flex-col">
                                             <span className="text-sm font-medium text-gray-900 dark:text-white">{project.title}</span>
                                             <span className="text-xs text-gray-400">Created {new Date(project.createdAt).toLocaleDateString()}</span>

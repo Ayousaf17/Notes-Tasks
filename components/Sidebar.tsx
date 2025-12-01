@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { FileText, Layout, Calendar, Settings, Plus, Inbox, Network, Home, X, Globe, Layers, User, Moon, Sun, Loader2 } from 'lucide-react';
+import { FileText, Layout, Calendar, Settings, Plus, Inbox, Network, Home, X, Globe, Layers, User, Moon, Sun, Loader2, Folder } from 'lucide-react';
 import { ViewMode, Document, Project } from '../types';
 
 interface SidebarProps {
@@ -55,22 +55,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const NavItem = ({ icon: Icon, label, isActive, onClick, className = '' }: any) => (
     <button
       onClick={onClick}
-      className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-md transition-all text-sm group/item mb-1 ${
+      className={`w-full flex items-center space-x-3 px-3 py-2 rounded-md transition-all text-sm group/item mb-0.5 ${
         isActive 
-        ? 'text-black dark:text-white font-medium bg-gray-100 dark:bg-gray-800/50' 
-        : 'text-gray-400 dark:text-gray-500 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/30'
+        ? 'text-black dark:text-white font-medium bg-gray-100 dark:bg-gray-800/60' 
+        : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/30'
       } ${className}`}
       title={!isExpanded ? label : ''}
     >
-      <Icon className={`w-5 h-5 min-w-[1.25rem] ${isActive ? 'text-black dark:text-white' : 'text-gray-400 dark:text-gray-500 group-hover/item:text-gray-900 dark:group-hover/item:text-gray-200'}`} />
+      <Icon strokeWidth={1.5} className={`w-4 h-4 min-w-[1rem] ${isActive ? 'text-black dark:text-white' : 'text-gray-400 dark:text-gray-500 group-hover/item:text-gray-900 dark:group-hover/item:text-gray-200'}`} />
       
       {/* Desktop Label - strictly hidden on mobile */}
-      <span className={`hidden md:block overflow-hidden whitespace-nowrap transition-all duration-300 ease-in-out origin-left ${isExpanded ? 'opacity-100 w-auto' : 'opacity-0 w-0'}`}>
+      <span className={`hidden md:block overflow-hidden whitespace-nowrap transition-all duration-300 ease-in-out origin-left text-[13px] ${isExpanded ? 'opacity-100 w-auto ml-2' : 'opacity-0 w-0'}`}>
           {label}
       </span>
       
       {/* Mobile Label - strictly visible only on mobile */}
-      <span className="md:hidden">{label}</span>
+      <span className="md:hidden ml-2 text-[13px]">{label}</span>
     </button>
   );
 
@@ -96,13 +96,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
       >
         
         {/* Brand Header */}
-        <div className={`h-16 flex items-center transition-all border-b border-gray-50 dark:border-gray-800 shrink-0 overflow-hidden ${isExpanded || isMobileOpen ? 'px-4 justify-start' : 'px-0 justify-center'}`}>
-          <div className="w-8 h-8 bg-black dark:bg-white rounded-full shrink-0 flex items-center justify-center text-white dark:text-black font-bold">A</div>
-          <span className={`hidden md:block ml-3 font-semibold text-xl tracking-tight text-black dark:text-white whitespace-nowrap transition-all duration-300 ${isExpanded ? 'opacity-100 w-auto' : 'opacity-0 w-0'}`}>
-             Aasani.
-          </span>
-          <span className="md:hidden ml-3 font-semibold text-xl tracking-tight text-black dark:text-white">
-             Aasani.
+        <div className={`h-14 flex items-center transition-all border-b border-gray-50 dark:border-gray-800 shrink-0 overflow-hidden ${isExpanded || isMobileOpen ? 'px-5 justify-start' : 'px-0 justify-center'}`}>
+          <span className={`font-serif text-lg font-bold tracking-tight text-black dark:text-white whitespace-nowrap transition-all duration-300`}>
+             {(isExpanded || isMobileOpen) ? 'Aasani.' : 'A.'}
           </span>
           <button onClick={onMobileClose} className="md:hidden ml-auto text-gray-400 hover:text-black dark:hover:text-white">
               <X className="w-5 h-5" />
@@ -128,10 +124,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
           {/* Global */}
           <div className="space-y-0.5">
-              <div className={`hidden md:block px-3 text-[10px] font-semibold text-gray-400 dark:text-gray-600 uppercase tracking-widest mb-2 transition-opacity duration-200 truncate h-4 ${isExpanded ? 'opacity-100' : 'opacity-0'}`}>
+              <div className={`hidden md:block px-3 text-[10px] font-semibold text-gray-400 dark:text-gray-600 uppercase tracking-widest mb-1.5 transition-opacity duration-200 truncate h-4 ${isExpanded ? 'opacity-100' : 'opacity-0'}`}>
                   Overview
               </div>
-              <div className="md:hidden px-3 text-[10px] font-semibold text-gray-400 dark:text-gray-600 uppercase tracking-widest mb-2">
+              <div className="md:hidden px-3 text-[10px] font-semibold text-gray-400 dark:text-gray-600 uppercase tracking-widest mb-1.5">
                   Overview
               </div>
 
@@ -151,13 +147,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
           {/* Projects */}
           <div className="space-y-0.5">
-              <div className={`hidden md:flex px-3 items-center justify-between mb-2 transition-opacity duration-200 h-4 overflow-hidden ${isExpanded ? 'opacity-100' : 'opacity-0'}`}>
+              <div className={`hidden md:flex px-3 items-center justify-between mb-1.5 transition-opacity duration-200 h-4 overflow-hidden ${isExpanded ? 'opacity-100' : 'opacity-0'}`}>
                   <span className="text-[10px] font-semibold text-gray-400 dark:text-gray-600 uppercase tracking-widest truncate">Projects</span>
-                  <button onClick={onCreateProject} className="text-gray-400 hover:text-black dark:hover:text-white"><Plus className="w-3 h-3" /></button>
+                  <button onClick={onCreateProject} className="text-gray-400 hover:text-black dark:hover:text-white transition-colors"><Plus className="w-3 h-3" /></button>
               </div>
-              <div className="md:hidden flex px-3 items-center justify-between mb-2">
+              <div className="md:hidden flex px-3 items-center justify-between mb-1.5">
                   <span className="text-[10px] font-semibold text-gray-400 dark:text-gray-600 uppercase tracking-widest truncate">Projects</span>
-                  <button onClick={onCreateProject} className="text-gray-400 hover:text-black dark:hover:text-white"><Plus className="w-3 h-3" /></button>
+                  <button onClick={onCreateProject} className="text-gray-400 hover:text-black dark:hover:text-white transition-colors"><Plus className="w-3 h-3" /></button>
               </div>
 
               {projects.map(project => (
@@ -170,20 +166,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           }
                           onMobileClose();
                       }}
-                      className={`w-full flex items-center px-3 py-2.5 rounded-md text-sm transition-colors text-left group/item mb-1 ${
+                      className={`w-full flex items-center px-3 py-2 rounded-md text-sm transition-colors text-left group/item mb-0.5 ${
                           activeProjectId === project.id && isProjectContext
-                          ? 'text-black dark:text-white font-medium bg-gray-50 dark:bg-gray-800' 
-                          : 'text-gray-400 dark:text-gray-500 hover:text-gray-900 dark:hover:text-gray-200'
+                          ? 'text-black dark:text-white font-medium bg-gray-50 dark:bg-gray-800/60' 
+                          : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/30'
                       }`}
                       title={!isExpanded ? project.title : ''}
                   >
-                      <span className="text-base min-w-[1.25rem] flex items-center justify-center">{project.icon || '📁'}</span>
+                      <span className="min-w-[1rem] flex items-center justify-center">
+                        <Folder strokeWidth={1.5} className={`w-4 h-4 ${activeProjectId === project.id && isProjectContext ? 'fill-gray-200 dark:fill-gray-700' : ''}`} />
+                      </span>
                       {/* Desktop Label */}
-                      <span className={`hidden md:block ml-3 truncate whitespace-nowrap transition-all duration-300 delay-75 ${isExpanded ? 'opacity-100 w-auto' : 'opacity-0 w-0'}`}>
+                      <span className={`hidden md:block ml-2 truncate whitespace-nowrap transition-all duration-300 delay-75 text-[13px] ${isExpanded ? 'opacity-100 w-auto' : 'opacity-0 w-0'}`}>
                           {project.title}
                       </span>
                       {/* Mobile Label */}
-                      <span className="md:hidden ml-3 truncate whitespace-nowrap">
+                      <span className="md:hidden ml-2 truncate whitespace-nowrap text-[13px]">
                           {project.title}
                       </span>
 
@@ -196,11 +194,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
           {/* Active Project Context */}
           {isProjectContext && (
-              <div className="space-y-0.5 pt-4 border-t border-gray-50 dark:border-gray-800">
-                  <div className={`hidden md:block px-3 text-[10px] font-semibold text-gray-300 dark:text-gray-600 uppercase tracking-widest mb-2 transition-opacity duration-200 truncate h-4 ${isExpanded ? 'opacity-100' : 'opacity-0'}`}>
+              <div className="space-y-0.5 pt-3 border-t border-gray-50 dark:border-gray-800">
+                  <div className={`hidden md:block px-3 text-[10px] font-semibold text-gray-300 dark:text-gray-600 uppercase tracking-widest mb-1.5 transition-opacity duration-200 truncate h-4 ${isExpanded ? 'opacity-100' : 'opacity-0'}`}>
                       Current Project
                   </div>
-                  <div className="md:hidden px-3 text-[10px] font-semibold text-gray-300 dark:text-gray-600 uppercase tracking-widest mb-2">
+                  <div className="md:hidden px-3 text-[10px] font-semibold text-gray-300 dark:text-gray-600 uppercase tracking-widest mb-1.5">
                       Current Project
                   </div>
                   
@@ -211,48 +209,58 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   
                   {/* Pages / Documents List */}
                   <div className="mt-4">
-                      <div className={`hidden md:flex px-3 items-center justify-between mb-2 transition-opacity duration-200 h-4 overflow-hidden group/header ${isExpanded ? 'opacity-100' : 'opacity-0'}`}>
+                      <div className={`hidden md:flex px-3 items-center justify-between mb-1.5 transition-opacity duration-200 h-4 overflow-hidden group/header ${isExpanded ? 'opacity-100' : 'opacity-0'}`}>
                            <span className="text-[10px] font-semibold text-gray-400 dark:text-gray-600 uppercase tracking-widest">Pages</span>
-                           <button onClick={(e) => { e.stopPropagation(); onCreateDocument(); }} className="text-gray-400 hover:text-black dark:hover:text-white p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" title="Create Page"><Plus className="w-3 h-3" /></button>
+                           <button onClick={(e) => { e.stopPropagation(); onCreateDocument(); }} className="text-gray-400 hover:text-black dark:hover:text-white p-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" title="Create Page"><Plus className="w-3 h-3" /></button>
                       </div>
-                       <div className="md:hidden flex px-3 items-center justify-between mb-2">
+                       <div className="md:hidden flex px-3 items-center justify-between mb-1.5">
                            <span className="text-[10px] font-semibold text-gray-400 dark:text-gray-600 uppercase tracking-widest">Pages</span>
-                           <button onClick={(e) => { e.stopPropagation(); onCreateDocument(); }} className="text-gray-400 hover:text-black dark:hover:text-white p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" title="Create Page"><Plus className="w-3 h-3" /></button>
+                           <button onClick={(e) => { e.stopPropagation(); onCreateDocument(); }} className="text-gray-400 hover:text-black dark:hover:text-white p-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" title="Create Page"><Plus className="w-3 h-3" /></button>
                       </div>
                       
-                      {documents.map(doc => (
-                           <button
-                              key={doc.id}
-                              onClick={() => {
-                                  onChangeView(ViewMode.DOCUMENTS);
-                                  onSelectDocument(doc.id);
-                                  onMobileClose();
-                              }}
-                              className={`w-full flex items-center px-3 py-2.5 text-sm text-left transition-colors rounded-md group/item mb-1 ${
-                                  activeDocumentId === doc.id && currentView === ViewMode.DOCUMENTS
-                                  ? 'text-black dark:text-white font-medium bg-gray-100 dark:bg-gray-800/50'
-                                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/30'
-                              }`}
-                              title={!isExpanded ? (doc.title || 'Untitled') : ''}
-                           >
-                              <FileText className={`w-5 h-5 min-w-[1.25rem] transition-colors ${activeDocumentId === doc.id && currentView === ViewMode.DOCUMENTS ? 'text-black dark:text-white' : 'text-gray-400 group-hover/item:text-gray-600 dark:text-gray-600'}`} />
-                              {/* Desktop */}
-                              <span className={`hidden md:block ml-3 truncate whitespace-nowrap transition-all duration-300 delay-75 ${isExpanded ? 'opacity-100 w-auto' : 'opacity-0 w-0'}`}>
-                                  {doc.title || 'Untitled'}
-                              </span>
-                              {/* Mobile */}
-                              <span className="md:hidden ml-3 truncate whitespace-nowrap">
-                                  {doc.title || 'Untitled'}
-                              </span>
-                           </button>
-                      ))}
+                      <div className="space-y-0.5">
+                        {documents.map(doc => (
+                             <button
+                                key={doc.id}
+                                onClick={() => {
+                                    onChangeView(ViewMode.DOCUMENTS);
+                                    onSelectDocument(doc.id);
+                                    onMobileClose();
+                                }}
+                                className={`w-full flex items-center px-3 py-1.5 text-sm text-left transition-colors rounded-md group/item mb-0.5 ${
+                                    activeDocumentId === doc.id && currentView === ViewMode.DOCUMENTS
+                                    ? 'text-gray-900 dark:text-white bg-gray-100/80 dark:bg-gray-800/60 font-medium'
+                                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/30'
+                                }`}
+                                title={!isExpanded ? (doc.title || 'Untitled') : ''}
+                             >
+                                <FileText 
+                                    strokeWidth={1.5}
+                                    className={`w-4 h-4 min-w-[1rem] transition-colors ${
+                                        activeDocumentId === doc.id && currentView === ViewMode.DOCUMENTS 
+                                        ? 'text-gray-900 dark:text-white' 
+                                        : 'text-gray-400 group-hover/item:text-gray-600 dark:text-gray-500'
+                                    }`} 
+                                />
+                                {/* Desktop */}
+                                <span className={`hidden md:block ml-2 truncate whitespace-nowrap transition-all duration-300 delay-75 text-[13px] ${isExpanded ? 'opacity-100 w-auto' : 'opacity-0 w-0'}`}>
+                                    {doc.title || 'Untitled'}
+                                </span>
+                                {/* Mobile */}
+                                <span className="md:hidden ml-2 truncate whitespace-nowrap text-[13px]">
+                                    {doc.title || 'Untitled'}
+                                </span>
+                             </button>
+                        ))}
+                      </div>
+
                        {documents.length === 0 && (
-                          <button onClick={onCreateDocument} className={`hidden md:block w-full text-left px-3 py-2 text-xs text-gray-400 hover:text-gray-600 italic transition-colors overflow-hidden whitespace-nowrap duration-300 ${isExpanded ? 'opacity-100' : 'opacity-0'}`}>
+                          <button onClick={onCreateDocument} className={`hidden md:block w-full text-left px-3 py-2 text-[11px] text-gray-400 hover:text-gray-600 italic transition-colors overflow-hidden whitespace-nowrap duration-300 ${isExpanded ? 'opacity-100' : 'opacity-0'}`}>
                               No pages. Create one?
                           </button>
                       )}
                       {documents.length === 0 && (
-                          <button onClick={onCreateDocument} className="md:hidden w-full text-left px-3 py-2 text-xs text-gray-400 hover:text-gray-600 italic transition-colors">
+                          <button onClick={onCreateDocument} className="md:hidden w-full text-left px-3 py-2 text-[11px] text-gray-400 hover:text-gray-600 italic transition-colors">
                               No pages. Create one?
                           </button>
                       )}
@@ -267,18 +275,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
             className="flex items-center gap-3 px-1 py-1 mb-1 overflow-hidden cursor-pointer rounded hover:bg-gray-200/50 dark:hover:bg-gray-800/50 transition-colors"
             onClick={() => { onChangeView(ViewMode.SETTINGS); onMobileClose(); }}
           >
-              <div className="w-8 h-8 rounded-full bg-black dark:bg-white shrink-0 flex items-center justify-center text-white dark:text-black">
-                  <User className="w-4 h-4" />
+              <div className="w-7 h-7 rounded-full bg-black dark:bg-white shrink-0 flex items-center justify-center text-white dark:text-black">
+                  <User className="w-3.5 h-3.5" />
               </div>
               <div className={`hidden md:block flex-1 min-w-0 transition-all duration-300 delay-75 whitespace-nowrap ${isExpanded ? 'opacity-100 w-auto' : 'opacity-0 w-0'}`}>
-                  <div className="text-sm font-medium text-gray-900 dark:text-white truncate">Workspace User</div>
+                  <div className="text-xs font-semibold text-gray-900 dark:text-white truncate">Workspace User</div>
                   <div className="text-[10px] text-gray-400 flex items-center gap-1">
                       <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
                       Online
                   </div>
               </div>
               <div className="md:hidden flex-1 min-w-0">
-                  <div className="text-sm font-medium text-gray-900 dark:text-white truncate">Workspace User</div>
+                  <div className="text-xs font-semibold text-gray-900 dark:text-white truncate">Workspace User</div>
                   <div className="text-[10px] text-gray-400 flex items-center gap-1">
                       <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
                       Online
@@ -286,11 +294,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
           </div>
           
-          <div className="space-y-1">
+          <div className="space-y-0.5">
               {/* Settings Link */}
               <button 
                 onClick={() => { onChangeView(ViewMode.SETTINGS); onMobileClose(); }}
-                className={`w-full flex items-center space-x-3 px-2 py-2 text-xs rounded transition-colors ${
+                className={`w-full flex items-center space-x-3 px-2 py-1.5 text-xs rounded transition-colors ${
                   currentView === ViewMode.SETTINGS 
                   ? 'text-black dark:text-white font-medium bg-white dark:bg-gray-800' 
                   : 'text-gray-400 hover:text-black dark:hover:text-white hover:bg-white dark:hover:bg-gray-800'
@@ -307,7 +315,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               {/* Dark Mode Toggle */}
               <button 
                 onClick={onToggleDarkMode}
-                className="w-full flex items-center space-x-3 px-2 py-2 text-xs rounded transition-colors text-gray-400 hover:text-black dark:hover:text-white hover:bg-white dark:hover:bg-gray-800"
+                className="w-full flex items-center space-x-3 px-2 py-1.5 text-xs rounded transition-colors text-gray-400 hover:text-black dark:hover:text-white hover:bg-white dark:hover:bg-gray-800"
                 title={isDarkMode ? "Light Mode" : "Dark Mode"}
               >
                 {isDarkMode ? <Sun className="w-4 h-4 min-w-[1rem]" /> : <Moon className="w-4 h-4 min-w-[1rem]" />}
