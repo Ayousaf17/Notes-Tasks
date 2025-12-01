@@ -5,12 +5,12 @@ export enum ViewMode {
   BOARD = 'BOARD',
   CALENDAR = 'CALENDAR',
   GRAPH = 'GRAPH',
-  CANVAS = 'CANVAS', // NEW: Whiteboard view
   INBOX = 'INBOX',
   REVIEW = 'REVIEW',
   SETTINGS = 'SETTINGS',
   GLOBAL_BOARD = 'GLOBAL_BOARD',
-  GLOBAL_CALENDAR = 'GLOBAL_CALENDAR'
+  GLOBAL_CALENDAR = 'GLOBAL_CALENDAR',
+  CANVAS = 'CANVAS'
 }
 
 export interface Project {
@@ -154,22 +154,17 @@ export interface Integration {
   status?: 'idle' | 'connecting' | 'connected';
 }
 
-// NEW: Canvas Types
 export interface CanvasNode {
   id: string;
-  type: 'note' | 'task' | 'image';
+  type: 'note' | 'task';
   content: string;
   x: number;
   y: number;
-  width?: number;
-  height?: number;
   color?: string;
-  linkedId?: string; // ID of actual task/doc if connected
 }
 
 export interface CanvasEdge {
   id: string;
-  from: string;
-  to: string;
-  label?: string;
+  source: string;
+  target: string;
 }

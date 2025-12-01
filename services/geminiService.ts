@@ -655,23 +655,25 @@ export const geminiService = {
   },
 
   /**
-   * Generates new nodes for the whiteboard based on a prompt
+   * Brainstorms ideas for the infinite canvas
    */
-  async brainstormCanvasNodes(prompt: string, existingNodesContext: string): Promise<CanvasNode[]> {
+  async brainstormCanvasNodes(prompt: string, currentContext: string): Promise<Partial<CanvasNode>[]> {
       if (!apiKey) return [];
 
       try {
           const response = await ai.models.generateContent({
               model: MODEL_NAME,
-              contents: `The user is brainstorming on a whiteboard canvas.
-              Prompt: "${prompt}"
+              contents: `You are a creative brainstorming partner. The user is working on an infinite canvas whiteboard.
               
-              Existing Content on Board:
-              ${existingNodesContext}
+              Current Nodes Context:
+              "${currentContext}"
               
-              Generate 3-5 brief, creative ideas (Sticky Notes) related to the prompt. 
-              Assign them hypothetical (x,y) coordinates relative to a center point (0,0), spread out reasonably.
-              Return JSON array.`,
+              User Prompt: "${prompt}"
+              
+              Generate 3-5 new ideas (nodes) related to the prompt and context. 
+              For each node, provide a short 'content' string and relative x/y coordinates (keep them somewhat clustered but not overlapping, e.g. x between -200 and 200).
+              
+              Return JSON.`,
               config: {
                   responseMimeType: "application/json",
                   responseSchema: {
@@ -679,12 +681,13 @@ export const geminiService = {
                       items: {
                           type: Type.OBJECT,
                           properties: {
-                              content: { type: Type.STRING, description: "Short sticky note text (max 10 words)" },
+                              content: { type: Type.STRING },
                               x: { type: Type.NUMBER },
                               y: { type: Type.NUMBER },
-                              color: { type: Type.STRING, enum: ['bg-yellow-200', 'bg-blue-200', 'bg-green-200', 'bg-pink-200'] }
+                              type: { type: Type.STRING, enum: ['note', 'task'] },
+                              color: { type: Type.STRING, enum: ['bg-yellow-200', 'bg-blue-200', 'bg-green-200', 'bg-red-200', 'bg-purple-200'] }
                           },
-                          required: ["content", "x", "y"]
+                          required: ["content", "x", "y", "type"]
                       }
                   }
               }
@@ -692,18 +695,7 @@ export const geminiService = {
 
           const jsonStr = response.text;
           if (!jsonStr) return [];
-          const rawNodes = JSON.parse(jsonStr);
-          
-          // Map to internal type
-          return rawNodes.map((n: any) => ({
-              id: crypto.randomUUID(),
-              type: 'note',
-              content: n.content,
-              x: n.x || 0,
-              y: n.y || 0,
-              color: n.color || 'bg-yellow-200'
-          }));
-
+          return JSON.parse(jsonStr) as Partial<CanvasNode>[];
       } catch (error) {
           console.error("Gemini Canvas Brainstorm Error:", error);
           return [];
