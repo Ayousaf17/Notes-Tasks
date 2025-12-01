@@ -1,4 +1,3 @@
-
 import { supabase } from './supabase';
 import { Project, Task, Document, TaskStatus, TaskPriority } from '../types';
 

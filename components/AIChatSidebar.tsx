@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { ChatMessage, Attachment, ProjectPlan, Document, Task, Source } from '../types';
 import { Send, X, Bot, Paperclip, Mic, Loader2, FileText, Sparkles, Music, Trash2, BrainCircuit, CheckSquare, Search } from 'lucide-react';
