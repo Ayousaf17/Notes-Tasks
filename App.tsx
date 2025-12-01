@@ -25,6 +25,7 @@ import { supabase } from './services/supabase';
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewMode>(ViewMode.HOME); 
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [isSidebarExpanded, setIsSidebarExpanded] = useState(false); // State for desktop sidebar expansion
   
   // Team Management State
   const [teamMembers, setTeamMembers] = useState<string[]>(() => {
@@ -467,9 +468,12 @@ const App: React.FC = () => {
         onMobileClose={() => setIsMobileSidebarOpen(false)}
         isDarkMode={isDarkMode}
         onToggleDarkMode={() => setIsDarkMode(!isDarkMode)}
+        isExpanded={isSidebarExpanded}
+        onHover={setIsSidebarExpanded}
       />
 
-      <main className="flex-1 flex flex-col h-full relative w-full bg-white dark:bg-black md:pl-16 transition-all duration-300">
+      {/* Main Content Area - dynamically adjusts padding for sidebar */}
+      <main className={`flex-1 flex flex-col h-full relative w-full bg-white dark:bg-black transition-all duration-300 ease-in-out ${isSidebarExpanded ? 'md:pl-64' : 'md:pl-16'}`}>
         <header className="h-14 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between px-6 bg-white dark:bg-black shrink-0 z-20">
           <div className="flex items-center space-x-3 text-sm">
              <button onClick={() => setIsMobileSidebarOpen(true)} className="md:hidden text-gray-500 hover:text-black dark:hover:text-white">
