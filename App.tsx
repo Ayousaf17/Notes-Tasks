@@ -29,12 +29,7 @@ const App: React.FC = () => {
   const [teamMembers, setTeamMembers] = useState<string[]>(() => {
       if (typeof window !== 'undefined') {
           const stored = localStorage.getItem('teamMembers');
-          try {
-             const parsed = stored ? JSON.parse(stored) : null;
-             return Array.isArray(parsed) ? parsed : ['Me', 'Alice', 'Bob', 'Charlie'];
-          } catch (e) {
-             return ['Me', 'Alice', 'Bob', 'Charlie'];
-          }
+          return stored ? JSON.parse(stored) : ['Me', 'Alice', 'Bob', 'Charlie'];
       }
       return ['Me', 'Alice', 'Bob', 'Charlie'];
   });
@@ -129,8 +124,6 @@ const App: React.FC = () => {
     const channel = supabase
         .channel('db-changes')
         .on('postgres_changes', { event: '*', schema: 'public' }, () => {
-            // Simple Strategy: Refetch all on any change to ensure consistency
-            // In a larger app, we would handle INSERT/UPDATE/DELETE specifically to avoid full refetch
             loadData();
         })
         .subscribe();
@@ -177,7 +170,6 @@ const App: React.FC = () => {
       setIsCreateProjectModalOpen(true);
   };
 
-  // Logic for creating project from modal
   const handleCreateProjectConfirm = async (title: string) => {
       const newProject: Project = {
           id: crypto.randomUUID(),
@@ -189,18 +181,14 @@ const App: React.FC = () => {
       setActiveProjectId(newProject.id);
       setActiveDocId(null);
       setCurrentView(ViewMode.DOCUMENTS);
-      
-      // Sync to DB
       await dataService.createProject(newProject);
   };
 
   const handleDeleteProject = async (projectId: string) => {
-      // Cascade delete locally
       setProjects(prev => prev.filter(p => p.id !== projectId));
       setTasks(prev => prev.filter(t => t.projectId !== projectId));
       setDocuments(prev => prev.filter(d => d.projectId !== projectId));
       
-      // Switch view if active project deleted
       if (activeProjectId === projectId) {
           const remaining = projects.filter(p => p.id !== projectId);
           if (remaining.length > 0) {
@@ -210,7 +198,6 @@ const App: React.FC = () => {
           }
       }
 
-      // Sync to DB
       await dataService.deleteProject(projectId);
   };
 
@@ -226,14 +213,11 @@ const App: React.FC = () => {
     setDocuments(prev => [...prev, newDoc]);
     setActiveDocId(newDoc.id);
     setCurrentView(ViewMode.DOCUMENTS);
-    
-    // Sync to DB
     await dataService.createDocument(newDoc);
   };
 
   const handleUpdateDocument = (updatedDoc: Document) => {
     setDocuments(prev => prev.map(doc => doc.id === updatedDoc.id ? updatedDoc : doc));
-    // Debounced save or direct save? Direct for now.
     dataService.updateDocument(updatedDoc.id, updatedDoc);
   };
 
@@ -252,10 +236,7 @@ const App: React.FC = () => {
       updatedAt: new Date()
     }));
     setTasks(prev => [...prev, ...finalTasks]);
-    
-    // Sync
     finalTasks.forEach(t => dataService.createTask(t));
-    
     return finalTasks;
   };
 
@@ -304,10 +285,7 @@ const App: React.FC = () => {
       };
       setDocuments(prev => [...prev, newDoc]);
       updateTask(taskId, { linkedDocumentId: newDoc.id });
-      
-      // Sync
       await dataService.createDocument(newDoc);
-      
       setActiveProjectId(task.projectId);
       setActiveDocId(newDoc.id);
       setCurrentView(ViewMode.DOCUMENTS);
@@ -340,7 +318,7 @@ const App: React.FC = () => {
         title: t.title || 'New Task',
         description: t.description,
         status: (t.status as TaskStatus) || TaskStatus.TODO,
-        dueDate: t.dueDate ? new Date(t.dueDate) : undefined,
+        dueDate: (t as any).dueDate ? new Date((t as any).dueDate) : undefined,
         assignee: t.assignee || 'Unassigned',
         priority: t.priority || TaskPriority.MEDIUM,
         dependencies: [],
@@ -358,15 +336,11 @@ const App: React.FC = () => {
   // --- Connection Handler ---
   const handleToggleIntegration = async (id: string, apiKey?: string) => {
       setIntegrations(prev => prev.map(i => i.id === id ? { ...i, connected: !i.connected, config: apiKey ? { apiKey } : i.config } : i));
-      
       const isConnecting = !integrations.find(i => i.id === id)?.connected;
-
       if (isConnecting && id === 'google') {
-          // Fetch Mock Google Calendar Events
           const events = await dataService.fetchGoogleEvents();
           setTasks(prev => [...prev, ...events]);
-      } 
-      else if (!isConnecting && id === 'google') {
+      } else if (!isConnecting && id === 'google') {
           setTasks(prev => prev.filter(t => t.externalType !== 'GOOGLE_CALENDAR'));
       }
   };
@@ -410,7 +384,7 @@ const App: React.FC = () => {
       setInboxItems(prev => prev.map(item => item.id === id ? { ...item, ...updates } : item));
   };
 
-  const handleProcessInboxItem = (itemId: string, action: InboxAction) => {
+  const handleProcessInboxItem = async (itemId: string, action: InboxAction) => {
       let targetProjectId = action.targetProjectId;
       
       if (targetProjectId.startsWith('NEW:')) {
@@ -421,7 +395,7 @@ const App: React.FC = () => {
               icon: '📁',
               createdAt: new Date()
           };
-          dataService.createProject(newProject);
+          await dataService.createProject(newProject);
           setProjects(prev => [...prev, newProject]);
           targetProjectId = newProject.id;
       }
@@ -482,7 +456,7 @@ const App: React.FC = () => {
         projects={projects}
         activeProjectId={activeProjectId}
         onSelectProject={setActiveProjectId}
-        onCreateProject={handleOpenCreateProject} // Use Modal Opener
+        onCreateProject={handleOpenCreateProject}
         documents={projectDocs}
         onSelectDocument={setActiveDocId}
         onCreateDocument={handleCreateDocument}
@@ -494,8 +468,7 @@ const App: React.FC = () => {
         onToggleDarkMode={() => setIsDarkMode(!isDarkMode)}
       />
 
-      <main className="flex-1 flex flex-col h-full relative w-full bg-white dark:bg-black">
-        {/* Minimalist Header */}
+      <main className="flex-1 flex flex-col h-full relative w-full bg-white dark:bg-black md:pl-16 transition-all duration-300">
         <header className="h-14 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between px-6 bg-white dark:bg-black shrink-0 z-20">
           <div className="flex items-center space-x-3 text-sm">
              <button onClick={() => setIsMobileSidebarOpen(true)} className="md:hidden text-gray-500 hover:text-black dark:hover:text-white">
@@ -526,80 +499,81 @@ const App: React.FC = () => {
 
         <div className="flex-1 overflow-hidden relative flex">
             <div className="flex-1 flex flex-col overflow-hidden w-full">
-                {currentView === ViewMode.HOME ? (
-                    <DashboardView 
-                        tasks={tasks} 
-                        documents={documents} 
-                        projects={projects} 
-                        userName="User" 
+                {/* View Animation Wrapper */}
+                <div key={currentView} className="flex-1 h-full w-full animate-page-slide flex flex-col overflow-hidden">
+                  {currentView === ViewMode.HOME ? (
+                      <DashboardView 
+                          tasks={tasks} 
+                          documents={documents} 
+                          projects={projects} 
+                          userName="User" 
+                          onNavigate={handleNavigate} 
+                          onStartReview={() => setCurrentView(ViewMode.REVIEW)} 
+                          onCreateProject={handleOpenCreateProject}
+                          teamMembers={teamMembers}
+                      />
+                  ) : currentView === ViewMode.INBOX ? (
+                      <InboxView 
+                          items={inboxItems} 
+                          onAddItem={handleAddInboxItem} 
+                          onProcessItem={(id, action) => { const item = inboxItems.find(i => i.id === id); if (item && item.processedResult) handleProcessInboxItem(id, action); else handleStoreInboxSuggestion(id, action); }} 
+                          onDeleteItem={handleDeleteInboxItem} 
+                          onUpdateItem={handleUpdateInboxItem}
+                          projects={projects} 
+                      />
+                  ) : currentView === ViewMode.SETTINGS ? (
+                      <SettingsView 
+                          teamMembers={teamMembers}
+                          onUpdateTeam={handleUpdateTeam}
+                          isDarkMode={isDarkMode}
+                          onToggleDarkMode={() => setIsDarkMode(!isDarkMode)}
+                          onClearData={handleClearData}
+                          onDeleteProject={handleDeleteProject}
+                          projects={projects}
+                      />
+                  ) : currentView === ViewMode.REVIEW ? (
+                      <ReviewWizard inboxItems={inboxItems} tasks={tasks} projects={projects} onProcessInboxItem={handleProcessInboxItem} onDeleteInboxItem={handleDeleteInboxItem} onDeleteTask={handleDeleteTask} onUpdateTaskStatus={handleUpdateTaskStatus} onUpdateTaskAssignee={handleUpdateTaskAssignee} onClose={() => setCurrentView(ViewMode.HOME)} />
+                  ) : currentView === ViewMode.DOCUMENTS && activeDocument ? (
+                      <DocumentEditor document={activeDocument} allDocuments={documents} allTasks={tasks} onUpdate={handleUpdateDocument} onExtractTasks={handleExtractTasks} onNavigate={handleNavigate} />
+                  ) : currentView === ViewMode.DOCUMENTS && !activeDocument ? (
+                      <button 
+                          onClick={handleCreateDocument} 
+                          className="flex flex-col items-center justify-center h-full w-full text-gray-400 dark:text-gray-600 hover:text-gray-600 dark:hover:text-gray-300 transition-colors cursor-pointer"
+                      >
+                          <div className="w-20 h-20 rounded-full bg-gray-50 dark:bg-gray-900 border-2 border-dashed border-gray-200 dark:border-gray-800 flex items-center justify-center mb-6 shadow-sm group hover:border-gray-300 dark:hover:border-gray-600 hover:bg-white dark:hover:bg-gray-800 transition-all">
+                              <Plus className="w-10 h-10 text-gray-300 dark:text-gray-700 group-hover:text-black dark:group-hover:text-white transition-colors" />
+                          </div>
+                          <p className="text-base font-medium">Create a new page</p>
+                          <p className="text-xs text-gray-300 dark:text-gray-700 mt-2">or select one from the sidebar</p>
+                      </button>
+                  ) : currentView === ViewMode.BOARD || currentView === ViewMode.GLOBAL_BOARD ? (
+                      <TaskBoard 
+                        tasks={tasksToDisplay} 
+                        onUpdateTaskStatus={handleUpdateTaskStatus} 
+                        onUpdateTaskAssignee={handleUpdateTaskAssignee} 
+                        onUpdateTaskDueDate={handleUpdateTaskDueDate} 
+                        onUpdateTaskPriority={handleUpdateTaskPriority} 
+                        onUpdateTaskDependencies={handleUpdateTaskDependencies} 
+                        onDeleteTask={handleDeleteTask}
+                        contextString={getContextForTaskBoard()} 
+                        onAddTasks={handleExtractTasks} 
+                        onPromoteTask={handlePromoteTask} 
                         onNavigate={handleNavigate} 
-                        onStartReview={() => setCurrentView(ViewMode.REVIEW)} 
-                        onCreateProject={handleOpenCreateProject} // Use Modal Opener
-                        teamMembers={teamMembers} // Pass team members
-                    />
-                ) : currentView === ViewMode.INBOX ? (
-                    <InboxView 
-                        items={inboxItems} 
-                        onAddItem={handleAddInboxItem} 
-                        onProcessItem={(id, action) => { const item = inboxItems.find(i => i.id === id); if (item && item.processedResult) handleProcessInboxItem(id, action); else handleStoreInboxSuggestion(id, action); }} 
-                        onDeleteItem={handleDeleteInboxItem} 
-                        onUpdateItem={handleUpdateInboxItem}
-                        projects={projects} 
-                    />
-                ) : currentView === ViewMode.SETTINGS ? (
-                    <SettingsView 
-                        teamMembers={teamMembers}
-                        onUpdateTeam={handleUpdateTeam}
-                        isDarkMode={isDarkMode}
-                        onToggleDarkMode={() => setIsDarkMode(!isDarkMode)}
-                        onClearData={handleClearData}
-                        onDeleteProject={handleDeleteProject}
+                        onSelectTask={setSelectedTaskId}
+                        users={teamMembers}
                         projects={projects}
-                    />
-                ) : currentView === ViewMode.REVIEW ? (
-                    <ReviewWizard inboxItems={inboxItems} tasks={tasks} projects={projects} onProcessInboxItem={handleProcessInboxItem} onDeleteInboxItem={handleDeleteInboxItem} onDeleteTask={handleDeleteTask} onUpdateTaskStatus={handleUpdateTaskStatus} onUpdateTaskAssignee={handleUpdateTaskAssignee} onClose={() => setCurrentView(ViewMode.HOME)} />
-                ) : currentView === ViewMode.DOCUMENTS && activeDocument ? (
-                    <DocumentEditor document={activeDocument} allDocuments={documents} allTasks={tasks} onUpdate={handleUpdateDocument} onExtractTasks={handleExtractTasks} onNavigate={handleNavigate} />
-                ) : currentView === ViewMode.DOCUMENTS && !activeDocument ? (
-                    <div className="flex flex-col items-center justify-center h-full text-gray-400 dark:text-gray-600 animate-in fade-in zoom-in-95 duration-300">
-                        <button 
-                            onClick={handleCreateDocument}
-                            className="group flex flex-col items-center p-8 rounded-2xl hover:bg-gray-50 dark:hover:bg-gray-900 transition-all border border-transparent hover:border-gray-100 dark:hover:border-gray-800"
-                        >
-                            <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-2xl flex items-center justify-center mb-4 shadow-sm group-hover:scale-110 group-hover:shadow-md transition-all duration-300">
-                                <Plus className="w-8 h-8 text-gray-400 dark:text-gray-500 group-hover:text-black dark:group-hover:text-white transition-colors" />
-                            </div>
-                            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-1">Create a new page</h3>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">Start writing or use AI to generate content.</p>
-                        </button>
-                    </div>
-                ) : currentView === ViewMode.BOARD || currentView === ViewMode.GLOBAL_BOARD ? (
-                    <TaskBoard 
-                      tasks={tasksToDisplay} 
-                      onUpdateTaskStatus={handleUpdateTaskStatus} 
-                      onUpdateTaskAssignee={handleUpdateTaskAssignee} 
-                      onUpdateTaskDueDate={handleUpdateTaskDueDate} 
-                      onUpdateTaskPriority={handleUpdateTaskPriority} 
-                      onUpdateTaskDependencies={handleUpdateTaskDependencies} 
-                      onDeleteTask={handleDeleteTask}
-                      contextString={getContextForTaskBoard()} 
-                      onAddTasks={handleExtractTasks} 
-                      onPromoteTask={handlePromoteTask} 
-                      onNavigate={handleNavigate} 
-                      onSelectTask={setSelectedTaskId}
-                      users={teamMembers}
-                      projects={projects}
-                      isGlobalView={currentView === ViewMode.GLOBAL_BOARD}
-                    />
-                ) : currentView === ViewMode.GRAPH ? (
-                    <GraphView documents={projectDocs} tasks={projectTasks} onNavigate={handleNavigate} />
-                ) : (
-                    <CalendarView 
-                      tasks={tasksToDisplay} 
-                      onSelectTask={setSelectedTaskId} 
-                      onUpdateTaskDueDate={handleUpdateTaskDueDate}
-                    />
-                )}
+                        isGlobalView={currentView === ViewMode.GLOBAL_BOARD}
+                      />
+                  ) : currentView === ViewMode.GRAPH ? (
+                      <GraphView documents={projectDocs} tasks={projectTasks} onNavigate={handleNavigate} />
+                  ) : (
+                      <CalendarView 
+                        tasks={tasksToDisplay} 
+                        onSelectTask={setSelectedTaskId} 
+                        onUpdateTaskDueDate={handleUpdateTaskDueDate}
+                      />
+                  )}
+                </div>
             </div>
             
             {currentView === ViewMode.DOCUMENTS && activeDocument && (
