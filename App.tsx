@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { DocumentEditor } from './components/DocumentEditor';
@@ -14,30 +15,47 @@ import { TaskDetailModal } from './components/TaskDetailModal';
 import { IntegrationsModal } from './components/IntegrationsModal';
 import { SettingsView } from './components/SettingsView';
 import { CreateProjectModal } from './components/CreateProjectModal';
-import { CanvasView } from './components/CanvasView'; 
 import { ViewMode, Document, Task, TaskStatus, ProjectPlan, TaskPriority, ChatMessage, Project, InboxItem, InboxAction, AgentRole, Integration } from './types';
-import { Sparkles, Command, Plus, Menu, Cloud, MessageSquare, Home, Inbox, Shapes, Search } from 'lucide-react';
+import { Sparkles, Command, Plus, Menu, Cloud, MessageSquare, Home, Inbox, Search, CheckSquare } from 'lucide-react';
 import { geminiService } from './services/geminiService';
 import { dataService } from './services/dataService';
 import { supabase } from './services/supabase';
 
 const MobileBottomNav = ({ currentView, onChangeView, onOpenMenu, onSearch }: { currentView: ViewMode, onChangeView: (v: ViewMode) => void, onOpenMenu: () => void, onSearch: () => void }) => (
-  <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-black/95 backdrop-blur-lg border-t border-gray-100 dark:border-gray-800 z-40 px-6 py-3 safe-area-bottom flex items-center justify-between transition-transform duration-300">
-    <button onClick={() => onChangeView(ViewMode.HOME)} className={`flex flex-col items-center gap-1 ${currentView === ViewMode.HOME ? 'text-black dark:text-white' : 'text-gray-400 dark:text-gray-500'}`}>
-       <Home className="w-6 h-6" />
-    </button>
-    <button onClick={() => onChangeView(ViewMode.INBOX)} className={`flex flex-col items-center gap-1 ${currentView === ViewMode.INBOX ? 'text-black dark:text-white' : 'text-gray-400 dark:text-gray-500'}`}>
-       <Inbox className="w-6 h-6" />
-    </button>
-    <button onClick={() => onChangeView(ViewMode.CANVAS)} className={`flex flex-col items-center gap-1 ${currentView === ViewMode.CANVAS ? 'text-black dark:text-white' : 'text-gray-400 dark:text-gray-500'}`}>
-       <Shapes className="w-6 h-6" />
-    </button>
-    <button onClick={onSearch} className="flex flex-col items-center gap-1 text-gray-400 dark:text-gray-500 active:text-black dark:active:text-white">
-       <Search className="w-6 h-6" />
-    </button>
-    <button onClick={onOpenMenu} className="flex flex-col items-center gap-1 text-gray-400 dark:text-gray-500 active:text-black dark:active:text-white">
-       <Menu className="w-6 h-6" />
-    </button>
+  <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-black/90 backdrop-blur-xl border-t border-gray-100 dark:border-gray-800 z-50 px-6 py-2 safe-area-bottom flex items-center justify-between transition-transform duration-300 shadow-2xl">
+    {/* Left Group */}
+    <div className="flex items-center gap-8">
+      <button onClick={() => onChangeView(ViewMode.HOME)} className={`flex flex-col items-center gap-1 transition-colors ${currentView === ViewMode.HOME ? 'text-black dark:text-white' : 'text-gray-400 dark:text-gray-500'}`}>
+         <Home className="w-6 h-6" />
+         <span className="text-[9px] font-medium">Home</span>
+      </button>
+      <button onClick={onSearch} className="flex flex-col items-center gap-1 text-gray-400 dark:text-gray-500 active:text-black dark:active:text-white transition-colors">
+         <Search className="w-6 h-6" />
+         <span className="text-[9px] font-medium">Search</span>
+      </button>
+    </div>
+
+    {/* Center Hero Button (Tasks) */}
+    <div className="relative -top-6 group">
+      <button
+          onClick={() => onChangeView(ViewMode.GLOBAL_BOARD)}
+          className={`flex items-center justify-center w-14 h-14 rounded-full shadow-xl shadow-black/20 dark:shadow-white/10 border-4 border-gray-50 dark:border-black transition-all duration-300 active:scale-95 group-hover:-translate-y-1 ${currentView === ViewMode.GLOBAL_BOARD ? 'bg-black dark:bg-white text-white dark:text-black' : 'bg-black dark:bg-white text-white dark:text-black'}`}
+      >
+         <CheckSquare className="w-6 h-6" />
+      </button>
+    </div>
+
+    {/* Right Group */}
+    <div className="flex items-center gap-8">
+      <button onClick={() => onChangeView(ViewMode.INBOX)} className={`flex flex-col items-center gap-1 transition-colors ${currentView === ViewMode.INBOX ? 'text-black dark:text-white' : 'text-gray-400 dark:text-gray-500'}`}>
+         <Inbox className="w-6 h-6" />
+         <span className="text-[9px] font-medium">Inbox</span>
+      </button>
+      <button onClick={onOpenMenu} className="flex flex-col items-center gap-1 text-gray-400 dark:text-gray-500 active:text-black dark:active:text-white transition-colors">
+         <Menu className="w-6 h-6" />
+         <span className="text-[9px] font-medium">Menu</span>
+      </button>
+    </div>
   </div>
 );
 
@@ -505,7 +523,6 @@ const App: React.FC = () => {
                   currentView === ViewMode.BOARD ? 'Board' : 
                   currentView === ViewMode.HOME ? 'Dashboard' :
                   currentView === ViewMode.SETTINGS ? 'Preferences' :
-                  currentView === ViewMode.CANVAS ? 'Whiteboard' : 
                   currentView.toLowerCase().replace('_', ' ')}
              </span>
           </div>
@@ -590,8 +607,6 @@ const App: React.FC = () => {
                       />
                   ) : currentView === ViewMode.GRAPH ? (
                       <GraphView documents={projectDocs} tasks={projectTasks} onNavigate={handleNavigate} />
-                  ) : currentView === ViewMode.CANVAS ? (
-                      <CanvasView />
                   ) : (
                       <CalendarView 
                         tasks={tasksToDisplay} 

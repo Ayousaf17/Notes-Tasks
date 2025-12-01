@@ -1,5 +1,4 @@
 
-
 export enum ViewMode {
   HOME = 'HOME', 
   DOCUMENTS = 'DOCUMENTS',
@@ -10,8 +9,7 @@ export enum ViewMode {
   REVIEW = 'REVIEW',
   SETTINGS = 'SETTINGS',
   GLOBAL_BOARD = 'GLOBAL_BOARD',
-  GLOBAL_CALENDAR = 'GLOBAL_CALENDAR',
-  CANVAS = 'CANVAS'
+  GLOBAL_CALENDAR = 'GLOBAL_CALENDAR'
 }
 
 export interface Project {
