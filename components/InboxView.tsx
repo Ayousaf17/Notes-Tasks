@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { InboxItem, Project, InboxAction } from '../types';
 import { Mic, Sparkles, Archive, Loader2, CheckCircle, FileText, Trash2, StopCircle, Paperclip, X, Check, ArrowRight, ChevronDown, Layers, CheckCircle2 } from 'lucide-react';
@@ -328,9 +329,9 @@ export const InboxView: React.FC<InboxViewProps> = ({
             ))}
 
             {items.filter(i => i.status === 'pending').length === 0 && (
-                <div className="text-center py-12 text-gray-400 dark:text-gray-600">
-                    <Archive className="w-8 h-8 mx-auto mb-3 opacity-20" />
-                    <p className="text-sm">Inbox Zero. You're all caught up.</p>
+                <div className="text-center py-12 text-gray-400 dark:text-gray-600 flex flex-col items-center">
+                    <CheckCircle2 className="w-16 h-16 text-gray-200 dark:text-gray-800 mb-4" />
+                    <p className="text-sm font-medium">Inbox Zero. You're all caught up.</p>
                 </div>
             )}
         </div>

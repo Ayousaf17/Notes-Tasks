@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState, useMemo } from 'react';
 import { Task, Document, Project, TaskPriority, TaskStatus } from '../types';
 import { geminiService } from '../services/geminiService';
@@ -180,7 +181,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         {/* Daily Pulse */}
         <div className="pt-4 md:pt-8 animate-slide-up">
             <div className="flex justify-between items-center mb-6">
-                <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em]">Daily Pulse</p>
+                <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] flex items-center gap-2">
+                    Daily Pulse
+                </p>
                 {briefing && (
                     <button 
                         onClick={toggleSpeech}

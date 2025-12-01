@@ -238,7 +238,7 @@ const App: React.FC = () => {
       }, 30000); // Check every 30 seconds
 
       return () => clearInterval(interval);
-  }, [tasks]); // Re-run if tasks update
+  }, [tasks]);
 
   const activeProject = projects.find(p => p.id === activeProjectId) || projects[0];
   const projectDocs = documents.filter(d => d.projectId === activeProjectId);

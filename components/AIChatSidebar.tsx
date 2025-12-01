@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { ChatMessage, Attachment, ProjectPlan, Document, Task, Source } from '../types';
 import { Send, X, Bot, Paperclip, Mic, Loader2, FileText, Sparkles, Music, Trash2, BrainCircuit, CheckSquare, Search } from 'lucide-react';
@@ -302,8 +303,8 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
   return (
     <div className="fixed inset-0 z-50 md:absolute md:top-0 md:bottom-0 md:right-0 md:w-[420px] bg-white dark:bg-black border-l border-gray-100 dark:border-gray-800 flex flex-col shadow-2xl shadow-gray-200/50 dark:shadow-black/50 transition-transform font-sans">
       <div className="p-5 border-b border-gray-50 dark:border-gray-800 flex items-center justify-between bg-white dark:bg-black">
-        <div className="flex items-center space-x-2">
-          <div className="w-2 h-2 bg-black dark:bg-white rounded-full" />
+        <div className="flex items-center space-x-3">
+          <Bot className="w-6 h-6 text-purple-600 dark:text-purple-400" />
           <span className="font-semibold text-gray-900 dark:text-white text-sm tracking-tight">Aasani</span>
         </div>
         <div className="flex items-center gap-2">
@@ -336,28 +337,33 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                         <p className="whitespace-pre-wrap">{msg.text}</p>
                     </div>
                 ) : (
-                    <div className="block w-full px-6 py-6 rounded-xl text-sm leading-relaxed text-gray-800 dark:text-gray-200 bg-zinc-50 dark:bg-zinc-900 border-none shadow-none">
-                        <FormattedMessage text={msg.text} />
-                        
-                        {msg.sources && msg.sources.length > 0 && (
-                            <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800">
-                                <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase mb-2 flex items-center gap-1">
-                                    <Search className="w-3 h-3" />
-                                    Used {msg.sources.length} Reference{msg.sources.length > 1 ? 's' : ''}
-                                </p>
-                                <div className="flex flex-wrap gap-2">
-                                    {msg.sources.map((src, idx) => (
-                                        <div key={idx} className="flex items-center gap-1.5 px-2 py-1 bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded text-[10px] text-gray-500 dark:text-gray-400">
-                                            {src.type === 'document' ? <FileText className="w-3 h-3 text-blue-500" /> : <CheckSquare className="w-3 h-3 text-green-500" />}
-                                            <span className="truncate max-w-[150px]">{src.title}</span>
-                                        </div>
-                                    ))}
+                    <div className="flex gap-4">
+                        <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center border border-gray-200 dark:border-gray-700 shrink-0">
+                            <Bot className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                        </div>
+                        <div className="block w-full px-6 py-6 rounded-xl text-sm leading-relaxed text-gray-800 dark:text-gray-200 bg-zinc-50 dark:bg-zinc-900 border-none shadow-none">
+                            <FormattedMessage text={msg.text} />
+                            
+                            {msg.sources && msg.sources.length > 0 && (
+                                <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800">
+                                    <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase mb-2 flex items-center gap-1">
+                                        <Search className="w-3 h-3" />
+                                        Used {msg.sources.length} Reference{msg.sources.length > 1 ? 's' : ''}
+                                    </p>
+                                    <div className="flex flex-wrap gap-2">
+                                        {msg.sources.map((src, idx) => (
+                                            <div key={idx} className="flex items-center gap-1.5 px-2 py-1 bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded text-[10px] text-gray-500 dark:text-gray-400">
+                                                {src.type === 'document' ? <FileText className="w-3 h-3 text-blue-500" /> : <CheckSquare className="w-3 h-3 text-green-500" />}
+                                                <span className="truncate max-w-[150px]">{src.title}</span>
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
-                            </div>
-                        )}
+                            )}
+                        </div>
                     </div>
                 )}
-                <div className={`text-[10px] text-gray-300 dark:text-gray-600 mt-2 px-1 ${msg.role === 'user' ? 'text-right' : 'text-left'}`}>
+                <div className={`text-[10px] text-gray-300 dark:text-gray-600 mt-2 px-1 ${msg.role === 'user' ? 'text-right' : 'text-left ml-12'}`}>
                     {msg.role === 'user' ? 'You' : 'Aasani'}
                 </div>
             </div>
@@ -365,7 +371,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
         ))}
         
         {loading && (
-            <div className="flex items-center space-x-2 text-xs text-gray-400 px-4 animate-pulse">
+            <div className="flex items-center space-x-2 text-xs text-gray-400 px-4 ml-12 animate-pulse">
                 {retrievingContext ? (
                     <>
                          <BrainCircuit className="w-3 h-3 text-purple-500" />
