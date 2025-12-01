@@ -194,6 +194,26 @@ const App: React.FC = () => {
       await dataService.createProject(newProject);
   };
 
+  const handleDeleteProject = async (projectId: string) => {
+      // Cascade delete locally
+      setProjects(prev => prev.filter(p => p.id !== projectId));
+      setTasks(prev => prev.filter(t => t.projectId !== projectId));
+      setDocuments(prev => prev.filter(d => d.projectId !== projectId));
+      
+      // Switch view if active project deleted
+      if (activeProjectId === projectId) {
+          const remaining = projects.filter(p => p.id !== projectId);
+          if (remaining.length > 0) {
+              setActiveProjectId(remaining[0].id);
+          } else {
+              setCurrentView(ViewMode.HOME);
+          }
+      }
+
+      // Sync to DB
+      await dataService.deleteProject(projectId);
+  };
+
   const handleCreateDocument = async () => {
     const newDoc: Document = {
       id: crypto.randomUUID(),
@@ -532,6 +552,8 @@ const App: React.FC = () => {
                         isDarkMode={isDarkMode}
                         onToggleDarkMode={() => setIsDarkMode(!isDarkMode)}
                         onClearData={handleClearData}
+                        onDeleteProject={handleDeleteProject}
+                        projects={projects}
                     />
                 ) : currentView === ViewMode.REVIEW ? (
                     <ReviewWizard inboxItems={inboxItems} tasks={tasks} projects={projects} onProcessInboxItem={handleProcessInboxItem} onDeleteInboxItem={handleDeleteInboxItem} onDeleteTask={handleDeleteTask} onUpdateTaskStatus={handleUpdateTaskStatus} onUpdateTaskAssignee={handleUpdateTaskAssignee} onClose={() => setCurrentView(ViewMode.HOME)} />

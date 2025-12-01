@@ -1,4 +1,3 @@
-
 import { supabase } from './supabase';
 import { Project, Task, Document, TaskStatus, TaskPriority } from '../types';
 
@@ -51,6 +50,10 @@ export const dataService = {
       icon: project.icon,
       created_at: project.createdAt.toISOString()
     });
+  },
+
+  async deleteProject(projectId: string) {
+    await supabase.from('projects').delete().eq('id', projectId);
   },
 
   async createTask(task: Task) {

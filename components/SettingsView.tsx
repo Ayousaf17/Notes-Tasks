@@ -1,5 +1,7 @@
+
 import React, { useState } from 'react';
-import { User, Trash2, Plus, Moon, Sun, Database, ShieldAlert } from 'lucide-react';
+import { User, Trash2, Plus, Moon, Sun, Database, ShieldAlert, Folder } from 'lucide-react';
+import { Project } from '../types';
 
 interface SettingsViewProps {
   teamMembers: string[];
@@ -7,6 +9,8 @@ interface SettingsViewProps {
   isDarkMode: boolean;
   onToggleDarkMode: () => void;
   onClearData: () => void;
+  onDeleteProject: (projectId: string) => void;
+  projects: Project[];
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({ 
@@ -14,7 +18,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     onUpdateTeam,
     isDarkMode,
     onToggleDarkMode,
-    onClearData
+    onClearData,
+    onDeleteProject,
+    projects
 }) => {
   const [newMember, setNewMember] = useState('');
   const [activeTab, setActiveTab] = useState<'team' | 'general' | 'data'>('team');
@@ -136,21 +142,50 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             )}
 
             {activeTab === 'data' && (
-                <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 p-6 animate-in fade-in slide-in-from-bottom-2">
-                    <h2 className="text-lg font-semibold text-red-600 dark:text-red-400 mb-4 flex items-center gap-2">
-                        <ShieldAlert className="w-5 h-5" /> Danger Zone
-                    </h2>
-                    <div className="p-4 border border-red-100 dark:border-red-900/50 bg-red-50 dark:bg-red-900/10 rounded-lg flex items-center justify-between">
-                        <div>
-                            <div className="text-sm font-medium text-red-900 dark:text-red-200">Reset Workspace Data</div>
-                            <div className="text-xs text-red-600 dark:text-red-400 mt-1">Clear all tasks, documents, and projects. This cannot be undone.</div>
+                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
+                    <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 p-6">
+                        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                            <Folder className="w-5 h-5" /> Manage Projects
+                        </h2>
+                        <div className="space-y-2">
+                            {projects.map(project => (
+                                <div key={project.id} className="flex items-center justify-between p-3 rounded-lg border border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                                    <div className="flex items-center gap-3">
+                                        <div className="text-xl">{project.icon || '📁'}</div>
+                                        <div className="flex flex-col">
+                                            <span className="text-sm font-medium text-gray-900 dark:text-white">{project.title}</span>
+                                            <span className="text-xs text-gray-400">Created {new Date(project.createdAt).toLocaleDateString()}</span>
+                                        </div>
+                                    </div>
+                                    <button 
+                                        onClick={() => { if(confirm(`Delete project "${project.title}" and all its tasks?`)) onDeleteProject(project.id); }}
+                                        className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors"
+                                        title="Delete Project"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            ))}
+                            {projects.length === 0 && <div className="text-sm text-gray-400 italic">No projects found.</div>}
                         </div>
-                        <button 
-                            onClick={() => { if(confirm('Are you sure? This will wipe all data.')) onClearData(); }}
-                            className="px-4 py-2 bg-white dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-300 text-xs font-bold rounded hover:bg-red-50 dark:hover:bg-red-900/50 transition-colors"
-                        >
-                            Reset Data
-                        </button>
+                    </div>
+
+                    <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 p-6">
+                        <h2 className="text-lg font-semibold text-red-600 dark:text-red-400 mb-4 flex items-center gap-2">
+                            <ShieldAlert className="w-5 h-5" /> Danger Zone
+                        </h2>
+                        <div className="p-4 border border-red-100 dark:border-red-900/50 bg-red-50 dark:bg-red-900/10 rounded-lg flex items-center justify-between">
+                            <div>
+                                <div className="text-sm font-medium text-red-900 dark:text-red-200">Reset Workspace Data</div>
+                                <div className="text-xs text-red-600 dark:text-red-400 mt-1">Clear all tasks, documents, and projects. This cannot be undone.</div>
+                            </div>
+                            <button 
+                                onClick={() => { if(confirm('Are you sure? This will wipe all data.')) onClearData(); }}
+                                className="px-4 py-2 bg-white dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-300 text-xs font-bold rounded hover:bg-red-50 dark:hover:bg-red-900/50 transition-colors"
+                            >
+                                Reset Data
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

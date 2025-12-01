@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState, useMemo } from 'react';
 import { Task, Document, Project, TaskPriority, TaskStatus } from '../types';
 import { geminiService } from '../services/geminiService';
@@ -100,7 +101,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const getProjectName = (id: string) => projects.find(p => p.id === id)?.title || 'Unknown Project';
 
   return (
-    <div className="flex-1 h-full bg-white dark:bg-gray-900 overflow-y-auto p-8 font-sans transition-colors duration-200">
+    <div className="flex-1 h-full bg-white dark:bg-black overflow-y-auto p-8 font-sans transition-colors duration-200">
       <div className="max-w-6xl mx-auto space-y-16">
         
         {/* Minimal Daily Pulse */}
