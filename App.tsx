@@ -12,10 +12,10 @@ import { GraphView } from './components/GraphView';
 import { DashboardView } from './components/DashboardView'; 
 import { ReviewWizard } from './components/ReviewWizard';
 import { TaskDetailModal } from './components/TaskDetailModal';
-import { IntegrationsModal } from './components/IntegrationsModal';
 import { SettingsView } from './components/SettingsView';
 import { CreateProjectModal } from './components/CreateProjectModal';
-import { CanvasView } from './components/CanvasView'; // NEW
+import { IntegrationsModal } from './components/IntegrationsModal';
+import { CanvasView } from './components/CanvasView'; 
 import { ViewMode, Document, Task, TaskStatus, ProjectPlan, TaskPriority, ChatMessage, Project, InboxItem, InboxAction, AgentRole, Integration } from './types';
 import { Sparkles, Command, Plus, Menu, Cloud, MessageSquare } from 'lucide-react';
 import { geminiService } from './services/geminiService';
@@ -25,15 +25,15 @@ import { supabase } from './services/supabase';
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewMode>(ViewMode.HOME); 
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-  const [isSidebarExpanded, setIsSidebarExpanded] = useState(false); // State for desktop sidebar expansion
+  const [isSidebarExpanded, setIsSidebarExpanded] = useState(false); 
   
   // Team Management State
   const [teamMembers, setTeamMembers] = useState<string[]>(() => {
       if (typeof window !== 'undefined') {
           const stored = localStorage.getItem('teamMembers');
-          return stored ? JSON.parse(stored) : ['Me', 'Alice', 'Bob', 'Charlie'];
+          return stored ? JSON.parse(stored) : ['Me', 'Kate'];
       }
-      return ['Me', 'Alice', 'Bob', 'Charlie'];
+      return ['Me', 'Kate'];
   });
 
   const handleUpdateTeam = (members: string[]) => {
@@ -472,7 +472,6 @@ const App: React.FC = () => {
         onHover={setIsSidebarExpanded}
       />
 
-      {/* Main Content Area - dynamically adjusts padding for sidebar */}
       <main className={`flex-1 flex flex-col h-full relative w-full bg-white dark:bg-black transition-all duration-300 ease-in-out ${isSidebarExpanded ? 'md:pl-64' : 'md:pl-16'}`}>
         <header className="h-14 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between px-6 bg-white dark:bg-black shrink-0 z-20">
           <div className="flex items-center space-x-3 text-sm">
@@ -536,6 +535,8 @@ const App: React.FC = () => {
                           onClearData={handleClearData}
                           onDeleteProject={handleDeleteProject}
                           projects={projects}
+                          integrations={integrations}
+                          onToggleIntegration={handleToggleIntegration}
                       />
                   ) : currentView === ViewMode.REVIEW ? (
                       <ReviewWizard inboxItems={inboxItems} tasks={tasks} projects={projects} onProcessInboxItem={handleProcessInboxItem} onDeleteInboxItem={handleDeleteInboxItem} onDeleteTask={handleDeleteTask} onUpdateTaskStatus={handleUpdateTaskStatus} onUpdateTaskAssignee={handleUpdateTaskAssignee} onClose={() => setCurrentView(ViewMode.HOME)} />
@@ -604,17 +605,17 @@ const App: React.FC = () => {
 
         <CommandPalette isOpen={isCommandPaletteOpen} onClose={() => setIsCommandPaletteOpen(false)} documents={documents} tasks={tasks} projects={projects} onNavigate={handleNavigate} onCreateDocument={handleCreateDocument} onChangeView={setCurrentView} onSelectProject={setActiveProjectId} />
         
+        <CreateProjectModal 
+          isOpen={isCreateProjectModalOpen}
+          onClose={() => setIsCreateProjectModalOpen(false)}
+          onCreate={handleCreateProjectConfirm}
+        />
+
         <IntegrationsModal 
           isOpen={isIntegrationsOpen} 
           onClose={() => setIsIntegrationsOpen(false)} 
           integrations={integrations}
           onToggleIntegration={handleToggleIntegration}
-        />
-
-        <CreateProjectModal 
-          isOpen={isCreateProjectModalOpen}
-          onClose={() => setIsCreateProjectModalOpen(false)}
-          onCreate={handleCreateProjectConfirm}
         />
 
         {selectedTask && (
