@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Document, Task, TaskPriority, TaskStatus } from '../types';
-import { Wand2, ListChecks, RefreshCw, X, Check, User, Flag, AlignLeft, Tag as TagIcon, Sparkles, Edit3, Eye, SpellCheck, Scissors, Table as TableIcon, Link as LinkIcon, FileText, Maximize2, Minimize2, Heading1, Heading2, List, CheckSquare, Plus, Loader2 } from 'lucide-react';
+import { Wand2, ListChecks, RefreshCw, X, Check, User, Flag, AlignLeft, Tag as TagIcon, Sparkles, Edit3, Eye, SpellCheck, Scissors, Table as TableIcon, Link as LinkIcon, FileText, Maximize2, Minimize2, Heading1, Heading2, List, CheckSquare, Plus, Loader2, Trash2 } from 'lucide-react';
 import { geminiService } from '../services/geminiService';
 
 interface DocumentEditorProps {
@@ -11,6 +11,7 @@ interface DocumentEditorProps {
   onUpdate: (updatedDoc: Document) => void;
   onExtractTasks: (tasks: Partial<Task>[]) => Task[];
   onNavigate?: (type: 'document' | 'task', id: string) => void;
+  onDelete: () => void;
 }
 
 const getCaretCoordinates = (element: HTMLTextAreaElement, position: number) => {
@@ -141,7 +142,8 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
     allTasks = [],
     onUpdate, 
     onExtractTasks,
-    onNavigate
+    onNavigate,
+    onDelete
 }) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [summary, setSummary] = useState<string | null>(null);
@@ -292,6 +294,10 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
               </button>
               <button onClick={() => setIsZenMode(!isZenMode)} className="text-gray-400 hover:text-black dark:hover:text-white transition-colors" title={isZenMode ? "Exit Zen Mode (ESC)" : "Enter Zen Mode"}>
                 {isZenMode ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+              </button>
+              <div className="w-px h-4 bg-gray-200 dark:bg-gray-800" />
+              <button onClick={onDelete} className="text-gray-400 hover:text-red-500 transition-colors" title="Delete Page">
+                <Trash2 className="w-4 h-4" />
               </button>
            </div>
         </div>

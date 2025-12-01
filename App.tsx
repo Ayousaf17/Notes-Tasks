@@ -15,6 +15,7 @@ import { TaskDetailModal } from './components/TaskDetailModal';
 import { IntegrationsModal } from './components/IntegrationsModal';
 import { SettingsView } from './components/SettingsView';
 import { CreateProjectModal } from './components/CreateProjectModal';
+import { ConfirmationModal } from './components/ConfirmationModal';
 import { ViewMode, Document, Task, TaskStatus, ProjectPlan, TaskPriority, ChatMessage, Project, InboxItem, InboxAction, AgentRole, Integration } from './types';
 import { Sparkles, Command, Plus, Menu, Cloud, MessageSquare, Home, Inbox, Search, CheckSquare } from 'lucide-react';
 import { geminiService } from './services/geminiService';
@@ -78,9 +79,33 @@ const App: React.FC = () => {
       localStorage.setItem('teamMembers', JSON.stringify(members));
   };
 
+  // Confirmation Modal State
+  const [confirmationModal, setConfirmationModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    isDanger?: boolean;
+    confirmText?: string;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
+
   const handleClearData = async () => {
-      localStorage.clear();
-      window.location.reload();
+      setConfirmationModal({
+          isOpen: true,
+          title: 'Reset Workspace',
+          message: 'Are you sure you want to wipe all data? This cannot be undone.',
+          isDanger: true,
+          confirmText: 'Reset Data',
+          onConfirm: () => {
+              localStorage.clear();
+              window.location.reload();
+          }
+      });
   };
 
   // Dark Mode State
@@ -223,21 +248,47 @@ const App: React.FC = () => {
       await dataService.createProject(newProject);
   };
 
-  const handleDeleteProject = async (projectId: string) => {
-      setProjects(prev => prev.filter(p => p.id !== projectId));
-      setTasks(prev => prev.filter(t => t.projectId !== projectId));
-      setDocuments(prev => prev.filter(d => d.projectId !== projectId));
+  // Improved Select Project Handler
+  const handleSelectProject = (projectId: string) => {
+      setActiveProjectId(projectId);
+      const docsInProject = documents.filter(d => d.projectId === projectId);
       
-      if (activeProjectId === projectId) {
-          const remaining = projects.filter(p => p.id !== projectId);
-          if (remaining.length > 0) {
-              setActiveProjectId(remaining[0].id);
-          } else {
-              setCurrentView(ViewMode.HOME);
-          }
+      // Auto-open the most recent document, or first one
+      if (docsInProject.length > 0) {
+          // Sort by updated at desc
+          const sorted = [...docsInProject].sort((a,b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+          setActiveDocId(sorted[0].id);
+          setCurrentView(ViewMode.DOCUMENTS);
+      } else {
+          setActiveDocId(null);
+          setCurrentView(ViewMode.DOCUMENTS); // Will show "Create a new page" empty state
       }
+  };
 
-      await dataService.deleteProject(projectId);
+  const handleDeleteProject = (projectId: string) => {
+      const project = projects.find(p => p.id === projectId);
+      setConfirmationModal({
+          isOpen: true,
+          title: 'Delete Project',
+          message: `Are you sure you want to delete "${project?.title}"? All associated documents and tasks will be permanently removed.`,
+          isDanger: true,
+          confirmText: 'Delete Project',
+          onConfirm: async () => {
+              setProjects(prev => prev.filter(p => p.id !== projectId));
+              setTasks(prev => prev.filter(t => t.projectId !== projectId));
+              setDocuments(prev => prev.filter(d => d.projectId !== projectId));
+              
+              if (activeProjectId === projectId) {
+                  const remaining = projects.filter(p => p.id !== projectId);
+                  if (remaining.length > 0) {
+                      handleSelectProject(remaining[0].id);
+                  } else {
+                      setCurrentView(ViewMode.HOME);
+                  }
+              }
+              await dataService.deleteProject(projectId);
+          }
+      });
   };
 
   const handleCreateDocument = async () => {
@@ -253,6 +304,23 @@ const App: React.FC = () => {
     setActiveDocId(newDoc.id);
     setCurrentView(ViewMode.DOCUMENTS);
     await dataService.createDocument(newDoc);
+  };
+
+  const handleDeleteDocument = (id: string) => {
+      setConfirmationModal({
+          isOpen: true,
+          title: 'Delete Page',
+          message: 'Are you sure you want to delete this page? This cannot be undone.',
+          isDanger: true,
+          confirmText: 'Delete Page',
+          onConfirm: async () => {
+              setDocuments(prev => prev.filter(d => d.id !== id));
+              if (activeDocId === id) {
+                  setActiveDocId(null);
+              }
+              await dataService.deleteDocument(id);
+          }
+      });
   };
 
   const handleUpdateDocument = (updatedDoc: Document) => {
@@ -494,11 +562,13 @@ const App: React.FC = () => {
         onChangeView={setCurrentView}
         projects={projects}
         activeProjectId={activeProjectId}
-        onSelectProject={setActiveProjectId}
+        onSelectProject={handleSelectProject}
         onCreateProject={handleOpenCreateProject}
+        onDeleteProject={handleDeleteProject}
         documents={projectDocs}
         onSelectDocument={setActiveDocId}
         onCreateDocument={handleCreateDocument}
+        onDeleteDocument={handleDeleteDocument}
         activeDocumentId={activeDocId}
         onOpenIntegrations={() => setIsIntegrationsOpen(true)}
         isMobileOpen={isMobileSidebarOpen}
@@ -511,28 +581,19 @@ const App: React.FC = () => {
 
       <main className={`flex-1 flex flex-col h-full relative w-full bg-white dark:bg-black transition-all duration-300 ease-in-out pb-20 md:pb-0 ${isSidebarExpanded ? 'md:pl-64' : 'md:pl-16'}`}>
         <header className="h-14 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between px-6 bg-white dark:bg-black shrink-0 z-20">
-          <div className="flex items-center text-sm overflow-hidden">
-             {/* Parent Context (Desktop Only) */}
-             <div className="hidden md:flex items-center gap-2 mr-2">
-                <span className="font-medium text-black dark:text-white">
-                    {currentView === ViewMode.HOME ? 'Home' : 
-                     currentView === ViewMode.SETTINGS ? 'Settings' : viewTitle}
-                </span>
-                <span className="text-gray-300 dark:text-gray-700">/</span>
-             </div>
-
-             {/* Current Context (Mobile: Main, Desktop: Sub) */}
-             <span className="text-black dark:text-white font-semibold md:text-gray-500 md:dark:text-gray-400 md:font-normal truncate">
-                  {currentView === ViewMode.DOCUMENTS ? (activeDocument?.title || 'Untitled') : 
-                   currentView === ViewMode.BOARD ? 'Board' : 
-                   currentView === ViewMode.HOME ? 'Dashboard' :
-                   currentView === ViewMode.INBOX ? 'Inbox' :
-                   currentView === ViewMode.GLOBAL_BOARD ? 'All Tasks' :
-                   currentView === ViewMode.GLOBAL_CALENDAR ? 'Timeline' :
-                   currentView === ViewMode.SETTINGS ? 'Preferences' :
-                   currentView === ViewMode.GRAPH ? 'Graph' :
-                   currentView === ViewMode.REVIEW ? 'Review' :
-                   currentView.toLowerCase().replace('_', ' ')}
+          <div className="flex items-center space-x-3 text-sm">
+             {/* Hamburger removed for mobile as requested */}
+             <span className="font-medium text-black dark:text-white inline">
+                 {currentView === ViewMode.HOME ? 'Home' : 
+                  currentView === ViewMode.SETTINGS ? 'Settings' : viewTitle}
+             </span>
+             <span className="text-gray-300 dark:text-gray-700 inline">/</span>
+             <span className="text-gray-500 dark:text-gray-400 truncate">
+                 {currentView === ViewMode.DOCUMENTS ? (activeDocument?.title || 'Untitled') : 
+                  currentView === ViewMode.BOARD ? 'Board' : 
+                  currentView === ViewMode.HOME ? 'Dashboard' :
+                  currentView === ViewMode.SETTINGS ? 'Preferences' :
+                  currentView.toLowerCase().replace('_', ' ')}
              </span>
           </div>
           <div className="flex items-center space-x-3">
@@ -584,7 +645,15 @@ const App: React.FC = () => {
                   ) : currentView === ViewMode.REVIEW ? (
                       <ReviewWizard inboxItems={inboxItems} tasks={tasks} projects={projects} onProcessInboxItem={handleProcessInboxItem} onDeleteInboxItem={handleDeleteInboxItem} onDeleteTask={handleDeleteTask} onUpdateTaskStatus={handleUpdateTaskStatus} onUpdateTaskAssignee={handleUpdateTaskAssignee} onClose={() => setCurrentView(ViewMode.HOME)} />
                   ) : currentView === ViewMode.DOCUMENTS && activeDocument ? (
-                      <DocumentEditor document={activeDocument} allDocuments={documents} allTasks={tasks} onUpdate={handleUpdateDocument} onExtractTasks={handleExtractTasks} onNavigate={handleNavigate} />
+                      <DocumentEditor 
+                        document={activeDocument} 
+                        allDocuments={documents} 
+                        allTasks={tasks} 
+                        onUpdate={handleUpdateDocument} 
+                        onExtractTasks={handleExtractTasks} 
+                        onNavigate={handleNavigate} 
+                        onDelete={() => handleDeleteDocument(activeDocument.id)}
+                      />
                   ) : currentView === ViewMode.DOCUMENTS && !activeDocument ? (
                       <button 
                           onClick={handleCreateDocument} 
@@ -644,7 +713,7 @@ const App: React.FC = () => {
             allTasks={tasks}
         />
 
-        <CommandPalette isOpen={isCommandPaletteOpen} onClose={() => setIsCommandPaletteOpen(false)} documents={documents} tasks={tasks} projects={projects} onNavigate={handleNavigate} onCreateDocument={handleCreateDocument} onChangeView={setCurrentView} onSelectProject={setActiveProjectId} />
+        <CommandPalette isOpen={isCommandPaletteOpen} onClose={() => setIsCommandPaletteOpen(false)} documents={documents} tasks={tasks} projects={projects} onNavigate={handleNavigate} onCreateDocument={handleCreateDocument} onChangeView={setCurrentView} onSelectProject={handleSelectProject} />
         
         <CreateProjectModal 
           isOpen={isCreateProjectModalOpen}
@@ -657,6 +726,17 @@ const App: React.FC = () => {
           onClose={() => setIsIntegrationsOpen(false)} 
           integrations={integrations}
           onToggleIntegration={handleToggleIntegration}
+        />
+
+        {/* Global Confirmation Modal */}
+        <ConfirmationModal 
+            isOpen={confirmationModal.isOpen}
+            title={confirmationModal.title}
+            message={confirmationModal.message}
+            onClose={() => setConfirmationModal(prev => ({ ...prev, isOpen: false }))}
+            onConfirm={confirmationModal.onConfirm}
+            isDanger={confirmationModal.isDanger}
+            confirmText={confirmationModal.confirmText}
         />
 
         {selectedTask && (

@@ -116,6 +116,10 @@ export const dataService = {
     await supabase.from('documents').update(dbUpdates).eq('id', docId);
   },
 
+  async deleteDocument(docId: string) {
+    await supabase.from('documents').delete().eq('id', docId);
+  },
+
   async fetchGoogleEvents(): Promise<Task[]> {
     // Simulation: In a real app, this would call Google Calendar API via a secure backend proxy
     const now = new Date();

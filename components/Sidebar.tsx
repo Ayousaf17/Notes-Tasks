@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { FileText, Layout, Calendar, Settings, Plus, Inbox, Network, Home, X, Globe, Layers, User, Moon, Sun, Loader2, Folder } from 'lucide-react';
+import { FileText, Layout, Calendar, Settings, Plus, Inbox, Network, Home, X, Globe, Layers, User, Moon, Sun, Loader2, Folder, Trash2 } from 'lucide-react';
 import { ViewMode, Document, Project } from '../types';
 
 interface SidebarProps {
@@ -10,9 +10,11 @@ interface SidebarProps {
   activeProjectId: string;
   onSelectProject: (id: string) => void;
   onCreateProject: () => void;
+  onDeleteProject: (id: string) => void;
   documents: Document[];
   onSelectDocument: (id: string) => void;
   onCreateDocument: () => void;
+  onDeleteDocument: (id: string) => void;
   activeDocumentId: string | null;
   onOpenIntegrations: () => void;
   isMobileOpen: boolean;
@@ -31,9 +33,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
   activeProjectId,
   onSelectProject,
   onCreateProject,
+  onDeleteProject,
   documents,
   onSelectDocument,
   onCreateDocument,
+  onDeleteDocument,
   activeDocumentId,
   isMobileOpen,
   onMobileClose,
@@ -157,38 +161,46 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
 
               {projects.map(project => (
-                  <button
-                      key={project.id}
-                      onClick={() => {
-                          onSelectProject(project.id);
-                          if (!isProjectContext) {
-                              onChangeView(ViewMode.DOCUMENTS);
-                          }
-                          onMobileClose();
-                      }}
-                      className={`w-full flex items-center px-3 py-2 rounded-md text-sm transition-colors text-left group/item mb-0.5 ${
-                          activeProjectId === project.id && isProjectContext
-                          ? 'text-black dark:text-white font-medium bg-gray-50 dark:bg-gray-800/60' 
-                          : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/30'
-                      }`}
-                      title={!isExpanded ? project.title : ''}
-                  >
-                      <span className="min-w-[1rem] flex items-center justify-center">
-                        <Folder strokeWidth={1.5} className={`w-4 h-4 ${activeProjectId === project.id && isProjectContext ? 'fill-gray-200 dark:fill-gray-700' : ''}`} />
-                      </span>
-                      {/* Desktop Label */}
-                      <span className={`hidden md:block ml-2 truncate whitespace-nowrap transition-all duration-300 delay-75 text-[13px] ${isExpanded ? 'opacity-100 w-auto' : 'opacity-0 w-0'}`}>
-                          {project.title}
-                      </span>
-                      {/* Mobile Label */}
-                      <span className="md:hidden ml-2 truncate whitespace-nowrap text-[13px]">
-                          {project.title}
-                      </span>
+                  <div key={project.id} className="group/project-item relative flex items-center mb-0.5">
+                      <button
+                          onClick={() => {
+                              onSelectProject(project.id);
+                              onMobileClose();
+                          }}
+                          className={`w-full flex items-center px-3 py-2 rounded-md text-sm transition-colors text-left group/item pr-8 ${
+                              activeProjectId === project.id && isProjectContext
+                              ? 'text-black dark:text-white font-medium bg-gray-50 dark:bg-gray-800/60' 
+                              : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/30'
+                          }`}
+                          title={!isExpanded ? project.title : ''}
+                      >
+                          <span className="min-w-[1rem] flex items-center justify-center">
+                            <Folder strokeWidth={1.5} className={`w-4 h-4 ${activeProjectId === project.id && isProjectContext ? 'fill-gray-200 dark:fill-gray-700' : ''}`} />
+                          </span>
+                          {/* Desktop Label */}
+                          <span className={`hidden md:block ml-2 truncate whitespace-nowrap transition-all duration-300 delay-75 text-[13px] ${isExpanded ? 'opacity-100 w-auto' : 'opacity-0 w-0'}`}>
+                              {project.title}
+                          </span>
+                          {/* Mobile Label */}
+                          <span className="md:hidden ml-2 truncate whitespace-nowrap text-[13px]">
+                              {project.title}
+                          </span>
 
-                      {activeProjectId === project.id && isProjectContext && (
-                          <div className={`hidden md:block ml-auto w-1.5 h-1.5 rounded-full bg-black dark:bg-white transition-opacity ${isExpanded ? 'opacity-100' : 'opacity-0'}`}></div>
-                      )}
-                  </button>
+                          {activeProjectId === project.id && isProjectContext && (
+                              <div className={`hidden md:block ml-auto w-1.5 h-1.5 rounded-full bg-black dark:bg-white transition-opacity ${isExpanded ? 'opacity-100' : 'opacity-0'}`}></div>
+                          )}
+                      </button>
+                      <button 
+                        onClick={(e) => { 
+                            e.stopPropagation(); 
+                            onDeleteProject(project.id); 
+                        }}
+                        className={`absolute right-1 p-1 text-gray-400 hover:text-red-500 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200 ${isExpanded ? 'opacity-0 group-hover/project-item:opacity-100' : 'hidden'}`}
+                        title="Delete Project"
+                      >
+                          <Trash2 className="w-3 h-3" />
+                      </button>
+                  </div>
               ))}
           </div>
 
@@ -220,37 +232,48 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       
                       <div className="space-y-0.5">
                         {documents.map(doc => (
-                             <button
-                                key={doc.id}
-                                onClick={() => {
-                                    onChangeView(ViewMode.DOCUMENTS);
-                                    onSelectDocument(doc.id);
-                                    onMobileClose();
-                                }}
-                                className={`w-full flex items-center px-3 py-1.5 text-sm text-left transition-colors rounded-md group/item mb-0.5 ${
-                                    activeDocumentId === doc.id && currentView === ViewMode.DOCUMENTS
-                                    ? 'text-gray-900 dark:text-white bg-gray-100/80 dark:bg-gray-800/60 font-medium'
-                                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/30'
-                                }`}
-                                title={!isExpanded ? (doc.title || 'Untitled') : ''}
-                             >
-                                <FileText 
-                                    strokeWidth={1.5}
-                                    className={`w-4 h-4 min-w-[1rem] transition-colors ${
-                                        activeDocumentId === doc.id && currentView === ViewMode.DOCUMENTS 
-                                        ? 'text-gray-900 dark:text-white' 
-                                        : 'text-gray-400 group-hover/item:text-gray-600 dark:text-gray-500'
-                                    }`} 
-                                />
-                                {/* Desktop */}
-                                <span className={`hidden md:block ml-2 truncate whitespace-nowrap transition-all duration-300 delay-75 text-[13px] ${isExpanded ? 'opacity-100 w-auto' : 'opacity-0 w-0'}`}>
-                                    {doc.title || 'Untitled'}
-                                </span>
-                                {/* Mobile */}
-                                <span className="md:hidden ml-2 truncate whitespace-nowrap text-[13px]">
-                                    {doc.title || 'Untitled'}
-                                </span>
-                             </button>
+                             <div key={doc.id} className="group/doc-item relative flex items-center">
+                                 <button
+                                    onClick={() => {
+                                        onChangeView(ViewMode.DOCUMENTS);
+                                        onSelectDocument(doc.id);
+                                        onMobileClose();
+                                    }}
+                                    className={`w-full flex items-center px-3 py-1.5 text-sm text-left transition-colors rounded-md mb-0.5 pr-8 ${
+                                        activeDocumentId === doc.id && currentView === ViewMode.DOCUMENTS
+                                        ? 'text-gray-900 dark:text-white bg-gray-100/80 dark:bg-gray-800/60 font-medium'
+                                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/30'
+                                    }`}
+                                    title={!isExpanded ? (doc.title || 'Untitled') : ''}
+                                 >
+                                    <FileText 
+                                        strokeWidth={1.5}
+                                        className={`w-4 h-4 min-w-[1rem] transition-colors ${
+                                            activeDocumentId === doc.id && currentView === ViewMode.DOCUMENTS 
+                                            ? 'text-gray-900 dark:text-white' 
+                                            : 'text-gray-400 dark:text-gray-500'
+                                        }`} 
+                                    />
+                                    {/* Desktop */}
+                                    <span className={`hidden md:block ml-2 truncate whitespace-nowrap transition-all duration-300 delay-75 text-[13px] ${isExpanded ? 'opacity-100 w-auto' : 'opacity-0 w-0'}`}>
+                                        {doc.title || 'Untitled'}
+                                    </span>
+                                    {/* Mobile */}
+                                    <span className="md:hidden ml-2 truncate whitespace-nowrap text-[13px]">
+                                        {doc.title || 'Untitled'}
+                                    </span>
+                                 </button>
+                                 <button 
+                                    onClick={(e) => { 
+                                        e.stopPropagation(); 
+                                        onDeleteDocument(doc.id); 
+                                    }}
+                                    className={`absolute right-1 p-1 text-gray-400 hover:text-red-500 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200 ${isExpanded ? 'opacity-0 group-hover/doc-item:opacity-100' : 'hidden'}`}
+                                    title="Delete Page"
+                                 >
+                                     <Trash2 className="w-3 h-3" />
+                                 </button>
+                             </div>
                         ))}
                       </div>
 
