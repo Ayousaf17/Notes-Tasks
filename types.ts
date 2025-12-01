@@ -1,3 +1,4 @@
+
 export enum ViewMode {
   HOME = 'HOME', 
   DOCUMENTS = 'DOCUMENTS',
@@ -85,7 +86,7 @@ export interface InboxItem {
 }
 
 export interface InboxAction {
-  actionType: 'create_task' | 'create_document';
+  actionType: 'create_task' | 'create_document' | 'create_project';
   targetProjectId: string;
   data: {
     title: string;
@@ -93,6 +94,7 @@ export interface InboxAction {
     content?: string;     
     priority?: TaskPriority;
   };
+  projectPlan?: ProjectPlan; // Carries the full project structure for 'create_project' actions
   reasoning: string;
 }
 

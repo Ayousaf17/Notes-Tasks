@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { DocumentEditor } from './components/DocumentEditor';
@@ -483,6 +484,15 @@ const App: React.FC = () => {
   };
 
   const handleProcessInboxItem = async (itemId: string, action: InboxAction) => {
+      
+      // 1. Handle Full Project Import
+      if (action.actionType === 'create_project' && action.projectPlan) {
+          handleProjectPlanCreated(action.projectPlan);
+          setInboxItems(prev => prev.filter(i => i.id !== itemId));
+          return;
+      }
+
+      // 2. Standard Task/Doc Handling
       let targetProjectId = action.targetProjectId;
       
       if (targetProjectId.startsWith('NEW:')) {

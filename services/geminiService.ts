@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { Task, TaskStatus, TaskPriority, ProjectPlan, Attachment, Project, InboxAction, AgentRole, AgentResult, Document, Source } from "../types";
 
@@ -166,27 +167,34 @@ export const geminiService = {
       try {
           const response = await ai.models.generateContent({
               model: MODEL_NAME,
-              contents: `Analyze this raw note from the user's inbox and decide if it should be a 'create_task' or 'create_document'. 
+              contents: `Analyze this raw note from the user's inbox. It might be a simple task, a document, OR a full project summary/dump.
               
-              Instructions:
-              1. **Target Project**: Assign to the most relevant Project ID from the list below. If generic, pick the first one.
-              2. **Smart Title**: Generate a concise, professional title (max 6 words). Do not use generic or overly long sentence-like titles. E.g., "Meeting Notes: Q3 Review" instead of "Notes from the meeting regarding Q3".
-              3. **Link Everything**: If the content references other concepts or projects, use WikiLinks like [[Project Name]] in the 'content' or 'description' fields.
-              4. **Reasoning**: Explain briefly why you chose this action and project (e.g., "Contains action items related to project scope").
+              **Option 1: Project Import**
+              If the note looks like a comprehensive summary of a project (e.g., "Here is what I've done for Project X...", "ChatGPT History", "Project Status Update"), choose 'create_project'.
+              - **Project Title**: Extract from text.
+              - **Overview**: Create a Markdown summary of the vision and history based on the note.
+              - **Tasks**: Extract ALL tasks mentioned.
+                - **CRITICAL**: Check the tense. 
+                - If it says "I created", "We finished", "Done", "Completed", set status to 'Done'.
+                - If it says "Working on", "Currently", set status to 'In Progress'.
+                - If it says "Need to", "Plan to", "Next steps", set status to 'To Do'.
+
+              **Option 2: Single Task/Document**
+              If it's a smaller item, assign to existing project or suggest new document.
               
               User Note: "${content}"
               
-              Available Projects:
+              Available Projects (for Option 2):
               ${projectContext}
               
-              Return a JSON object describing the action.`,
+              Return JSON.`,
               config: {
                   responseMimeType: "application/json",
                   responseSchema: {
                       type: Type.OBJECT,
                       properties: {
-                          actionType: { type: Type.STRING, enum: ['create_task', 'create_document'] },
-                          targetProjectId: { type: Type.STRING, description: "The ID of the project this belongs to" },
+                          actionType: { type: Type.STRING, enum: ['create_task', 'create_document', 'create_project'] },
+                          targetProjectId: { type: Type.STRING, description: "The ID of the project this belongs to (or NEW:Name)" },
                           reasoning: { type: Type.STRING, description: "Why you chose this project/action" },
                           data: {
                               type: Type.OBJECT,
@@ -197,6 +205,29 @@ export const geminiService = {
                                   priority: { type: Type.STRING, enum: [TaskPriority.HIGH, TaskPriority.MEDIUM, TaskPriority.LOW] }
                               },
                               required: ["title"]
+                          },
+                          // Schema for Project Creation
+                          projectPlan: {
+                              type: Type.OBJECT,
+                              properties: {
+                                  projectTitle: { type: Type.STRING },
+                                  overviewContent: { type: Type.STRING },
+                                  tasks: {
+                                      type: Type.ARRAY,
+                                      items: {
+                                          type: Type.OBJECT,
+                                          properties: {
+                                              title: { type: Type.STRING },
+                                              description: { type: Type.STRING },
+                                              status: { type: Type.STRING, enum: [TaskStatus.TODO, TaskStatus.IN_PROGRESS, TaskStatus.DONE] },
+                                              priority: { type: Type.STRING, enum: [TaskPriority.HIGH, TaskPriority.MEDIUM, TaskPriority.LOW] },
+                                              assignee: { type: Type.STRING },
+                                              dueDate: { type: Type.STRING }
+                                          },
+                                          required: ["title", "status"]
+                                      }
+                                  }
+                              }
                           }
                       },
                       required: ["actionType", "targetProjectId", "data", "reasoning"]
