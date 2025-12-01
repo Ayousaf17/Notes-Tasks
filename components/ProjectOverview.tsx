@@ -54,7 +54,8 @@ export const ProjectOverview: React.FC<ProjectOverviewProps> = ({
 
   return (
     <div className="flex-1 h-full bg-white dark:bg-black overflow-y-auto font-sans p-6 md:p-10 animate-in fade-in duration-300">
-      <div className="max-w-6xl mx-auto space-y-12 pb-12">
+      {/* Container widened to max-w-full to use all space */}
+      <div className="max-w-full mx-auto px-4 md:px-8 space-y-12 pb-12">
         
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-gray-100 dark:border-gray-800">

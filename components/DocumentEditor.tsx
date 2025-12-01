@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Document, Task, TaskPriority, TaskStatus } from '../types';
 import { Wand2, ListChecks, RefreshCw, X, Check, User, Flag, AlignLeft, Tag as TagIcon, Sparkles, Edit3, Eye, SpellCheck, Scissors, Table as TableIcon, Link as LinkIcon, FileText, Maximize2, Minimize2, Heading1, Heading2, List, CheckSquare, Plus, Loader2, Trash2 } from 'lucide-react';
@@ -48,7 +49,7 @@ const MarkdownRenderer: React.FC<{
     };
 
     return (
-        <div className="space-y-4 text-gray-800 dark:text-gray-200 leading-relaxed">
+        <div className="space-y-4 text-gray-800 dark:text-gray-200 leading-loose">
             {lines.map((line, i) => {
                 // Code Block handling
                 if (line.startsWith('```')) {
@@ -56,13 +57,13 @@ const MarkdownRenderer: React.FC<{
                     return null; // Hide the delimiter
                 }
                 if (inCodeBlock) {
-                    return <div key={i} className="font-mono text-sm bg-gray-100 dark:bg-gray-800 p-3 rounded-lg text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 overflow-x-auto">{line}</div>
+                    return <div key={i} className="font-mono text-sm bg-gray-100 dark:bg-gray-800 p-4 rounded-lg text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 overflow-x-auto my-4">{line}</div>
                 }
 
                 // Blockquote
                 if (line.startsWith('> ')) {
                     return (
-                        <div key={i} className="border-l-4 border-purple-300 dark:border-purple-600 pl-4 py-1 italic text-gray-600 dark:text-gray-400 my-4 bg-gray-50 dark:bg-gray-900/50 rounded-r-lg">
+                        <div key={i} className="border-l-4 border-purple-300 dark:border-purple-600 pl-4 py-2 italic text-gray-600 dark:text-gray-400 my-6 bg-gray-50 dark:bg-gray-900/50 rounded-r-lg">
                             {line.slice(2)}
                         </div>
                     );
@@ -70,13 +71,13 @@ const MarkdownRenderer: React.FC<{
 
                 // Horizontal Rule
                 if (line.trim() === '---') {
-                    return <hr key={i} className="my-8 border-gray-200 dark:border-gray-800" />;
+                    return <hr key={i} className="my-10 border-gray-200 dark:border-gray-800" />;
                 }
 
                 // Headers
-                if (line.startsWith('# ')) return <h1 key={i} className="text-4xl font-bold mt-10 mb-6 text-gray-900 dark:text-white tracking-tight">{line.slice(2)}</h1>;
-                if (line.startsWith('## ')) return <h2 key={i} className="text-2xl font-semibold mt-8 mb-4 text-gray-900 dark:text-white border-b border-gray-100 dark:border-gray-800 pb-2">{line.slice(3)}</h2>;
-                if (line.startsWith('### ')) return <h3 key={i} className="text-xl font-medium mt-6 mb-3 text-gray-900 dark:text-white">{line.slice(4)}</h3>;
+                if (line.startsWith('# ')) return <h1 key={i} className="text-4xl font-bold mt-12 mb-8 text-gray-900 dark:text-white tracking-tight">{line.slice(2)}</h1>;
+                if (line.startsWith('## ')) return <h2 key={i} className="text-2xl font-semibold mt-10 mb-5 text-gray-900 dark:text-white border-b border-gray-100 dark:border-gray-800 pb-2">{line.slice(3)}</h2>;
+                if (line.startsWith('### ')) return <h3 key={i} className="text-xl font-medium mt-8 mb-4 text-gray-900 dark:text-white">{line.slice(4)}</h3>;
                 
                 // List Items
                 if (line.trim().startsWith('- [ ]')) return (
@@ -93,8 +94,8 @@ const MarkdownRenderer: React.FC<{
                         <span className="text-gray-400 dark:text-gray-500 line-through">{line.replace('- [x]', '').trim()}</span>
                     </div>
                 );
-                if (line.trim().startsWith('- ')) return <li key={i} className="ml-4 list-disc pl-2 text-gray-700 dark:text-gray-300 my-1 marker:text-gray-400">{line.slice(2)}</li>;
-                if (line.trim().match(/^\d+\. /)) return <li key={i} className="ml-4 list-decimal pl-2 text-gray-700 dark:text-gray-300 my-1 marker:text-gray-400">{line.replace(/^\d+\. /, '')}</li>;
+                if (line.trim().startsWith('- ')) return <li key={i} className="ml-4 list-disc pl-2 text-gray-700 dark:text-gray-300 my-2 marker:text-gray-400">{line.slice(2)}</li>;
+                if (line.trim().match(/^\d+\. /)) return <li key={i} className="ml-4 list-decimal pl-2 text-gray-700 dark:text-gray-300 my-2 marker:text-gray-400">{line.replace(/^\d+\. /, '')}</li>;
 
                 // Empty lines
                 if (!line.trim()) return <div key={i} className="h-4" />;
@@ -102,7 +103,7 @@ const MarkdownRenderer: React.FC<{
                 // Paragraphs with bold handling
                 const parts = line.split(/(\*\*.*?\*\*)/g);
                 return (
-                    <p key={i} className="text-lg text-gray-700 dark:text-gray-300">
+                    <p key={i} className="text-lg text-gray-700 dark:text-gray-300 mb-6">
                         {parts.map((part, j) => {
                             if (part.startsWith('**') && part.endsWith('**')) {
                                 return <strong key={j} className="font-semibold text-gray-900 dark:text-white">{part.slice(2, -2)}</strong>;
@@ -274,8 +275,8 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
 
   return (
     <div className={`flex-1 h-full overflow-y-auto bg-white dark:bg-black font-sans transition-all duration-500 ${isZenMode ? 'fixed inset-0 z-[100] px-0 py-0' : ''}`}>
-      {/* Top Padding increased to pt-24 to prevent overlap with header */}
-      <div className={`mx-auto transition-all duration-500 min-h-[calc(100vh-4rem)] ${isZenMode ? 'max-w-4xl px-8 py-20' : 'max-w-3xl px-8 pt-24 pb-12'}`}>
+      {/* Container widened to max-w-6xl to utilize entire page space */}
+      <div className={`mx-auto transition-all duration-500 min-h-[calc(100vh-4rem)] ${isZenMode ? 'max-w-7xl px-8 py-20' : 'max-w-6xl px-8 pt-24 pb-12'}`}>
         
         {/* Minimal Toolbar */}
         <div className="flex items-center justify-between mb-8 group">
@@ -342,7 +343,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
                     onChange={handleContentChange}
                     onSelect={handleSelect}
                     placeholder="Start writing..."
-                    className="w-full min-h-[60vh] text-lg text-gray-800 dark:text-gray-200 border-none focus:ring-0 bg-transparent resize-none p-0 placeholder-gray-200 dark:placeholder-gray-700 leading-relaxed"
+                    className="w-full min-h-[60vh] text-lg text-gray-800 dark:text-gray-200 border-none focus:ring-0 bg-transparent resize-none p-0 placeholder-gray-200 dark:placeholder-gray-700 leading-loose"
                 />
             )}
         </div>

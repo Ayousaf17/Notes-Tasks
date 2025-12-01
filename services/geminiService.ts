@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { Task, TaskStatus, TaskPriority, ProjectPlan, Attachment, Project, InboxAction, AgentRole, AgentResult, Document, Source } from "../types";
 
@@ -166,7 +167,7 @@ export const geminiService = {
       try {
           const response = await ai.models.generateContent({
               model: MODEL_NAME,
-              contents: `You are an Expert Technical Project Manager. Use the following user note to perform an action.
+              contents: `You are an Expert Technical Project Manager and Technical Writer. Use the following user note to perform an action.
               
               **User Note**: "${content}"
               
@@ -176,7 +177,13 @@ export const geminiService = {
 
               **IF 'create_project' (CRITICAL INSTRUCTIONS):**
               - **Project Title**: Extract the name (e.g., "Ironside AI", "V2 Launch").
-              - **Overview Document**: Create a detailed Markdown "Project Status" document. PRESERVE the structure of the user's note (headers, bullets). Do not summarize too much; keep the technical details.
+              - **Overview Document**: Create a **CLEAN, HIGHLY STRUCTURED** Markdown document.
+                - **CRITICAL FORMATTING RULE**: If the input has numbered items (e.g., "1. Backend", "2. Frontend"), YOU MUST convert these into **H2 Headers** (e.g., "## 1. Backend"). 
+                - **DO NOT** lump them into a single paragraph.
+                - Use **Bullet Points** for the details under each header.
+                - Use **Bold** for key technologies or metrics.
+                - Ensure there is spacing between sections.
+                - Structure it like a professional engineering release note or status update.
               - **Tasks**: Extract EVERY substantive bullet point as a task.
                 - **Status Mapping (BE STRICT)**:
                   - Past tense verbs ("Built", "Shipped", "Fixed", "Implemented", "Created", "Delivered", "Completed", "Done", "Sent", "Responded") -> **'Done'**
@@ -267,6 +274,9 @@ export const geminiService = {
                
                1. **Project Title**: Extract the exact project name.
                2. **Overview Document**: Create a comprehensive Markdown document.
+                  - Use **H2 Headers** and **Bullet Points**.
+                  - **AVOID WALLS OF TEXT.** Make it scannable and clean.
+                  - Include sections for: Executive Summary, Scope of Work, and Timeline.
                3. **Tasks**: Extract every actionable step.
                
                Return JSON.` 
