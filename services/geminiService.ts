@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { Task, TaskStatus, TaskPriority, ProjectPlan, Attachment, Project, InboxAction, AgentRole, AgentResult, Document, Source } from "../types";
 
@@ -167,41 +166,49 @@ export const geminiService = {
       try {
           const response = await ai.models.generateContent({
               model: MODEL_NAME,
-              contents: `Analyze this raw note from the user's inbox. It might be a simple task, a document, OR a full project summary/dump.
+              contents: `You are an expert Technical Project Manager. Analyze this raw note from the user's inbox.
               
-              **Option 1: Project Import**
-              If the note looks like a comprehensive summary of a project (e.g., "Here is what I've done for Project X...", "ChatGPT History", "Project Status Update"), choose 'create_project'.
-              - **Project Title**: Extract from text.
-              - **Overview**: Create a Markdown summary of the vision and history based on the note.
-              - **Tasks**: Extract ALL tasks mentioned.
-                - **CRITICAL**: Check the tense. 
-                - If it says "I created", "We finished", "Done", "Completed", set status to 'Done'.
-                - If it says "Working on", "Currently", set status to 'In Progress'.
-                - If it says "Need to", "Plan to", "Next steps", set status to 'To Do'.
+              **Context**: The user frequently pastes "Brain Dumps" or "Project Status Updates" from ChatGPT or other tools.
+              
+              **Decision Logic**:
+              1. **Is this a Project Summary?** (Contains headers like "1. Feature X", "Progress Summary", lists of "Built", "Fixed", etc.)
+                 -> Action: 'create_project'
+              2. **Is this a single Task or Document?**
+                 -> Action: 'create_task' or 'create_document'
 
-              **Option 2: Single Task/Document**
-              If it's a smaller item, assign to existing project or suggest new document.
-              
+              **IF 'create_project' (Project Import Mode):**
+              - **Project Title**: Extract the specific name (e.g. "Ironside AI", "V2 Redesign").
+              - **Overview Document**: Convert the text into a clean Markdown formatted "Project History & Context". 
+                - Keep the headers (e.g. "## 1. Backend").
+                - Keep the details. This is the source of truth.
+              - **Tasks Extraction (CRITICAL)**:
+                - Break down the text into granular tasks. 
+                - **Status Mapping Rules**:
+                  - "Built", "Shipped", "Fixed", "Implemented", "Created", "Delivered", "Completed", "Done" -> **'Done'**
+                  - "Working on", "Currently", "In progress", "Refining" -> **'In Progress'**
+                  - "Waiting for", "Next steps", "Plan to", "If X wants", "To do", "Scope expansion" -> **'To Do'**
+                - **Priority**: Infer High/Medium based on context (e.g. "Critical", "Blocker" = High).
+
               User Note: "${content}"
               
               Available Projects (for Option 2):
               ${projectContext}
               
-              Return JSON.`,
+              Return JSON matching the schema.`,
               config: {
                   responseMimeType: "application/json",
                   responseSchema: {
                       type: Type.OBJECT,
                       properties: {
                           actionType: { type: Type.STRING, enum: ['create_task', 'create_document', 'create_project'] },
-                          targetProjectId: { type: Type.STRING, description: "The ID of the project this belongs to (or NEW:Name)" },
-                          reasoning: { type: Type.STRING, description: "Why you chose this project/action" },
+                          targetProjectId: { type: Type.STRING, description: "The ID of the project or NEW:Name" },
+                          reasoning: { type: Type.STRING },
                           data: {
                               type: Type.OBJECT,
                               properties: {
                                   title: { type: Type.STRING },
-                                  description: { type: Type.STRING, description: "For tasks, a brief description. Include [[Links]] if relevant." },
-                                  content: { type: Type.STRING, description: "For documents, the body content. Use Markdown headers, lists, and [[WikiLinks]]." },
+                                  description: { type: Type.STRING },
+                                  content: { type: Type.STRING },
                                   priority: { type: Type.STRING, enum: [TaskPriority.HIGH, TaskPriority.MEDIUM, TaskPriority.LOW] }
                               },
                               required: ["title"]

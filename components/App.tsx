@@ -1,27 +1,26 @@
-
 import React, { useState, useEffect } from 'react';
-import { Sidebar } from './components/Sidebar';
-import { DocumentEditor } from './components/DocumentEditor';
-import { TaskBoard } from './components/TaskBoard';
-import { AIChatSidebar } from './components/AIChatSidebar';
-import { CalendarView } from './components/CalendarView';
-import { CommandPalette } from './components/CommandPalette';
-import { ContextSidebar } from './components/ContextSidebar';
-import { InboxView } from './components/InboxView';
-import { GraphView } from './components/GraphView';
-import { DashboardView } from './components/DashboardView'; 
-import { ProjectOverview } from './components/ProjectOverview';
-import { ReviewWizard } from './components/ReviewWizard';
-import { TaskDetailModal } from './components/TaskDetailModal';
-import { IntegrationsModal } from './components/IntegrationsModal';
-import { SettingsView } from './components/SettingsView';
-import { CreateProjectModal } from './components/CreateProjectModal';
-import { ConfirmationModal } from './components/ConfirmationModal';
-import { ViewMode, Document, Task, TaskStatus, ProjectPlan, TaskPriority, ChatMessage, Project, InboxItem, InboxAction, AgentRole, Integration } from './types';
+import { Sidebar } from './Sidebar';
+import { DocumentEditor } from './DocumentEditor';
+import { TaskBoard } from './TaskBoard';
+import { AIChatSidebar } from './AIChatSidebar';
+import { CalendarView } from './CalendarView';
+import { CommandPalette } from './CommandPalette';
+import { ContextSidebar } from './ContextSidebar';
+import { InboxView } from './InboxView';
+import { GraphView } from './GraphView';
+import { DashboardView } from './DashboardView'; 
+import { ProjectOverview } from './ProjectOverview';
+import { ReviewWizard } from './ReviewWizard';
+import { TaskDetailModal } from './TaskDetailModal';
+import { IntegrationsModal } from './IntegrationsModal';
+import { SettingsView } from './SettingsView';
+import { CreateProjectModal } from './CreateProjectModal';
+import { ConfirmationModal } from './ConfirmationModal';
+import { ViewMode, Document, Task, TaskStatus, ProjectPlan, TaskPriority, ChatMessage, Project, InboxItem, InboxAction, AgentRole, Integration } from '../types';
 import { Sparkles, Command, Plus, Menu, Cloud, MessageSquare, Home, Inbox, Search, CheckSquare } from 'lucide-react';
-import { geminiService } from './services/geminiService';
-import { dataService } from './services/dataService';
-import { supabase } from './services/supabase';
+import { geminiService } from '../services/geminiService';
+import { dataService } from '../services/dataService';
+import { supabase } from '../services/supabase';
 
 const MobileBottomNav = ({ currentView, onChangeView, onOpenMenu, onSearch }: { currentView: ViewMode, onChangeView: (v: ViewMode) => void, onOpenMenu: () => void, onSearch: () => void }) => (
   <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-black/90 backdrop-blur-xl border-t border-gray-100 dark:border-gray-800 z-50 px-6 py-2 safe-area-bottom flex items-center justify-between transition-transform duration-300 shadow-2xl">
