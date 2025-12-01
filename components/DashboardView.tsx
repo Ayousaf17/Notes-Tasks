@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Task, Document, Project, TaskPriority, TaskStatus } from '../types';
 import { geminiService } from '../services/geminiService';
-import { Calendar, ArrowRight, Volume2, StopCircle, FileText, Sparkles, Plus, Users, BarChart2 } from 'lucide-react';
+import { Calendar, ArrowRight, Volume2, StopCircle, FileText, Sparkles, Plus, Users, BarChart2, PieChart, Activity, CheckCircle2 } from 'lucide-react';
 
 interface DashboardViewProps {
   tasks: Task[];
@@ -28,6 +28,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const [briefing, setBriefing] = useState<string | null>(null);
   const [loadingBriefing, setLoadingBriefing] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+
+  // --- Metrics Calculations ---
 
   const todaysTasks = useMemo(() => {
       const today = new Date();
@@ -72,13 +74,31 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     tasks.forEach(t => {
         if (t.status !== TaskStatus.DONE) {
             const assignee = t.assignee || 'Unassigned';
-            // Only count if it's a team member or unassigned, group others into 'Other' if needed? 
-            // For now, assume assignee matches team members or is AI
             stats[assignee] = (stats[assignee] || 0) + 1;
         }
     });
-    return Object.entries(stats).sort((a, b) => b[1] - a[1]); // Sort by count desc
+    return Object.entries(stats).sort((a, b) => b[1] - a[1]); 
   }, [tasks, teamMembers]);
+
+  const projectStats = useMemo(() => {
+      return projects.map(p => {
+          const pTasks = tasks.filter(t => t.projectId === p.id);
+          const total = pTasks.length;
+          const done = pTasks.filter(t => t.status === TaskStatus.DONE).length;
+          const percent = total === 0 ? 0 : Math.round((done / total) * 100);
+          return { ...p, total, done, percent };
+      }).sort((a, b) => b.percent - a.percent); // Sort by most complete
+  }, [projects, tasks]);
+
+  const globalStats = useMemo(() => {
+      const total = tasks.length;
+      const done = tasks.filter(t => t.status === TaskStatus.DONE).length;
+      const inProgress = tasks.filter(t => t.status === TaskStatus.IN_PROGRESS).length;
+      const percent = total === 0 ? 0 : Math.round((done / total) * 100);
+      return { total, done, inProgress, percent };
+  }, [tasks]);
+
+  // --- Effects ---
 
   useEffect(() => {
       if (focusList.length > 0 && !briefing) {
@@ -119,13 +139,46 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   const getProjectName = (id: string) => projects.find(p => p.id === id)?.title || 'Unknown Project';
 
+  // Circular Progress Component
+  const CircularProgress = ({ percent, size = 40, strokeWidth = 3, color = "text-black dark:text-white" }) => {
+      const radius = (size - strokeWidth) / 2;
+      const circumference = radius * 2 * Math.PI;
+      const offset = circumference - (percent / 100) * circumference;
+
+      return (
+          <svg width={size} height={size} className="transform -rotate-90">
+              <circle
+                  cx={size / 2}
+                  cy={size / 2}
+                  r={radius}
+                  stroke="currentColor"
+                  strokeWidth={strokeWidth}
+                  fill="transparent"
+                  className="text-gray-100 dark:text-gray-800"
+              />
+              <circle
+                  cx={size / 2}
+                  cy={size / 2}
+                  r={radius}
+                  stroke="currentColor"
+                  strokeWidth={strokeWidth}
+                  fill="transparent"
+                  strokeDasharray={circumference}
+                  strokeDashoffset={offset}
+                  strokeLinecap="round"
+                  className={`${color} transition-all duration-1000 ease-out`}
+              />
+          </svg>
+      );
+  };
+
   return (
     <div className="flex-1 h-full bg-white dark:bg-black overflow-y-auto p-4 md:p-8 font-sans transition-colors duration-200">
-      <div className="max-w-6xl mx-auto space-y-12 md:space-y-16">
+      <div className="max-w-6xl mx-auto space-y-12 pb-12">
         
-        {/* Minimal Daily Pulse */}
-        <div className="pt-4 md:pt-8 pb-4">
-            <div className="flex justify-between items-center mb-6 md:mb-8">
+        {/* Daily Pulse */}
+        <div className="pt-4 md:pt-8">
+            <div className="flex justify-between items-center mb-6">
                 <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em]">Daily Pulse</p>
                 {briefing && (
                     <button 
@@ -150,12 +203,47 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             )}
         </div>
 
+        {/* Project Health Overview */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+            <div className="col-span-1 md:col-span-2 lg:col-span-1 p-5 rounded-2xl bg-gray-50 dark:bg-zinc-900/50 border border-gray-100 dark:border-gray-800 flex flex-col justify-between">
+                <div>
+                    <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">Global Completion</h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Total task velocity</p>
+                </div>
+                <div className="flex items-end gap-2 mt-6">
+                    <span className="text-4xl font-bold text-black dark:text-white tracking-tighter">{globalStats.percent}%</span>
+                    <span className="text-xs text-gray-400 mb-1.5 font-medium">DONE</span>
+                </div>
+                <div className="w-full bg-gray-200 dark:bg-gray-700 h-1.5 rounded-full mt-4 overflow-hidden">
+                    <div className="bg-black dark:bg-white h-full rounded-full transition-all duration-1000" style={{ width: `${globalStats.percent}%` }}></div>
+                </div>
+            </div>
+
+            {projectStats.slice(0, 3).map(p => (
+                <div key={p.id} className="p-5 rounded-2xl bg-white dark:bg-black border border-gray-100 dark:border-gray-800 shadow-sm hover:border-gray-300 dark:hover:border-gray-700 transition-all group cursor-pointer" onClick={() => onNavigate('document', '')}>
+                    <div className="flex justify-between items-start mb-4">
+                        <div className="w-8 h-8 rounded-lg bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-lg shadow-sm border border-gray-100 dark:border-gray-700">
+                            {p.icon || '📁'}
+                        </div>
+                        <CircularProgress percent={p.percent} size={32} />
+                    </div>
+                    <div>
+                        <h4 className="font-medium text-sm text-gray-900 dark:text-gray-100 truncate group-hover:underline decoration-1 underline-offset-4">{p.title}</h4>
+                        <div className="flex gap-3 mt-2 text-[10px] text-gray-500 font-medium uppercase tracking-wide">
+                            <span>{p.total} Tasks</span>
+                            <span className="text-green-600 dark:text-green-500">{p.done} Done</span>
+                        </div>
+                    </div>
+                </div>
+            ))}
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 lg:gap-16">
             
             {/* Focus List */}
             <div className="lg:col-span-2 space-y-8">
                 <div className="flex items-baseline justify-between border-b border-gray-100 dark:border-gray-800 pb-4">
-                    <h2 className="text-[10px] font-bold text-gray-900 dark:text-white uppercase tracking-[0.2em]">Focus</h2>
+                    <h2 className="text-[10px] font-bold text-gray-900 dark:text-white uppercase tracking-[0.2em]">Urgent Focus</h2>
                     <span className="text-[10px] font-medium text-gray-400">items: {focusList.length}</span>
                 </div>
 
@@ -167,7 +255,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                             className="group py-5 md:py-6 border-b border-gray-50 dark:border-gray-800 flex items-start gap-4 md:gap-5 cursor-pointer hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition-colors -mx-2 md:-mx-4 px-2 md:px-4 rounded-xl"
                         >
                             <div className={`mt-2 w-2 h-2 rounded-full flex-shrink-0 ${
-                                task.priority === TaskPriority.HIGH ? 'bg-black dark:bg-white' : 'bg-gray-300 dark:bg-gray-600'
+                                task.priority === TaskPriority.HIGH ? 'bg-red-500' : 'bg-orange-400'
                             }`}>
                             </div>
                             <div className="flex-1 min-w-0">
@@ -201,19 +289,19 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         <span>Team Workload</span>
                         <BarChart2 className="w-3.5 h-3.5 text-gray-400" />
                     </h2>
-                    <div className="space-y-3">
+                    <div className="space-y-4">
                         {workloadStats.map(([member, count]) => (
                             <div key={member} className="flex items-center gap-3 text-sm">
-                                <div className="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-[10px] font-medium text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700">
+                                <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-xs font-bold text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700">
                                     {member.startsWith('AI_') ? 'AI' : member.charAt(0)}
                                 </div>
-                                <div className="flex-1 h-1.5 bg-gray-50 dark:bg-gray-800 rounded-full overflow-hidden">
+                                <div className="flex-1 h-2 bg-gray-50 dark:bg-gray-800 rounded-full overflow-hidden">
                                     <div 
                                         className={`h-full rounded-full ${count > 5 ? 'bg-red-400' : count > 2 ? 'bg-black dark:bg-white' : 'bg-gray-300 dark:bg-gray-600'}`} 
                                         style={{ width: `${Math.min((count / 10) * 100, 100)}%` }}
                                     ></div>
                                 </div>
-                                <span className="text-xs font-medium text-gray-600 dark:text-gray-300 w-4 text-right">{count}</span>
+                                <span className="text-xs font-bold text-gray-600 dark:text-gray-300 w-4 text-right">{count}</span>
                             </div>
                         ))}
                     </div>
