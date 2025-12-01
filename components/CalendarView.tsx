@@ -109,7 +109,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onSelectTask,
   };
 
   return (
-    <div className="flex-1 h-full flex flex-col bg-white dark:bg-gray-900 overflow-hidden font-sans transition-colors duration-200">
+    <div className="flex-1 h-full flex flex-col bg-white dark:bg-black overflow-hidden font-sans transition-colors duration-200">
       {/* Header */}
       <div className="flex items-center justify-between px-8 py-5 border-b border-gray-100 dark:border-gray-800 shrink-0">
         <div className="flex items-center gap-4">
@@ -147,10 +147,10 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onSelectTask,
       </div>
 
       {/* Grid Body */}
-      <div className="flex-1 grid grid-cols-7 grid-rows-6 bg-gray-50/30 dark:bg-gray-900 overflow-hidden">
+      <div className="flex-1 grid grid-cols-7 grid-rows-6 bg-gray-50/30 dark:bg-black overflow-hidden">
         {/* Empty cells for start padding */}
         {Array.from({ length: firstDay }).map((_, i) => (
-            <div key={`empty-${i}`} className="border-b border-r border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900"></div>
+            <div key={`empty-${i}`} className="border-b border-r border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-black"></div>
         ))}
 
         {/* Days */}
@@ -166,8 +166,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onSelectTask,
                     onDragOver={(e) => handleDragOver(e, day)}
                     onDrop={(e) => handleDrop(e, day)}
                     className={`group border-b border-r border-gray-100 dark:border-gray-800 p-2 transition-all relative flex flex-col gap-1 overflow-hidden
-                        ${isToday ? 'bg-white dark:bg-gray-800 ring-1 ring-inset ring-black dark:ring-white z-10' : ''}
-                        ${isDragOver ? 'bg-indigo-50/80 dark:bg-indigo-900/50 ring-2 ring-inset ring-indigo-200 dark:ring-indigo-500' : 'hover:bg-white dark:hover:bg-gray-800'}
+                        ${isToday ? 'bg-white dark:bg-gray-900 ring-1 ring-inset ring-black dark:ring-white z-10' : ''}
+                        ${isDragOver ? 'bg-indigo-50/80 dark:bg-indigo-900/50 ring-2 ring-inset ring-indigo-200 dark:ring-indigo-500' : 'hover:bg-white dark:hover:bg-gray-900'}
                     `}
                 >
                     <div className="flex justify-between items-start mb-1 pointer-events-none">
@@ -205,7 +205,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onSelectTask,
         
         {/* End padding to fill grid (Always target 42 cells) */}
         {Array.from({ length: totalSlots - (daysInMonth + firstDay) }).map((_, i) => (
-            <div key={`end-${i}`} className="border-b border-r border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900"></div>
+            <div key={`end-${i}`} className="border-b border-r border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-black"></div>
         ))}
       </div>
     </div>

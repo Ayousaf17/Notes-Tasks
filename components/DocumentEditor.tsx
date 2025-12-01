@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Document, Task, TaskPriority, TaskStatus } from '../types';
 import { Wand2, ListChecks, RefreshCw, X, Check, User, Flag, AlignLeft, Tag as TagIcon, Sparkles, Edit3, Eye, SpellCheck, Scissors, Table as TableIcon, Link as LinkIcon, FileText, Maximize2, Minimize2, Heading1, Heading2, List, CheckSquare, Plus, Loader2 } from 'lucide-react';
@@ -27,10 +28,24 @@ const getCaretCoordinates = (element: HTMLTextAreaElement, position: number) => 
     return { left: elementLeft + spanLeft, top: elementTop + spanTop };
 };
 
-// Enhanced Markdown Renderer for Read Mode
-const MarkdownRenderer: React.FC<{ text: string }> = ({ text }) => {
+// Enhanced Markdown Renderer with Navigation support
+const MarkdownRenderer: React.FC<{ 
+    text: string; 
+    onNavigate?: (type: 'document' | 'task', id: string) => void;
+    allDocuments?: Document[]; 
+}> = ({ text, onNavigate, allDocuments }) => {
     const lines = text.split('\n');
     let inCodeBlock = false;
+
+    const handleLinkClick = (title: string) => {
+        if (!onNavigate || !allDocuments) return;
+        const targetDoc = allDocuments.find(d => d.title.toLowerCase() === title.toLowerCase());
+        if (targetDoc) {
+            onNavigate('document', targetDoc.id);
+        } else {
+            console.log("Document not found:", title);
+        }
+    };
 
     return (
         <div className="space-y-4 text-gray-800 dark:text-gray-200 leading-relaxed">
@@ -97,7 +112,16 @@ const MarkdownRenderer: React.FC<{ text: string }> = ({ text }) => {
                             if (linkParts.length > 1) {
                                 return linkParts.map((lp, k) => {
                                     if (lp.startsWith('[[') && lp.endsWith(']]')) {
-                                        return <span key={`${j}-${k}`} className="text-purple-600 dark:text-purple-400 underline decoration-purple-300 dark:decoration-purple-700 underline-offset-2 cursor-pointer hover:text-purple-800 dark:hover:text-purple-300">{lp.slice(2, -2)}</span>;
+                                        const linkText = lp.slice(2, -2);
+                                        return (
+                                            <span 
+                                                key={`${j}-${k}`} 
+                                                onClick={() => handleLinkClick(linkText)}
+                                                className="text-purple-600 dark:text-purple-400 underline decoration-purple-300 dark:decoration-purple-700 underline-offset-2 cursor-pointer hover:text-purple-800 dark:hover:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded px-0.5 transition-colors"
+                                            >
+                                                {linkText}
+                                            </span>
+                                        );
                                     }
                                     return lp;
                                 });
@@ -131,6 +155,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
   const [slashMenu, setSlashMenu] = useState<{ x: number, y: number, query: string } | null>(null);
   const [hoverMenu, setHoverMenu] = useState<{ x: number, y: number, text: string, range: [number, number] } | null>(null);
   
+  // Auto-resize textarea
   useEffect(() => {
     if (textareaRef.current && !isReadMode) {
         textareaRef.current.style.height = 'auto';
@@ -154,12 +179,21 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
   const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newVal = e.target.value;
     const { selectionStart } = e.target;
+    
+    // Check for Slash Command trigger
     if (newVal[selectionStart - 1] === '/') {
         const coords = getCaretCoordinates(e.target, selectionStart);
-        setSlashMenu({ x: coords.left, y: coords.top + 30, query: '' });
+        // Adjust for scroll position
+        const rect = e.target.getBoundingClientRect();
+        setSlashMenu({ 
+            x: rect.left + coords.left, 
+            y: rect.top + coords.top + 30 + window.scrollY, 
+            query: '' 
+        });
     } else if (slashMenu) {
         setSlashMenu(null); 
     }
+    
     handleUpdate({ ...doc, content: newVal, updatedAt: new Date() });
   };
 
@@ -168,7 +202,13 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
       const { selectionStart, selectionEnd } = textareaRef.current;
       if (selectionStart !== selectionEnd) {
           const coords = getCaretCoordinates(textareaRef.current, selectionEnd);
-          setHoverMenu({ x: coords.left - 60, y: coords.top - 50, text: doc.content.substring(selectionStart, selectionEnd), range: [selectionStart, selectionEnd] });
+           const rect = textareaRef.current.getBoundingClientRect();
+           setHoverMenu({ 
+               x: rect.left + coords.left - 60, 
+               y: rect.top + coords.top - 50 + window.scrollY, 
+               text: doc.content.substring(selectionStart, selectionEnd), 
+               range: [selectionStart, selectionEnd] 
+           });
       } else {
           setHoverMenu(null);
       }
@@ -185,7 +225,6 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
       if (hoverMenu && hoverMenu.text) {
           setIsExtractingTask(true);
           
-          // AI Logic: Short selection = single task title. Long selection = parsing request.
           let tasksToCreate: Partial<Task>[] = [];
           
           if (hoverMenu.text.length > 100) {
@@ -233,7 +272,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
   };
 
   return (
-    <div className={`flex-1 h-full overflow-y-auto bg-white dark:bg-gray-900 font-sans transition-all duration-500 ${isZenMode ? 'fixed inset-0 z-[100] px-0 py-0' : ''}`}>
+    <div className={`flex-1 h-full overflow-y-auto bg-white dark:bg-black font-sans transition-all duration-500 ${isZenMode ? 'fixed inset-0 z-[100] px-0 py-0' : ''}`}>
       {/* Top Padding increased to pt-24 to prevent overlap with header */}
       <div className={`mx-auto transition-all duration-500 min-h-[calc(100vh-4rem)] ${isZenMode ? 'max-w-4xl px-8 py-20' : 'max-w-3xl px-8 pt-24 pb-12'}`}>
         
@@ -290,7 +329,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
         {/* Editor */}
         <div className="relative">
             {isReadMode ? (
-                <MarkdownRenderer text={doc.content} />
+                <MarkdownRenderer text={doc.content} onNavigate={onNavigate} allDocuments={allDocuments} />
             ) : (
                 <textarea
                     ref={textareaRef}

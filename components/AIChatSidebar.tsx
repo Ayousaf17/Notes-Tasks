@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { ChatMessage, Attachment, ProjectPlan } from '../types';
-import { Send, X, Bot, Paperclip, Mic, Loader2, FileText, Sparkles, Music } from 'lucide-react';
+import { ChatMessage, Attachment, ProjectPlan, Document, Task } from '../types';
+import { Send, X, Bot, Paperclip, Mic, Loader2, FileText, Sparkles, Music, Trash2, BrainCircuit } from 'lucide-react';
 import { geminiService } from '../services/geminiService';
 
 interface AIChatSidebarProps {
@@ -11,6 +11,8 @@ interface AIChatSidebarProps {
   onProjectPlanCreated: (plan: ProjectPlan) => void;
   messages: ChatMessage[];
   setMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>;
+  allDocuments: Document[];
+  allTasks: Task[];
 }
 
 // Helper for rendering cleaner markdown-like text
@@ -101,10 +103,13 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
   contextData, 
   onProjectPlanCreated,
   messages,
-  setMessages
+  setMessages,
+  allDocuments,
+  allTasks
 }) => {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [retrievingContext, setRetrievingContext] = useState(false);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [isRecording, setIsRecording] = useState(false);
   const [isAnalysingPlan, setIsAnalysingPlan] = useState(false);
@@ -114,11 +119,41 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
 
+  // Auto-save messages to local storage
+  useEffect(() => {
+    if (messages.length > 0) {
+      localStorage.setItem('chat_history', JSON.stringify(messages));
+    }
+  }, [messages]);
+
+  // Load messages on mount
+  useEffect(() => {
+    const stored = localStorage.getItem('chat_history');
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored).map((m: any) => ({
+          ...m,
+          timestamp: new Date(m.timestamp)
+        }));
+        if (parsed.length > 0 && messages.length <= 1) { // Only restore if we haven't already added a new message
+             setMessages(parsed);
+        }
+      } catch(e) { console.error("Failed to load chat history", e); }
+    }
+  }, []);
+
+  const clearHistory = () => {
+    if (confirm("Clear chat history?")) {
+        setMessages([{ id: 'init', role: 'model', text: 'History cleared. How can I help you now?', timestamp: new Date() }]);
+        localStorage.removeItem('chat_history');
+    }
+  };
+
   useEffect(() => {
     if (bottomRef.current) {
       bottomRef.current.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [messages, attachments]);
+  }, [messages, attachments, loading, retrievingContext]);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -234,16 +269,32 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
         }
         setIsAnalysingPlan(false);
     } else {
-        const history = messages.map(m => ({
+        // --- RAG-Lite Implementation ---
+        setRetrievingContext(true);
+        
+        // 1. Get relevant context from other docs if query implies it
+        let retrievedContext = "";
+        
+        // Simple heuristic: If prompt is short, don't search everything. If it looks like a question, search.
+        if (currentInput.split(' ').length > 2) {
+             retrievedContext = await geminiService.findRelevantContext(currentInput, allDocuments, allTasks);
+        }
+        
+        setRetrievingContext(false);
+
+        // 2. Prepare Context
+        // Combine Active Doc + Retrieved Context + Recent Chat History
+        let fullSystemContext = "";
+        if (contextData) fullSystemContext += `ACTIVE DOCUMENT CONTENT:\n${contextData}\n\n`;
+        if (retrievedContext) fullSystemContext += `RETRIEVED KNOWLEDGE (From other files):\n${retrievedContext}\n\n`;
+        
+        // 3. Send to Chat
+        const history = messages.slice(-10).map(m => ({
             role: m.role,
             parts: [{ text: m.text }]
         }));
         
-        const prompt = contextData && messages.length < 3
-            ? `Context from current view: ${contextData}\n\nUser: ${currentInput}` 
-            : currentInput;
-
-        const responseText = await geminiService.chat(history, prompt, currentAttachments);
+        const responseText = await geminiService.chat(history, currentInput, currentAttachments, fullSystemContext);
 
         const aiMsg: ChatMessage = {
             id: (Date.now() + 1).toString(),
@@ -261,20 +312,25 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="w-full md:w-[420px] bg-white dark:bg-gray-900 border-l border-gray-100 dark:border-gray-800 flex flex-col shadow-2xl shadow-gray-200/50 dark:shadow-black/50 absolute right-0 top-0 bottom-0 z-50 transition-transform font-sans">
+    <div className="w-full md:w-[420px] bg-white dark:bg-black border-l border-gray-100 dark:border-gray-800 flex flex-col shadow-2xl shadow-gray-200/50 dark:shadow-black/50 absolute right-0 top-0 bottom-0 z-50 transition-transform font-sans">
       {/* Header */}
-      <div className="p-5 border-b border-gray-50 dark:border-gray-800 flex items-center justify-between bg-white dark:bg-gray-900">
+      <div className="p-5 border-b border-gray-50 dark:border-gray-800 flex items-center justify-between bg-white dark:bg-black">
         <div className="flex items-center space-x-2">
           <div className="w-2 h-2 bg-black dark:bg-white rounded-full" />
           <span className="font-semibold text-gray-900 dark:text-white text-sm tracking-tight">Aasani</span>
         </div>
-        <button onClick={onClose} className="text-gray-400 hover:text-black dark:hover:text-white transition-colors">
-          <X className="w-4 h-4" />
-        </button>
+        <div className="flex items-center gap-2">
+            <button onClick={clearHistory} className="text-gray-400 hover:text-red-500 transition-colors" title="Clear History">
+              <Trash2 className="w-4 h-4" />
+            </button>
+            <button onClick={onClose} className="text-gray-400 hover:text-black dark:hover:text-white transition-colors">
+              <X className="w-4 h-4" />
+            </button>
+        </div>
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-5 space-y-8 bg-white dark:bg-gray-900">
+      <div className="flex-1 overflow-y-auto p-5 space-y-8 bg-white dark:bg-black">
         {messages.map((msg) => (
           <div key={msg.id} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
              <div className={`max-w-[95%] ${msg.role === 'user' ? 'text-right' : 'text-left w-full'}`}>
@@ -308,11 +364,16 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
         ))}
         
         {loading && (
-            <div className="flex items-center space-x-2 text-xs text-gray-400 px-4">
-                {isAnalysingPlan ? (
+            <div className="flex items-center space-x-2 text-xs text-gray-400 px-4 animate-pulse">
+                {retrievingContext ? (
+                    <>
+                         <BrainCircuit className="w-3 h-3 text-purple-500" />
+                         <span className="text-purple-500 font-medium">Scanning workspace...</span>
+                    </>
+                ) : isAnalysingPlan ? (
                    <>
-                     <Sparkles className="w-3 h-3 animate-spin text-purple-500" />
-                     <span className="text-purple-500 font-medium">Analyzing...</span>
+                     <Sparkles className="w-3 h-3 text-purple-500" />
+                     <span className="text-purple-500 font-medium">Building Plan...</span>
                    </>
                 ) : (
                    <>
@@ -326,7 +387,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
       </div>
 
       {/* Input Area (Pill Design) */}
-      <div className="p-4 bg-white dark:bg-gray-900 pb-6 relative">
+      <div className="p-4 bg-white dark:bg-black pb-6 relative">
         {/* Active Attachments Preview */}
         {attachments.length > 0 && (
             <div className="flex space-x-2 mb-3 overflow-x-auto px-1">
@@ -342,7 +403,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
             </div>
         )}
 
-        <div className="bg-zinc-100 dark:bg-zinc-800 rounded-full px-2 py-1.5 flex items-center gap-2 border border-transparent focus-within:bg-white dark:focus-within:bg-gray-800 focus-within:ring-2 focus-within:ring-black/5 dark:focus-within:ring-white/10 focus-within:border-zinc-200 dark:focus-within:border-gray-700 transition-all shadow-sm">
+        <div className="bg-zinc-100 dark:bg-zinc-800 rounded-full px-2 py-1.5 flex items-center gap-2 border border-transparent focus-within:bg-white dark:focus-within:bg-gray-900 focus-within:ring-2 focus-within:ring-black/5 dark:focus-within:ring-white/10 focus-within:border-zinc-200 dark:focus-within:border-gray-700 transition-all shadow-sm">
             
             {/* Left Actions */}
             <div className="flex items-center gap-0.5 pl-1">

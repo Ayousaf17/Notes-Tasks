@@ -49,12 +49,14 @@ export const GraphView: React.FC<GraphViewProps> = ({ documents, tasks, onNaviga
 
     // Create Nodes
     documents.forEach(doc => {
+        // Reuse existing position if possible to avoid reset
+        const existing = nodes.find(n => n.id === doc.id);
         newNodes.push({
             id: doc.id,
             type: 'document',
             label: doc.title || 'Untitled',
-            x: centerX + (Math.random() - 0.5) * 200,
-            y: centerY + (Math.random() - 0.5) * 200,
+            x: existing ? existing.x : centerX + (Math.random() - 0.5) * 200,
+            y: existing ? existing.y : centerY + (Math.random() - 0.5) * 200,
             vx: 0,
             vy: 0,
             data: doc,
@@ -63,12 +65,13 @@ export const GraphView: React.FC<GraphViewProps> = ({ documents, tasks, onNaviga
     });
 
     tasks.forEach(task => {
+        const existing = nodes.find(n => n.id === task.id);
         newNodes.push({
             id: task.id,
             type: 'task',
             label: task.title,
-            x: centerX + (Math.random() - 0.5) * 300,
-            y: centerY + (Math.random() - 0.5) * 300,
+            x: existing ? existing.x : centerX + (Math.random() - 0.5) * 300,
+            y: existing ? existing.y : centerY + (Math.random() - 0.5) * 300,
             vx: 0,
             vy: 0,
             data: task,
@@ -94,24 +97,35 @@ export const GraphView: React.FC<GraphViewProps> = ({ documents, tasks, onNaviga
 
     // 3. Doc -> Doc/Task (Wiki Links & Mentions)
     documents.forEach(doc => {
-        // Wiki Links
+        // Nexus Links
         const regex = /nexus:\/\/(document|task)\/([a-zA-Z0-9-.]+)/g;
         let match;
         while ((match = regex.exec(doc.content)) !== null) {
             const targetType = match[1];
             const targetId = match[2];
-            // Verify target exists
             const exists = targetType === 'document' ? documents.find(d => d.id === targetId) : tasks.find(t => t.id === targetId);
             if (exists) {
                 newLinks.push({ source: doc.id, target: targetId, type: 'wiki' });
+            }
+        }
+
+        // Wiki Links [[Title]]
+        const regexWiki = /\[\[(.*?)\]\]/g;
+        let wikiMatch;
+        while ((wikiMatch = regexWiki.exec(doc.content)) !== null) {
+            const title = wikiMatch[1];
+            const foundDoc = documents.find(d => d.title.toLowerCase() === title.toLowerCase());
+            if (foundDoc && foundDoc.id !== doc.id) {
+                newLinks.push({ source: doc.id, target: foundDoc.id, type: 'wiki' });
             }
         }
     });
 
     setNodes(newNodes);
     setLinks(newLinks);
-    setOffset({ x: 0, y: 0 }); // Reset View
-  }, [documents, tasks]); // Re-build on data change
+    // Only reset offset if it's the first load
+    if (nodes.length === 0) setOffset({ x: 0, y: 0 });
+  }, [documents, tasks]); 
 
 
   // --- 2. Simulation Loop ---
@@ -153,7 +167,7 @@ export const GraphView: React.FC<GraphViewProps> = ({ documents, tasks, onNaviga
                     const distance = Math.sqrt(dx * dx + dy * dy) || 1;
                     
                     // Spring force
-                    const force = (distance - 100) * k; 
+                    const force = (distance - 150) * k; 
                     const fx = (dx / distance) * force;
                     const fy = (dy / distance) * force;
 
@@ -194,7 +208,7 @@ export const GraphView: React.FC<GraphViewProps> = ({ documents, tasks, onNaviga
 
     animationFrameId = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(animationFrameId);
-  }, [links, dragNodeId]); // Dependencies for simulation params
+  }, [links, dragNodeId]);
 
 
   // --- 3. Interaction Handlers ---
@@ -247,7 +261,7 @@ export const GraphView: React.FC<GraphViewProps> = ({ documents, tasks, onNaviga
   return (
     <div 
         ref={containerRef}
-        className="flex-1 h-full bg-slate-50 dark:bg-gray-950 relative overflow-hidden cursor-move select-none transition-colors duration-200"
+        className="flex-1 h-full bg-slate-50 dark:bg-black relative overflow-hidden cursor-move select-none transition-colors duration-200"
         onMouseMove={(e) => { handleMouseMove(e); handlePan(e); }}
         onMouseUp={handleMouseUp}
         onWheel={handleWheel}
@@ -359,7 +373,7 @@ export const GraphView: React.FC<GraphViewProps> = ({ documents, tasks, onNaviga
             <div className="w-full h-[1px] bg-gray-100 dark:bg-gray-800 my-1"></div>
             <div className="flex items-center gap-2">
                 <div className="w-6 h-[2px] bg-slate-300 dark:bg-gray-600"></div>
-                <span>Wiki Link</span>
+                <span>Link / Ref</span>
             </div>
             <div className="flex items-center gap-2">
                 <div className="w-6 h-[2px] bg-slate-300 dark:bg-gray-600 border-b border-dashed"></div>

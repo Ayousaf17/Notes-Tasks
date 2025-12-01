@@ -340,7 +340,7 @@ const App: React.FC = () => {
         title: t.title || 'New Task',
         description: t.description,
         status: (t.status as TaskStatus) || TaskStatus.TODO,
-        dueDate: (t as any).dueDate ? new Date((t as any).dueDate) : undefined,
+        dueDate: t.dueDate ? new Date(t.dueDate) : undefined,
         assignee: t.assignee || 'Unassigned',
         priority: t.priority || TaskPriority.MEDIUM,
         dependencies: [],
@@ -560,9 +560,17 @@ const App: React.FC = () => {
                 ) : currentView === ViewMode.DOCUMENTS && activeDocument ? (
                     <DocumentEditor document={activeDocument} allDocuments={documents} allTasks={tasks} onUpdate={handleUpdateDocument} onExtractTasks={handleExtractTasks} onNavigate={handleNavigate} />
                 ) : currentView === ViewMode.DOCUMENTS && !activeDocument ? (
-                    <div className="flex flex-col items-center justify-center h-full text-gray-300 dark:text-gray-600">
-                        <Plus className="w-8 h-8 mb-4 text-gray-200 dark:text-gray-700" />
-                        <p className="text-sm">Select or create a page</p>
+                    <div className="flex flex-col items-center justify-center h-full text-gray-400 dark:text-gray-600 animate-in fade-in zoom-in-95 duration-300">
+                        <button 
+                            onClick={handleCreateDocument}
+                            className="group flex flex-col items-center p-8 rounded-2xl hover:bg-gray-50 dark:hover:bg-gray-900 transition-all border border-transparent hover:border-gray-100 dark:hover:border-gray-800"
+                        >
+                            <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-2xl flex items-center justify-center mb-4 shadow-sm group-hover:scale-110 group-hover:shadow-md transition-all duration-300">
+                                <Plus className="w-8 h-8 text-gray-400 dark:text-gray-500 group-hover:text-black dark:group-hover:text-white transition-colors" />
+                            </div>
+                            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-1">Create a new page</h3>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">Start writing or use AI to generate content.</p>
+                        </button>
                     </div>
                 ) : currentView === ViewMode.BOARD || currentView === ViewMode.GLOBAL_BOARD ? (
                     <TaskBoard 
@@ -607,6 +615,8 @@ const App: React.FC = () => {
             onProjectPlanCreated={handleProjectPlanCreated}
             messages={chatMessages}
             setMessages={setChatMessages}
+            allDocuments={documents}
+            allTasks={tasks}
         />
 
         <CommandPalette isOpen={isCommandPaletteOpen} onClose={() => setIsCommandPaletteOpen(false)} documents={documents} tasks={tasks} projects={projects} onNavigate={handleNavigate} onCreateDocument={handleCreateDocument} onChangeView={setCurrentView} onSelectProject={setActiveProjectId} />

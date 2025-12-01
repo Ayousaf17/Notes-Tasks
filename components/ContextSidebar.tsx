@@ -14,21 +14,41 @@ export const ContextSidebar: React.FC<ContextSidebarProps> = ({ currentDoc, allD
   
   // 1. Calculate Backlinks: Docs that link TO currentDoc
   const backlinks = useMemo(() => {
-      return allDocs.filter(d => d.id !== currentDoc.id && d.content.includes(`nexus://document/${currentDoc.id}`));
+      // Check for nexus:// links OR [[Title]] links
+      return allDocs.filter(d => {
+          if (d.id === currentDoc.id) return false;
+          const hasNexusLink = d.content.includes(`nexus://document/${currentDoc.id}`);
+          const hasWikiLink = d.content.toLowerCase().includes(`[[${currentDoc.title.toLowerCase()}]]`);
+          return hasNexusLink || hasWikiLink;
+      });
   }, [currentDoc, allDocs]);
 
   // 2. Calculate Outgoing Links: Docs that currentDoc links TO
   const outgoingLinks = useMemo(() => {
       const links: Document[] = [];
-      const regex = /nexus:\/\/document\/([a-zA-Z0-9-]+)/g;
+      
+      // Nexus Links
+      const regexNexus = /nexus:\/\/document\/([a-zA-Z0-9-]+)/g;
       let match;
-      while ((match = regex.exec(currentDoc.content)) !== null) {
+      while ((match = regexNexus.exec(currentDoc.content)) !== null) {
           const linkedId = match[1];
           const found = allDocs.find(d => d.id === linkedId);
           if (found && !links.find(l => l.id === found.id)) {
               links.push(found);
           }
       }
+
+      // Wiki Links [[Title]]
+      const regexWiki = /\[\[(.*?)\]\]/g;
+      let wikiMatch;
+      while ((wikiMatch = regexWiki.exec(currentDoc.content)) !== null) {
+          const title = wikiMatch[1];
+          const found = allDocs.find(d => d.title.toLowerCase() === title.toLowerCase());
+          if (found && !links.find(l => l.id === found.id)) {
+              links.push(found);
+          }
+      }
+
       return links;
   }, [currentDoc, allDocs]);
 
@@ -49,7 +69,7 @@ export const ContextSidebar: React.FC<ContextSidebarProps> = ({ currentDoc, allD
   }, [currentDoc, allTasks]);
 
   return (
-    <div className="w-72 bg-white dark:bg-gray-900 border-l border-gray-100 dark:border-gray-800 h-full flex flex-col shrink-0 overflow-y-auto transition-colors duration-200">
+    <div className="w-72 bg-white dark:bg-black border-l border-gray-100 dark:border-gray-800 h-full flex flex-col shrink-0 overflow-y-auto transition-colors duration-200">
       <div className="p-4 border-b border-gray-50 dark:border-gray-800 bg-gray-50/30 dark:bg-gray-900/50">
           <div className="flex items-center space-x-2 text-gray-500 dark:text-gray-400">
               <GitGraph className="w-4 h-4" />
@@ -71,7 +91,7 @@ export const ContextSidebar: React.FC<ContextSidebarProps> = ({ currentDoc, allD
                         <button 
                             key={t.id}
                             onClick={() => onNavigate('task', t.id)}
-                            className="w-full text-left p-2 rounded bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-500 transition-colors group"
+                            className="w-full text-left p-2 rounded bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-500 transition-colors group"
                         >
                             <div className="text-xs font-medium text-gray-700 dark:text-gray-200 group-hover:text-black dark:group-hover:text-white truncate">{t.title}</div>
                             <div className="text-[10px] text-gray-400 mt-0.5 flex justify-between">
@@ -98,7 +118,7 @@ export const ContextSidebar: React.FC<ContextSidebarProps> = ({ currentDoc, allD
                         <button
                             key={d.id}
                             onClick={() => onNavigate('document', d.id)}
-                            className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors"
+                            className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 dark:hover:bg-gray-900 text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors"
                         >
                             <FileText className="w-3 h-3 text-gray-400 dark:text-gray-500" />
                             <span className="text-xs truncate">{d.title}</span>
@@ -122,7 +142,7 @@ export const ContextSidebar: React.FC<ContextSidebarProps> = ({ currentDoc, allD
                         <button
                             key={d.id}
                             onClick={() => onNavigate('document', d.id)}
-                            className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors"
+                            className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 dark:hover:bg-gray-900 text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors"
                         >
                             <FileText className="w-3 h-3 text-gray-400 dark:text-gray-500" />
                             <span className="text-xs truncate">{d.title}</span>

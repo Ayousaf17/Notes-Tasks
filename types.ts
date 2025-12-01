@@ -117,7 +117,7 @@ export interface Attachment {
 export interface ProjectPlan {
   projectTitle: string;
   overviewContent: string;
-  tasks: Partial<Task>[];
+  tasks: Array<Partial<Task> & { dueDate?: string }>;
 }
 
 export interface UserContext {

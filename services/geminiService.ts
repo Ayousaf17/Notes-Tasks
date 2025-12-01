@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type, Schema } from "@google/genai";
-import { Task, TaskStatus, TaskPriority, ProjectPlan, Attachment, Project, InboxAction, AgentRole, AgentResult } from "../types";
+import { Task, TaskStatus, TaskPriority, ProjectPlan, Attachment, Project, InboxAction, AgentRole, AgentResult, Document } from "../types";
 
 const apiKey = process.env.API_KEY;
 const ai = new GoogleGenAI({ apiKey: apiKey || 'dummy_key' });
@@ -11,7 +11,7 @@ export const geminiService = {
   /**
    * Multimodal Chat interaction
    */
-  async chat(history: { role: string; parts: { text?: string; inlineData?: any }[] }[], message: string, attachments: Attachment[] = []): Promise<string> {
+  async chat(history: { role: string; parts: { text?: string; inlineData?: any }[] }[], message: string, attachments: Attachment[] = [], systemContext?: string): Promise<string> {
     if (!apiKey) return "Error: No API Key configured.";
 
     try {
@@ -22,7 +22,14 @@ export const geminiService = {
             parts: h.parts
         })),
         config: {
-          systemInstruction: "You are Aasani, the AI system core for Aasani OS. You are an intelligent operating partner. You help organize projects, simplify workflows, and connect information. You are concise, proactive, and structured.",
+          systemInstruction: `You are Aasani, the AI system core for Aasani OS. You are an intelligent operating partner. 
+          
+          ${systemContext ? `CURRENT WORKSPACE CONTEXT (Use this to answer): \n${systemContext}\n` : ''}
+          
+          Guidelines:
+          - You help organize projects, simplify workflows, and connect information. 
+          - You are concise, proactive, and structured.
+          - If the user asks about a specific document or task mentioned in the context, use that info.`,
         }
       });
 
@@ -53,6 +60,71 @@ export const geminiService = {
     } catch (error) {
       console.error("Gemini Chat Error:", error);
       return "Sorry, I encountered an error processing your request.";
+    }
+  },
+
+  /**
+   * RAG-lite: Selects relevant documents based on the query
+   */
+  async findRelevantContext(query: string, documents: Document[], tasks: Task[]): Promise<string> {
+    if (!apiKey) return "";
+    if (documents.length === 0 && tasks.length === 0) return "";
+
+    // 1. Create a lightweight index of available data
+    const docIndex = documents.map(d => `DOC_ID: ${d.id}, TITLE: ${d.title}, TAGS: ${d.tags.join(',')}`).join('\n');
+    const taskIndex = tasks.map(t => `TASK_ID: ${t.id}, TITLE: ${t.title}, STATUS: ${t.status}`).join('\n');
+
+    try {
+      // 2. Ask Gemini to pick relevant IDs
+      const response = await ai.models.generateContent({
+        model: MODEL_NAME,
+        contents: `I have a user query: "${query}"
+        
+        Available Documents:
+        ${docIndex}
+        
+        Available Tasks:
+        ${taskIndex}
+        
+        Identify up to 3 Documents and 5 Tasks that are most likely relevant to answering this query.
+        Return a JSON object with arrays of IDs.`,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              documentIds: { type: Type.ARRAY, items: { type: Type.STRING } },
+              taskIds: { type: Type.ARRAY, items: { type: Type.STRING } }
+            }
+          }
+        }
+      });
+
+      const result = JSON.parse(response.text || "{}");
+      const relevantDocIds = result.documentIds || [];
+      const relevantTaskIds = result.taskIds || [];
+
+      // 3. Construct the full context string from the actual content
+      let contextBuilder = "Here is the retrieved context from the workspace:\n\n";
+
+      documents.filter(d => relevantDocIds.includes(d.id)).forEach(d => {
+        contextBuilder += `--- DOCUMENT: ${d.title} ---\n${d.content}\n----------------\n\n`;
+      });
+
+      const relevantTasks = tasks.filter(t => relevantTaskIds.includes(t.id));
+      if (relevantTasks.length > 0) {
+        contextBuilder += `--- RELEVANT TASKS ---\n`;
+        relevantTasks.forEach(t => {
+          contextBuilder += `- [${t.status}] ${t.title} (${t.assignee || 'Unassigned'})\n`;
+        });
+        contextBuilder += `----------------------\n`;
+      }
+
+      return contextBuilder;
+
+    } catch (error) {
+      console.error("Context Retrieval Error:", error);
+      return "";
     }
   },
 
