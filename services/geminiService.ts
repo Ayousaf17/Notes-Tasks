@@ -166,32 +166,25 @@ export const geminiService = {
       try {
           const response = await ai.models.generateContent({
               model: MODEL_NAME,
-              contents: `You are an expert Technical Project Manager. Analyze this raw note from the user's inbox.
+              contents: `You are an Expert Technical Project Manager. Use the following user note to perform an action.
               
-              **Context**: The user frequently pastes "Brain Dumps" or "Project Status Updates" from ChatGPT or other tools.
+              **User Note**: "${content}"
               
               **Decision Logic**:
-              1. **Is this a Project Summary?** (Contains headers like "1. Feature X", "Progress Summary", lists of "Built", "Fixed", etc.)
-                 -> Action: 'create_project'
-              2. **Is this a single Task or Document?**
-                 -> Action: 'create_task' or 'create_document'
+              1. **CREATE_PROJECT**: If the note contains a detailed list of features, progress updates (like "1. Feature A", "2. Backend"), or a summary of work done -> Action: 'create_project'.
+              2. **CREATE_TASK/DOC**: If it's a single item.
 
-              **IF 'create_project' (Project Import Mode):**
-              - **Project Title**: Extract the specific name (e.g. "Ironside AI", "V2 Redesign").
-              - **Overview Document**: Convert the text into a clean Markdown formatted "Project History & Context". 
-                - Keep the headers (e.g. "## 1. Backend").
-                - Keep the details. This is the source of truth.
-              - **Tasks Extraction (CRITICAL)**:
-                - Break down the text into granular tasks. 
-                - **Status Mapping Rules**:
-                  - "Built", "Shipped", "Fixed", "Implemented", "Created", "Delivered", "Completed", "Done" -> **'Done'**
-                  - "Working on", "Currently", "In progress", "Refining" -> **'In Progress'**
-                  - "Waiting for", "Next steps", "Plan to", "If X wants", "To do", "Scope expansion" -> **'To Do'**
-                - **Priority**: Infer High/Medium based on context (e.g. "Critical", "Blocker" = High).
+              **IF 'create_project' (CRITICAL INSTRUCTIONS):**
+              - **Project Title**: Extract the name (e.g., "Ironside AI", "V2 Launch").
+              - **Overview Document**: Create a detailed Markdown "Project Status" document. PRESERVE the structure of the user's note (headers, bullets). Do not summarize too much; keep the technical details.
+              - **Tasks**: Extract EVERY substantive bullet point as a task.
+                - **Status Mapping (BE STRICT)**:
+                  - Past tense verbs ("Built", "Shipped", "Fixed", "Implemented", "Created", "Delivered", "Completed", "Done", "Sent", "Responded") -> **'Done'**
+                  - Present continuous ("Working on", "In progress", "Refining", "Building") -> **'In Progress'**
+                  - Future/Pending ("Need to", "Plan to", "Waiting for", "Next steps", "To do", "If X wants") -> **'To Do'**
+                - **Priority**: Mark 'High' for "Critical", "Blocker", "Core", or "Phase 1". Default to 'Medium'.
 
-              User Note: "${content}"
-              
-              Available Projects (for Option 2):
+              **Available Projects**:
               ${projectContext}
               
               Return JSON matching the schema.`,
@@ -272,16 +265,9 @@ export const geminiService = {
       contentParts.push({ 
         text: `Analyze the provided Project Proposal/Document and the request: "${prompt}". 
                
-               1. **Project Title**: Extract the exact project name (e.g. "Slack + Gorgias AI Agent").
-               2. **Overview Document**: Create a comprehensive Markdown document that includes:
-                  - Executive Summary
-                  - Scope of Work
-                  - **Pricing Table**: Reconstruct the pricing table if present (Fees, Totals).
-                  - **Key Milestones**: List the phases.
-                  - **Risk Analysis**: Add a brief AI-generated section on potential risks based on the timeline.
-               3. **Tasks**: Extract every actionable step from the "Phases" or "Scope" sections.
-                  - **Dates**: If the document contains a "Project Timeline" table with specific dates (e.g., "10/10/2025"), map those dates to the task 'dueDate'.
-                  - **Priority**: Infer priority (Phase 1 is usually High).
+               1. **Project Title**: Extract the exact project name.
+               2. **Overview Document**: Create a comprehensive Markdown document.
+               3. **Tasks**: Extract every actionable step.
                
                Return JSON.` 
       });
