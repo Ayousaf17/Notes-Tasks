@@ -1,4 +1,5 @@
 
+
 export enum ViewMode {
   HOME = 'HOME', 
   DOCUMENTS = 'DOCUMENTS',
@@ -9,13 +10,14 @@ export enum ViewMode {
   REVIEW = 'REVIEW',
   SETTINGS = 'SETTINGS',
   GLOBAL_BOARD = 'GLOBAL_BOARD',
-  GLOBAL_CALENDAR = 'GLOBAL_CALENDAR'
+  GLOBAL_CALENDAR = 'GLOBAL_CALENDAR',
+  CANVAS = 'CANVAS'
 }
 
 export interface Project {
   id: string;
   title: string;
-  icon?: string; // e.g. "🚀"
+  icon?: string;
   description?: string;
   createdAt: Date;
 }
@@ -41,11 +43,10 @@ export enum TaskPriority {
   LOW = 'Low',
 }
 
-// NEW: Agent Roles
 export enum AgentRole {
-  RESEARCHER = 'AI_RESEARCHER', // Finds info, summarizes
-  WRITER = 'AI_WRITER',         // Drafts content
-  PLANNER = 'AI_PLANNER',       // Breaks down into subtasks
+  RESEARCHER = 'AI_RESEARCHER',
+  WRITER = 'AI_WRITER',
+  PLANNER = 'AI_PLANNER',
 }
 
 export interface AgentResult {
@@ -56,11 +57,11 @@ export interface AgentResult {
 
 export interface Task {
   id: string;
-  projectId: string; // Relational Link
+  projectId: string;
   title: string;
   description?: string;
   status: TaskStatus;
-  assignee?: string; // Can be 'Me', 'Alice', or 'AI_RESEARCHER', etc.
+  assignee?: string;
   dueDate?: Date;
   priority?: TaskPriority;
   dependencies?: string[]; 
@@ -69,11 +70,9 @@ export interface Task {
   createdAt: Date;
   updatedAt: Date;
 
-  // NEW: Agent State
   agentStatus?: 'idle' | 'working' | 'completed' | 'failed';
   agentResult?: AgentResult;
 
-  // NEW: External Integration
   externalType?: 'GOOGLE_CALENDAR';
 }
 
@@ -111,7 +110,7 @@ export interface ChatMessage {
   text: string;
   timestamp: Date;
   attachments?: Attachment[];
-  sources?: Source[]; // NEW: Citations
+  sources?: Source[];
 }
 
 export interface Attachment {
@@ -143,7 +142,7 @@ export interface Integration {
   id: string;
   name: string;
   description: string;
-  icon: any; // Lucide icon
+  icon: any;
   connected: boolean;
   category: 'Cloud' | 'AI' | 'Productivity';
   config?: {
@@ -164,6 +163,6 @@ export interface CanvasNode {
 
 export interface CanvasEdge {
   id: string;
-  source: string;
-  target: string;
+  from: string;
+  to: string;
 }

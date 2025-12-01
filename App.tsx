@@ -511,19 +511,28 @@ const App: React.FC = () => {
 
       <main className={`flex-1 flex flex-col h-full relative w-full bg-white dark:bg-black transition-all duration-300 ease-in-out pb-20 md:pb-0 ${isSidebarExpanded ? 'md:pl-64' : 'md:pl-16'}`}>
         <header className="h-14 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between px-6 bg-white dark:bg-black shrink-0 z-20">
-          <div className="flex items-center space-x-3 text-sm">
-             {/* Hamburger removed for mobile as requested */}
-             <span className="font-medium text-black dark:text-white inline">
-                 {currentView === ViewMode.HOME ? 'Home' : 
-                  currentView === ViewMode.SETTINGS ? 'Settings' : viewTitle}
-             </span>
-             <span className="text-gray-300 dark:text-gray-700 inline">/</span>
-             <span className="text-gray-500 dark:text-gray-400 truncate">
-                 {currentView === ViewMode.DOCUMENTS ? (activeDocument?.title || 'Untitled') : 
-                  currentView === ViewMode.BOARD ? 'Board' : 
-                  currentView === ViewMode.HOME ? 'Dashboard' :
-                  currentView === ViewMode.SETTINGS ? 'Preferences' :
-                  currentView.toLowerCase().replace('_', ' ')}
+          <div className="flex items-center text-sm overflow-hidden">
+             {/* Parent Context (Desktop Only) */}
+             <div className="hidden md:flex items-center gap-2 mr-2">
+                <span className="font-medium text-black dark:text-white">
+                    {currentView === ViewMode.HOME ? 'Home' : 
+                     currentView === ViewMode.SETTINGS ? 'Settings' : viewTitle}
+                </span>
+                <span className="text-gray-300 dark:text-gray-700">/</span>
+             </div>
+
+             {/* Current Context (Mobile: Main, Desktop: Sub) */}
+             <span className="text-black dark:text-white font-semibold md:text-gray-500 md:dark:text-gray-400 md:font-normal truncate">
+                  {currentView === ViewMode.DOCUMENTS ? (activeDocument?.title || 'Untitled') : 
+                   currentView === ViewMode.BOARD ? 'Board' : 
+                   currentView === ViewMode.HOME ? 'Dashboard' :
+                   currentView === ViewMode.INBOX ? 'Inbox' :
+                   currentView === ViewMode.GLOBAL_BOARD ? 'All Tasks' :
+                   currentView === ViewMode.GLOBAL_CALENDAR ? 'Timeline' :
+                   currentView === ViewMode.SETTINGS ? 'Preferences' :
+                   currentView === ViewMode.GRAPH ? 'Graph' :
+                   currentView === ViewMode.REVIEW ? 'Review' :
+                   currentView.toLowerCase().replace('_', ' ')}
              </span>
           </div>
           <div className="flex items-center space-x-3">
