@@ -32,6 +32,7 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
  *   priority text default 'Medium',
  *   assignee text,
  *   due_date timestamp with time zone,
+ *   reminder_time timestamp with time zone, -- NEW COLUMN
  *   dependencies text[],
  *   linked_document_id text,
  *   agent_status text,

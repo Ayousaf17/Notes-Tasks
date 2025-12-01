@@ -1,3 +1,4 @@
+
 import { supabase } from './supabase';
 import { Project, Task, Document, TaskStatus, TaskPriority } from '../types';
 
@@ -24,6 +25,7 @@ export const dataService = {
         priority: t.priority as TaskPriority,
         assignee: t.assignee,
         dueDate: t.due_date ? new Date(t.due_date) : undefined,
+        reminderTime: t.reminder_time ? new Date(t.reminder_time) : undefined, // Map from DB
         dependencies: t.dependencies || [],
         linkedDocumentId: t.linked_document_id,
         agentStatus: t.agent_status,
@@ -66,6 +68,7 @@ export const dataService = {
       priority: task.priority,
       assignee: task.assignee,
       due_date: task.dueDate?.toISOString(),
+      reminder_time: task.reminderTime?.toISOString(), // Map to DB
       dependencies: task.dependencies,
       linked_document_id: task.linkedDocumentId,
       agent_status: task.agentStatus,
@@ -84,6 +87,7 @@ export const dataService = {
     if (updates.priority !== undefined) dbUpdates.priority = updates.priority;
     if (updates.assignee !== undefined) dbUpdates.assignee = updates.assignee;
     if (updates.dueDate !== undefined) dbUpdates.due_date = updates.dueDate ? updates.dueDate.toISOString() : null;
+    if (updates.reminderTime !== undefined) dbUpdates.reminder_time = updates.reminderTime ? updates.reminderTime.toISOString() : null; // Map to DB
     if (updates.dependencies !== undefined) dbUpdates.dependencies = updates.dependencies;
     if (updates.linkedDocumentId !== undefined) dbUpdates.linked_document_id = updates.linkedDocumentId;
     if (updates.agentStatus !== undefined) dbUpdates.agent_status = updates.agentStatus;

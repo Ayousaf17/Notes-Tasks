@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Sidebar } from './Sidebar';
 import { DocumentEditor } from './DocumentEditor';
@@ -207,6 +208,37 @@ const App: React.FC = () => {
       window.addEventListener('keydown', handleKeyDown);
       return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
+
+  // --- NEW: Reminder Polling Logic ---
+  useEffect(() => {
+      // Check permissions
+      if (Notification.permission !== 'granted' && Notification.permission !== 'denied') {
+          Notification.requestPermission();
+      }
+
+      const interval = setInterval(() => {
+          const now = new Date();
+          // Filter tasks that have a reminder set
+          const tasksWithReminders = tasks.filter(t => t.reminderTime);
+
+          tasksWithReminders.forEach(task => {
+              const reminderTime = new Date(task.reminderTime!);
+              // If reminder time is in the past (within last minute tolerance to avoid spam)
+              if (reminderTime <= now && reminderTime.getTime() > now.getTime() - 60000) {
+                  // Trigger Notification
+                  new Notification(`Aasani Reminder: ${task.title}`, {
+                      body: task.description || 'This task is due.',
+                      icon: '/favicon.ico'
+                  });
+                  
+                  // Clear the reminder so it doesn't fire again
+                  updateTask(task.id, { reminderTime: undefined });
+              }
+          });
+      }, 30000); // Check every 30 seconds
+
+      return () => clearInterval(interval);
+  }, [tasks]); // Re-run if tasks update
 
   const activeProject = projects.find(p => p.id === activeProjectId) || projects[0];
   const projectDocs = documents.filter(d => d.projectId === activeProjectId);
@@ -428,7 +460,9 @@ const App: React.FC = () => {
 
     setActiveProjectId(newProject.id);
     setActiveDocId(newDoc.id);
-    setCurrentView(ViewMode.DOCUMENTS);
+    
+    // CHANGED: Redirect to Overview instead of Documents for better import experience
+    setCurrentView(ViewMode.PROJECT_OVERVIEW); 
   };
 
   // --- Connection Handler ---

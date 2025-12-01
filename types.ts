@@ -61,6 +61,7 @@ export interface Task {
   status: TaskStatus;
   assignee?: string;
   dueDate?: Date;
+  reminderTime?: Date; // NEW: Added field for system notifications
   priority?: TaskPriority;
   dependencies?: string[]; 
   linkedDocumentId?: string;

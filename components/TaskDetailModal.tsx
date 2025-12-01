@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Task, TaskStatus, TaskPriority, AgentRole, Project } from '../types';
-import { X, Calendar, User, Flag, CheckSquare, AlignLeft, Trash2, Folder } from 'lucide-react';
+import { X, Calendar, User, Flag, CheckSquare, AlignLeft, Trash2, Folder, Bell } from 'lucide-react';
 
 interface TaskDetailModalProps {
   task: Task;
@@ -199,6 +199,28 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, isOpen, 
                             onChange={handleDateChange}
                             className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 text-sm rounded-lg px-3 py-2 focus:ring-black dark:focus:ring-white focus:border-black dark:focus:border-white"
                         />
+                    </div>
+                </div>
+
+                {/* Reminder (NEW) */}
+                <div className="space-y-1">
+                    <label className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase flex items-center gap-2">
+                        Reminder
+                        {task.reminderTime && new Date(task.reminderTime) < new Date() && (
+                            <span className="text-[10px] text-red-500 font-bold">(Expired)</span>
+                        )}
+                    </label>
+                    <div className="relative">
+                        <input 
+                            type="datetime-local" 
+                            value={task.reminderTime ? new Date(task.reminderTime).toISOString().slice(0, 16) : ''}
+                            onChange={(e) => {
+                                const val = e.target.value;
+                                onUpdate(task.id, { reminderTime: val ? new Date(val) : undefined });
+                            }}
+                            className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 text-sm rounded-lg px-3 py-2 pl-9 focus:ring-black dark:focus:ring-white focus:border-black dark:focus:border-white"
+                        />
+                        <Bell className="absolute left-3 top-2.5 w-4 h-4 text-gray-400 pointer-events-none" />
                     </div>
                 </div>
 
