@@ -159,8 +159,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           }}
                           className={`w-full flex items-center px-3 py-2 rounded-md text-sm transition-colors text-left group/item pr-8 ${
                               activeProjectId === project.id && isProjectContext
-                              ? 'text-black dark:text-white font-medium bg-gray-50 dark:bg-gray-800/60' 
-                              : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/30'
+                              ? 'text-black dark:text-white font-medium bg-gray-100 dark:bg-gray-800/60' 
+                              : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100/60 dark:hover:bg-gray-800/60'
                           }`}
                           title={!isExpanded ? project.title : ''}
                       >

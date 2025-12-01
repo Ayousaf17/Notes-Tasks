@@ -10,6 +10,7 @@ import { ContextSidebar } from './components/ContextSidebar';
 import { InboxView } from './components/InboxView';
 import { GraphView } from './components/GraphView';
 import { DashboardView } from './components/DashboardView'; 
+import { ProjectOverview } from './components/ProjectOverview';
 import { ReviewWizard } from './components/ReviewWizard';
 import { TaskDetailModal } from './components/TaskDetailModal';
 import { IntegrationsModal } from './components/IntegrationsModal';
@@ -251,18 +252,9 @@ const App: React.FC = () => {
   // Improved Select Project Handler
   const handleSelectProject = (projectId: string) => {
       setActiveProjectId(projectId);
-      const docsInProject = documents.filter(d => d.projectId === projectId);
-      
-      // Auto-open the most recent document, or first one
-      if (docsInProject.length > 0) {
-          // Sort by updated at desc
-          const sorted = [...docsInProject].sort((a,b) => b.updatedAt.getTime() - a.updatedAt.getTime());
-          setActiveDocId(sorted[0].id);
-          setCurrentView(ViewMode.DOCUMENTS);
-      } else {
-          setActiveDocId(null);
-          setCurrentView(ViewMode.DOCUMENTS); // Will show "Create a new page" empty state
-      }
+      setActiveDocId(null);
+      // Switch to Project Overview instead of auto-opening documents
+      setCurrentView(ViewMode.PROJECT_OVERVIEW); 
   };
 
   const handleDeleteProject = (projectId: string) => {
@@ -620,6 +612,14 @@ const App: React.FC = () => {
                           onStartReview={() => setCurrentView(ViewMode.REVIEW)} 
                           onCreateProject={handleOpenCreateProject}
                           teamMembers={teamMembers}
+                      />
+                  ) : currentView === ViewMode.PROJECT_OVERVIEW ? (
+                      <ProjectOverview 
+                          project={activeProject}
+                          tasks={projectTasks}
+                          documents={projectDocs}
+                          onNavigate={handleNavigate}
+                          onChangeView={setCurrentView}
                       />
                   ) : currentView === ViewMode.INBOX ? (
                       <InboxView 
