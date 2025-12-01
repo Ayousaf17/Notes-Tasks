@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState, useMemo } from 'react';
 import { Task, Document, Project, TaskPriority, TaskStatus } from '../types';
 import { geminiService } from '../services/geminiService';
@@ -84,8 +85,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           const pTasks = tasks.filter(t => t.projectId === p.id);
           const total = pTasks.length;
           const done = pTasks.filter(t => t.status === TaskStatus.DONE).length;
+          const inProgress = pTasks.filter(t => t.status === TaskStatus.IN_PROGRESS).length;
+          const todo = pTasks.filter(t => t.status === TaskStatus.TODO).length;
           const percent = total === 0 ? 0 : Math.round((done / total) * 100);
-          return { ...p, total, done, percent };
+          return { ...p, total, done, inProgress, todo, percent };
       }).sort((a, b) => b.percent - a.percent); // Sort by most complete
   }, [projects, tasks]);
 
@@ -228,8 +231,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     </div>
                     <div>
                         <h4 className="font-medium text-sm text-gray-900 dark:text-gray-100 truncate group-hover:underline decoration-1 underline-offset-4">{p.title}</h4>
-                        <div className="flex gap-3 mt-2 text-[10px] text-gray-500 font-medium uppercase tracking-wide">
-                            <span>{p.total} Tasks</span>
+                        <div className="flex flex-wrap gap-x-3 gap-y-1 mt-3 text-[10px] text-gray-500 font-medium uppercase tracking-wide">
+                            <span className="text-gray-400 dark:text-gray-500">{p.todo} To Do</span>
+                            <span className="text-orange-500 dark:text-orange-400">{p.inProgress} Prog</span>
                             <span className="text-green-600 dark:text-green-500">{p.done} Done</span>
                         </div>
                     </div>
