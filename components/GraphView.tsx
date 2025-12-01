@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { Document, Task, TaskStatus } from '../types';
 import { FileText, CheckSquare, ZoomIn, ZoomOut, RefreshCw } from 'lucide-react';

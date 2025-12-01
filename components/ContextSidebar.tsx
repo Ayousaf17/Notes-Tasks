@@ -1,4 +1,3 @@
-
 import React, { useMemo } from 'react';
 import { Document, Task } from '../types';
 import { GitGraph, Link as LinkIcon, CheckCircle, ArrowLeftCircle, FileText } from 'lucide-react';

@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, Cloud } from 'lucide-react';
 import { Task, TaskPriority, TaskStatus } from '../types';

@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { FileText, Layout, Calendar, Settings, Plus, Inbox, Network, Home, X, Globe, Layers, User, Moon, Sun, Loader2, Folder, Trash2, CheckSquare } from 'lucide-react';
 import { ViewMode, Document, Project } from '../types';

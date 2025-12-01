@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, FileText, CheckSquare, Command, ArrowRight, Sparkles, Folder } from 'lucide-react';
 import { Document, Task, SearchResult, ViewMode, Project } from '../types';
