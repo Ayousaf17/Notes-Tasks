@@ -1,6 +1,7 @@
 
+
 import { GoogleGenAI, Type, Schema } from "@google/genai";
-import { Task, TaskStatus, TaskPriority, ProjectPlan, Attachment, Project, InboxAction, AgentRole, AgentResult, Document, Source, CanvasNode } from "../types";
+import { Task, TaskStatus, TaskPriority, ProjectPlan, Attachment, Project, InboxAction, AgentRole, AgentResult, Document, Source } from "../types";
 
 const apiKey = process.env.API_KEY;
 const ai = new GoogleGenAI({ apiKey: apiKey || 'dummy_key' });
@@ -655,50 +656,51 @@ export const geminiService = {
   },
 
   /**
-   * Brainstorms ideas for the infinite canvas
+   * Brainstorms ideas for the Canvas view
    */
-  async brainstormCanvasNodes(prompt: string, currentContext: string): Promise<Partial<CanvasNode>[]> {
-      if (!apiKey) return [];
+  async brainstormCanvasNodes(prompt: string, context: string): Promise<{ content: string; x: number; y: number; type: 'note' | 'task'; color: string }[]> {
+    if (!apiKey) return [];
 
-      try {
-          const response = await ai.models.generateContent({
-              model: MODEL_NAME,
-              contents: `You are a creative brainstorming partner. The user is working on an infinite canvas whiteboard.
-              
-              Current Nodes Context:
-              "${currentContext}"
-              
-              User Prompt: "${prompt}"
-              
-              Generate 3-5 new ideas (nodes) related to the prompt and context. 
-              For each node, provide a short 'content' string and relative x/y coordinates (keep them somewhat clustered but not overlapping, e.g. x between -200 and 200).
-              
-              Return JSON.`,
-              config: {
-                  responseMimeType: "application/json",
-                  responseSchema: {
-                      type: Type.ARRAY,
-                      items: {
-                          type: Type.OBJECT,
-                          properties: {
-                              content: { type: Type.STRING },
-                              x: { type: Type.NUMBER },
-                              y: { type: Type.NUMBER },
-                              type: { type: Type.STRING, enum: ['note', 'task'] },
-                              color: { type: Type.STRING, enum: ['bg-yellow-200', 'bg-blue-200', 'bg-green-200', 'bg-red-200', 'bg-purple-200'] }
-                          },
-                          required: ["content", "x", "y", "type"]
-                      }
-                  }
-              }
-          });
+    try {
+      const response = await ai.models.generateContent({
+        model: MODEL_NAME,
+        contents: `You are a creative brainstorming partner.
+        User Prompt: "${prompt}"
+        Current Canvas Context:
+        "${context}"
+        
+        Generate 3-5 brief, actionable ideas or related concepts.
+        Return a JSON array of objects. Each object should have:
+        - content: The text of the note (max 10 words).
+        - type: 'note' or 'task'.
+        - x: A suggested relative X position (integer between -300 and 300).
+        - y: A suggested relative Y position (integer between -300 and 300).
+        - color: A tailwind class for background color (e.g. 'bg-yellow-200', 'bg-blue-200', 'bg-green-200', 'bg-pink-200').`,
+        config: {
+            responseMimeType: "application/json",
+            responseSchema: {
+                type: Type.ARRAY,
+                items: {
+                    type: Type.OBJECT,
+                    properties: {
+                        content: { type: Type.STRING },
+                        type: { type: Type.STRING, enum: ['note', 'task'] },
+                        x: { type: Type.INTEGER },
+                        y: { type: Type.INTEGER },
+                        color: { type: Type.STRING }
+                    },
+                    required: ["content", "type", "x", "y"]
+                }
+            }
+        }
+      });
 
-          const jsonStr = response.text;
-          if (!jsonStr) return [];
-          return JSON.parse(jsonStr) as Partial<CanvasNode>[];
-      } catch (error) {
-          console.error("Gemini Canvas Brainstorm Error:", error);
-          return [];
-      }
+      const jsonStr = response.text;
+      if (!jsonStr) return [];
+      return JSON.parse(jsonStr);
+    } catch (error) {
+      console.error("Gemini Brainstorm Error:", error);
+      return [];
+    }
   }
 };

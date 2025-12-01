@@ -1,4 +1,5 @@
 
+
 export enum ViewMode {
   HOME = 'HOME', 
   DOCUMENTS = 'DOCUMENTS',
