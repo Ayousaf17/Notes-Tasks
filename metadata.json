@@ -1,5 +1,5 @@
 {
-  "name": "Aasani OS",
+  "name": "Aasani OS -- Dev",
   "description": "A self-organizing workspace operating system powered by AI.",
   "requestFramePermissions": [
     "microphone"
