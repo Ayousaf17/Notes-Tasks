@@ -22,8 +22,9 @@ import { geminiService } from '../services/geminiService';
 import { dataService } from '../services/dataService';
 import { supabase } from '../services/supabase';
 
+// ENHANCED MOBILE BOTTOM NAV
 const MobileBottomNav = ({ currentView, onChangeView, onOpenMenu, onSearch }: { currentView: ViewMode, onChangeView: (v: ViewMode) => void, onOpenMenu: () => void, onSearch: () => void }) => (
-  <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/80 dark:bg-black/80 backdrop-blur-xl border-t border-gray-200 dark:border-gray-800 z-50 px-6 h-24 pb-6 flex items-center justify-between transition-transform duration-300 shadow-2xl safe-area-bottom">
+  <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/85 dark:bg-black/85 backdrop-blur-xl border-t border-gray-200 dark:border-gray-800 z-50 px-6 h-24 pb-6 flex items-center justify-between transition-transform duration-300 shadow-[0_-5px_20px_rgba(0,0,0,0.05)] safe-area-bottom">
     {/* Left Group */}
     <div className="flex items-center gap-10 pl-2">
       <button onClick={() => onChangeView(ViewMode.HOME)} className={`flex flex-col items-center gap-1.5 transition-colors active:scale-95 ${currentView === ViewMode.HOME ? 'text-black dark:text-white' : 'text-gray-400 dark:text-gray-500'}`}>
@@ -34,11 +35,11 @@ const MobileBottomNav = ({ currentView, onChangeView, onOpenMenu, onSearch }: { 
       </button>
     </div>
 
-    {/* Center Hero Button (Tasks) */}
+    {/* Center Hero Button (Tasks) - Elevated */}
     <div className="relative -top-8 group">
       <button
           onClick={() => onChangeView(ViewMode.GLOBAL_BOARD)}
-          className={`flex items-center justify-center w-16 h-16 rounded-2xl shadow-xl shadow-black/20 dark:shadow-white/5 border-4 border-gray-50 dark:border-black transition-all duration-300 active:scale-90 active:rotate-3 ${currentView === ViewMode.GLOBAL_BOARD ? 'bg-black dark:bg-white text-white dark:text-black' : 'bg-black dark:bg-white text-white dark:text-black'}`}
+          className={`flex items-center justify-center w-16 h-16 rounded-2xl shadow-xl shadow-black/20 dark:shadow-white/10 border-4 border-gray-50 dark:border-black transition-all duration-300 active:scale-90 active:rotate-3 ${currentView === ViewMode.GLOBAL_BOARD ? 'bg-black dark:bg-white text-white dark:text-black' : 'bg-black dark:bg-white text-white dark:text-black'}`}
       >
          <CheckSquare className="w-8 h-8" strokeWidth={2.5} />
       </button>
@@ -60,6 +61,8 @@ const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewMode>(ViewMode.HOME); 
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(false); 
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   
   // Swipe Logic
   const [touchStart, setTouchStart] = useState<number | null>(null);
@@ -82,17 +85,18 @@ const App: React.FC = () => {
     const isRightSwipe = distance < -minSwipeDistance;
     
     if (isLeftSwipe) {
-      // Open Chat (Swipe Left)
+      // Swipe Left -> Open Chat
       setIsChatOpen(true);
       setIsMobileSidebarOpen(false);
     }
     if (isRightSwipe) {
-      // Open Menu (Swipe Right)
+      // Swipe Right -> Open Menu
       setIsMobileSidebarOpen(true);
       setIsChatOpen(false);
     }
   }
 
+  // ... (Rest of existing state logic: Team, Dark Mode, Projects, etc.) ...
   // Team Management State
   const [teamMembers, setTeamMembers] = useState<string[]>(() => {
       if (typeof window !== 'undefined') {
@@ -188,12 +192,10 @@ const App: React.FC = () => {
     { id: 'init', role: 'model', text: 'I am Aasani. I can help you organize this project, generate plans, or summarize your documents.', timestamp: new Date() }
   ]);
   
-  const [isChatOpen, setIsChatOpen] = useState(false);
-  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [isCreateProjectModalOpen, setIsCreateProjectModalOpen] = useState(false);
 
-  // Load Data from Supabase on Mount & Setup Realtime Subscription
+  // Load Data
   useEffect(() => {
     const loadData = async () => {
         try {
@@ -203,16 +205,14 @@ const App: React.FC = () => {
                 setProjects(dbProjects);
                 setTasks(dbTasks);
                 setDocuments(dbDocs);
-                // Keep active project if valid, else switch to first
                 setActiveProjectId(prev => dbProjects.find(p => p.id === prev) ? prev : dbProjects[0].id);
             }
         } catch (e) {
-            console.error("Failed to load data from Supabase", e);
+            console.error("Failed to load data", e);
         }
     };
     loadData();
 
-    // Realtime Subscription
     const channel = supabase
         .channel('db-changes')
         .on('postgres_changes', { event: '*', schema: 'public' }, () => {
@@ -236,7 +236,7 @@ const App: React.FC = () => {
       return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // --- Reminder Polling Logic ---
+  // Reminder Polling
   useEffect(() => {
       if (Notification.permission !== 'granted' && Notification.permission !== 'denied') {
           Notification.requestPermission();
@@ -282,7 +282,6 @@ const App: React.FC = () => {
       }
   }, [activeProjectId, activeDocId, documents]);
 
-  // Handler to open modal
   const handleOpenCreateProject = () => {
       setIsCreateProjectModalOpen(true);
   };
@@ -312,7 +311,7 @@ const App: React.FC = () => {
       setConfirmationModal({
           isOpen: true,
           title: 'Delete Project',
-          message: `Are you sure you want to delete "${project?.title}"? All associated documents and tasks will be permanently removed.`,
+          message: `Are you sure you want to delete "${project?.title}"?`,
           isDanger: true,
           confirmText: 'Delete Project',
           onConfirm: async () => {
@@ -352,7 +351,7 @@ const App: React.FC = () => {
       setConfirmationModal({
           isOpen: true,
           title: 'Delete Page',
-          message: 'Are you sure you want to delete this page? This cannot be undone.',
+          message: 'Are you sure you want to delete this page?',
           isDanger: true,
           confirmText: 'Delete Page',
           onConfirm: async () => {
@@ -479,7 +478,6 @@ const App: React.FC = () => {
 
     setActiveProjectId(newProject.id);
     setActiveDocId(newDoc.id);
-    
     setCurrentView(ViewMode.PROJECT_OVERVIEW); 
   };
 
@@ -534,17 +532,13 @@ const App: React.FC = () => {
   };
 
   const handleProcessInboxItem = async (itemId: string, action: InboxAction) => {
-      
-      // 1. Handle Full Project Import
       if (action.actionType === 'create_project' && action.projectPlan) {
           handleProjectPlanCreated(action.projectPlan);
           setInboxItems(prev => prev.filter(i => i.id !== itemId));
           return;
       }
 
-      // 2. Standard Task/Doc Handling
       let targetProjectId = action.targetProjectId;
-      
       if (targetProjectId.startsWith('NEW:')) {
           const title = targetProjectId.substring(4);
           const newProject: Project = {
@@ -607,7 +601,7 @@ const App: React.FC = () => {
 
   return (
     <div 
-      className="flex h-screen w-full bg-white dark:bg-black overflow-hidden font-sans text-gray-900 dark:text-gray-100 transition-colors duration-200"
+      className="flex h-[100dvh] w-full bg-white dark:bg-black overflow-hidden font-sans text-gray-900 dark:text-gray-100 transition-colors duration-200"
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
@@ -635,15 +629,15 @@ const App: React.FC = () => {
         onHover={setIsSidebarExpanded}
       />
 
-      <main className={`flex-1 flex flex-col h-full relative w-full bg-white dark:bg-black transition-all duration-300 ease-in-out pb-24 md:pb-0 ${isSidebarExpanded ? 'md:pl-64' : 'md:pl-16'}`}>
-        <header className="h-14 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between px-6 bg-white dark:bg-black shrink-0 z-20">
+      <main className={`flex-1 flex flex-col h-full relative w-full bg-white dark:bg-black transition-all duration-300 ease-in-out pb-24 md:pb-0 safe-area-bottom ${isSidebarExpanded ? 'md:pl-64' : 'md:pl-16'}`}>
+        <header className="h-14 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between px-6 bg-white dark:bg-black shrink-0 z-20 safe-area-top pt-2 md:pt-0">
           <div className="flex items-center space-x-3 text-sm">
              <span className="font-medium text-black dark:text-white inline">
                  {currentView === ViewMode.HOME ? 'Home' : 
                   currentView === ViewMode.SETTINGS ? 'Settings' : viewTitle}
              </span>
-             <span className="text-gray-300 dark:text-gray-700 inline">/</span>
-             <span className="text-gray-500 dark:text-gray-400 truncate">
+             <span className="hidden md:inline text-gray-300 dark:text-gray-700">/</span>
+             <span className="hidden md:block text-gray-500 dark:text-gray-400 truncate">
                  {currentView === ViewMode.DOCUMENTS ? (activeDocument?.title || 'Untitled') : 
                   currentView === ViewMode.BOARD ? 'Board' : 
                   currentView === ViewMode.HOME ? 'Dashboard' :
@@ -652,10 +646,10 @@ const App: React.FC = () => {
              </span>
           </div>
           <div className="flex items-center space-x-4">
-             <button onClick={() => setIsCommandPaletteOpen(true)} className="text-gray-400 hover:text-black dark:hover:text-white transition-colors p-1">
+             <button onClick={() => setIsCommandPaletteOpen(true)} className="text-gray-400 hover:text-black dark:hover:text-white transition-colors p-2">
                 <Command className="w-5 h-5" />
             </button>
-            <button onClick={() => setIsChatOpen(!isChatOpen)} className={`transition-colors p-1 ${isChatOpen ? 'text-purple-600 dark:text-purple-400' : 'text-gray-400 hover:text-black dark:hover:text-white'}`}>
+            <button onClick={() => setIsChatOpen(!isChatOpen)} className={`transition-colors p-2 ${isChatOpen ? 'text-purple-600 dark:text-purple-400' : 'text-gray-400 hover:text-black dark:hover:text-white'}`}>
                 <Sparkles className="w-5 h-5" />
             </button>
           </div>
