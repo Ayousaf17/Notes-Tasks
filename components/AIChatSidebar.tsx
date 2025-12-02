@@ -300,8 +300,8 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 md:absolute md:top-0 md:bottom-0 md:right-0 md:w-[420px] bg-white dark:bg-black border-l border-gray-100 dark:border-gray-800 flex flex-col shadow-2xl shadow-gray-200/50 dark:shadow-black/50 transition-transform font-sans">
-      <div className="p-5 border-b border-gray-50 dark:border-gray-800 flex items-center justify-between bg-white dark:bg-black">
+    <div className="fixed inset-0 z-50 md:absolute md:top-0 md:bottom-0 md:right-0 md:w-[420px] bg-white dark:bg-black border-l border-gray-100 dark:border-gray-800 flex flex-col shadow-2xl shadow-gray-200/50 dark:shadow-black/50 transition-transform font-sans h-[100dvh]">
+      <div className="p-5 border-b border-gray-50 dark:border-gray-800 flex items-center justify-between bg-white dark:bg-black shrink-0">
         <div className="flex items-center space-x-3">
           <Bot className="w-6 h-6 text-purple-600 dark:text-purple-400" />
           <span className="font-semibold text-gray-900 dark:text-white text-sm tracking-tight">Aasani</span>
@@ -310,8 +310,8 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
             <button onClick={clearHistory} className="text-gray-400 hover:text-red-500 transition-colors" title="Clear History">
               <Trash2 className="w-4 h-4" />
             </button>
-            <button onClick={onClose} className="text-gray-400 hover:text-black dark:hover:text-white transition-colors">
-              <X className="w-4 h-4" />
+            <button onClick={onClose} className="text-gray-400 hover:text-black dark:hover:text-white transition-colors p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800">
+              <X className="w-6 h-6 md:w-4 md:h-4" />
             </button>
         </div>
       </div>
@@ -392,7 +392,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
         <div ref={bottomRef} />
       </div>
 
-      <div className="p-4 bg-white dark:bg-black pb-6 relative safe-area-bottom">
+      <div className="p-4 bg-white dark:bg-black pb-safe sticky bottom-0 z-50 border-t border-gray-50 dark:border-gray-800 shadow-[0_-10px_20px_rgba(0,0,0,0.05)]">
         {attachments.length > 0 && (
             <div className="flex space-x-2 mb-3 overflow-x-auto px-1">
                 {attachments.map((att, idx) => (
@@ -414,7 +414,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                     className="p-2 text-gray-400 hover:text-black dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors"
                     title="Attach file"
                 >
-                    <Paperclip className="w-4 h-4" />
+                    <Paperclip className="w-5 h-5" />
                 </button>
                 <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileSelect} accept="image/*,application/pdf,text/plain,audio/*" />
 
@@ -423,7 +423,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                     className={`p-2 rounded-full transition-all ${isRecording ? 'bg-red-50 text-white animate-pulse' : 'text-gray-400 hover:text-black dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700'}`}
                     title={isRecording ? "Stop recording" : "Record voice note"}
                 >
-                    <Mic className="w-4 h-4" />
+                    <Mic className="w-5 h-5" />
                 </button>
             </div>
 
@@ -438,7 +438,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                     }
                 }}
                 placeholder="Ask Aasani..."
-                className="flex-1 bg-transparent border-none focus:ring-0 text-sm py-2 px-1 placeholder-gray-400 dark:placeholder-gray-500 text-gray-900 dark:text-gray-100"
+                className="flex-1 bg-transparent border-none focus:ring-0 text-base py-3 px-1 placeholder-gray-400 dark:placeholder-gray-500 text-gray-900 dark:text-gray-100"
             />
             
             <button 
@@ -446,7 +446,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                 disabled={(!input.trim() && attachments.length === 0) || loading}
                 className="p-2 bg-black dark:bg-white text-white dark:text-black rounded-full hover:bg-gray-800 dark:hover:bg-gray-200 disabled:opacity-30 disabled:hover:bg-black dark:disabled:hover:bg-white transition-colors shadow-sm"
             >
-                {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5 ml-0.5" />}
+                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4 ml-0.5" />}
             </button>
         </div>
       </div>

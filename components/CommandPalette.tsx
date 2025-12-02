@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, FileText, CheckSquare, Command, ArrowRight, Sparkles, Folder } from 'lucide-react';
+import { Search, FileText, CheckSquare, Command, ArrowRight, Sparkles, Folder, X } from 'lucide-react';
 import { Document, Task, SearchResult, ViewMode, Project } from '../types';
 import { geminiService } from '../services/geminiService';
 
@@ -138,13 +138,14 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-start justify-center pt-[20vh]">
-      <div className="absolute inset-0 bg-black/20 backdrop-blur-sm" onClick={onClose}></div>
+    <div className="fixed inset-0 z-[100] flex items-start justify-center pt-0 md:pt-[20vh] safe-area-top bg-white dark:bg-black md:bg-transparent">
+      {/* Desktop Backdrop */}
+      <div className="hidden md:block absolute inset-0 bg-black/20 backdrop-blur-sm" onClick={onClose}></div>
       
-      <div className="relative bg-white dark:bg-gray-900 w-full max-w-2xl rounded-xl shadow-2xl overflow-hidden ring-1 ring-gray-900/5 dark:ring-white/10 flex flex-col animate-in fade-in zoom-in-95 duration-200">
+      <div className="relative bg-white dark:bg-black md:dark:bg-gray-900 w-full max-w-2xl h-full md:h-auto md:rounded-xl shadow-none md:shadow-2xl overflow-hidden ring-0 md:ring-1 ring-gray-900/5 dark:ring-white/10 flex flex-col animate-in fade-in zoom-in-95 duration-200">
         
         {/* Input */}
-        <div className="flex items-center px-4 border-b border-gray-100 dark:border-gray-800 h-14">
+        <div className="flex items-center px-4 border-b border-gray-100 dark:border-gray-800 h-16 md:h-14 shrink-0">
             {query.startsWith('?') ? <Sparkles className="w-5 h-5 text-purple-500 mr-3" /> : <Search className="w-5 h-5 text-gray-400 mr-3" />}
             <input
                 ref={inputRef}
@@ -152,10 +153,15 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Type to search, or starts with '?' to ask Aasani..."
+                placeholder="Type to search..."
                 className="flex-1 bg-transparent border-none focus:ring-0 text-lg text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-600 h-full"
             />
-            <div className="flex items-center gap-2 text-xs text-gray-400 dark:text-gray-600">
+            {/* Mobile Cancel Button */}
+            <button onClick={onClose} className="md:hidden text-base font-medium text-blue-500 dark:text-blue-400 ml-2">
+                Cancel
+            </button>
+            {/* Desktop ESC Hint */}
+            <div className="hidden md:flex items-center gap-2 text-xs text-gray-400 dark:text-gray-600">
                 <span className="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">esc</span>
                 <span>to close</span>
             </div>
@@ -184,17 +190,17 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
 
         {/* Results List */}
         {!isThinking && !aiAnswer && (
-            <div className="max-h-[60vh] overflow-y-auto p-2 bg-white dark:bg-gray-900">
+            <div className="flex-1 overflow-y-auto p-2 bg-white dark:bg-black md:dark:bg-gray-900">
                 {results.map((result, index) => (
                     <button
                         key={result.id}
                         onClick={() => { result.action?.(); onClose(); }}
-                        className={`w-full flex items-center justify-between px-3 py-3 rounded-lg text-left transition-colors group ${
+                        className={`w-full flex items-center justify-between px-4 py-4 md:py-3 rounded-lg text-left transition-colors group ${
                             index === selectedIndex ? 'bg-gray-100 dark:bg-gray-800 text-black dark:text-white' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
                         }`}
                         onMouseEnter={() => setSelectedIndex(index)}
                     >
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-4">
                             <div className={`w-8 h-8 rounded flex items-center justify-center border ${
                                 index === selectedIndex ? 'bg-white dark:bg-gray-700 shadow-sm border-gray-200 dark:border-gray-600' : 'bg-gray-50 dark:bg-gray-800 border-transparent'
                             }`}>
@@ -204,7 +210,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                                 {result.type === 'project' && <Folder className="w-4 h-4" />}
                             </div>
                             <div>
-                                <div className="font-medium text-sm">{result.title}</div>
+                                <div className="font-medium text-base md:text-sm">{result.title}</div>
                                 {result.subtitle && <div className="text-xs text-gray-400 dark:text-gray-500">{result.subtitle}</div>}
                             </div>
                         </div>

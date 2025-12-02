@@ -23,38 +23,34 @@ import { dataService } from '../services/dataService';
 import { supabase } from '../services/supabase';
 
 const MobileBottomNav = ({ currentView, onChangeView, onOpenMenu, onSearch }: { currentView: ViewMode, onChangeView: (v: ViewMode) => void, onOpenMenu: () => void, onSearch: () => void }) => (
-  <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-black/90 backdrop-blur-xl border-t border-gray-100 dark:border-gray-800 z-50 px-6 py-2 safe-area-bottom flex items-center justify-between transition-transform duration-300 shadow-2xl">
+  <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/80 dark:bg-black/80 backdrop-blur-xl border-t border-gray-200 dark:border-gray-800 z-50 px-6 h-24 pb-6 flex items-center justify-between transition-transform duration-300 shadow-2xl safe-area-bottom">
     {/* Left Group */}
-    <div className="flex items-center gap-8">
-      <button onClick={() => onChangeView(ViewMode.HOME)} className={`flex flex-col items-center gap-1 transition-colors ${currentView === ViewMode.HOME ? 'text-black dark:text-white' : 'text-gray-400 dark:text-gray-500'}`}>
-         <Home className="w-6 h-6" />
-         <span className="text-[9px] font-medium">Home</span>
+    <div className="flex items-center gap-10 pl-2">
+      <button onClick={() => onChangeView(ViewMode.HOME)} className={`flex flex-col items-center gap-1.5 transition-colors active:scale-95 ${currentView === ViewMode.HOME ? 'text-black dark:text-white' : 'text-gray-400 dark:text-gray-500'}`}>
+         <Home className="w-7 h-7" strokeWidth={currentView === ViewMode.HOME ? 2.5 : 2} />
       </button>
-      <button onClick={onSearch} className="flex flex-col items-center gap-1 text-gray-400 dark:text-gray-500 active:text-black dark:active:text-white transition-colors">
-         <Search className="w-6 h-6" />
-         <span className="text-[9px] font-medium">Search</span>
+      <button onClick={onSearch} className="flex flex-col items-center gap-1.5 text-gray-400 dark:text-gray-500 active:text-black dark:active:text-white transition-colors active:scale-95">
+         <Search className="w-7 h-7" strokeWidth={2} />
       </button>
     </div>
 
     {/* Center Hero Button (Tasks) */}
-    <div className="relative -top-6 group">
+    <div className="relative -top-8 group">
       <button
           onClick={() => onChangeView(ViewMode.GLOBAL_BOARD)}
-          className={`flex items-center justify-center w-14 h-14 rounded-full shadow-xl shadow-black/20 dark:shadow-white/10 border-4 border-gray-50 dark:border-black transition-all duration-300 active:scale-95 group-hover:-translate-y-1 ${currentView === ViewMode.GLOBAL_BOARD ? 'bg-black dark:bg-white text-white dark:text-black' : 'bg-black dark:bg-white text-white dark:text-black'}`}
+          className={`flex items-center justify-center w-16 h-16 rounded-2xl shadow-xl shadow-black/20 dark:shadow-white/5 border-4 border-gray-50 dark:border-black transition-all duration-300 active:scale-90 active:rotate-3 ${currentView === ViewMode.GLOBAL_BOARD ? 'bg-black dark:bg-white text-white dark:text-black' : 'bg-black dark:bg-white text-white dark:text-black'}`}
       >
-         <CheckSquare className="w-6 h-6" />
+         <CheckSquare className="w-8 h-8" strokeWidth={2.5} />
       </button>
     </div>
 
     {/* Right Group */}
-    <div className="flex items-center gap-8">
-      <button onClick={() => onChangeView(ViewMode.INBOX)} className={`flex flex-col items-center gap-1 transition-colors ${currentView === ViewMode.INBOX ? 'text-black dark:text-white' : 'text-gray-400 dark:text-gray-500'}`}>
-         <Inbox className="w-6 h-6" />
-         <span className="text-[9px] font-medium">Inbox</span>
+    <div className="flex items-center gap-10 pr-2">
+      <button onClick={() => onChangeView(ViewMode.INBOX)} className={`flex flex-col items-center gap-1.5 transition-colors active:scale-95 ${currentView === ViewMode.INBOX ? 'text-black dark:text-white' : 'text-gray-400 dark:text-gray-500'}`}>
+         <Inbox className="w-7 h-7" strokeWidth={currentView === ViewMode.INBOX ? 2.5 : 2} />
       </button>
-      <button onClick={onOpenMenu} className="flex flex-col items-center gap-1 text-gray-400 dark:text-gray-500 active:text-black dark:active:text-white transition-colors">
-         <Menu className="w-6 h-6" />
-         <span className="text-[9px] font-medium">Menu</span>
+      <button onClick={onOpenMenu} className="flex flex-col items-center gap-1.5 text-gray-400 dark:text-gray-500 active:text-black dark:active:text-white transition-colors active:scale-95">
+         <Menu className="w-7 h-7" strokeWidth={2} />
       </button>
     </div>
   </div>
@@ -65,6 +61,38 @@ const App: React.FC = () => {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(false); 
   
+  // Swipe Logic
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
+  const minSwipeDistance = 50;
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  }
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  }
+
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
+    
+    if (isLeftSwipe) {
+      // Open Chat (Swipe Left)
+      setIsChatOpen(true);
+      setIsMobileSidebarOpen(false);
+    }
+    if (isRightSwipe) {
+      // Open Menu (Swipe Right)
+      setIsMobileSidebarOpen(true);
+      setIsChatOpen(false);
+    }
+  }
+
   // Team Management State
   const [teamMembers, setTeamMembers] = useState<string[]>(() => {
       if (typeof window !== 'undefined') {
@@ -208,33 +236,27 @@ const App: React.FC = () => {
       return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // --- NEW: Reminder Polling Logic ---
+  // --- Reminder Polling Logic ---
   useEffect(() => {
-      // Check permissions
       if (Notification.permission !== 'granted' && Notification.permission !== 'denied') {
           Notification.requestPermission();
       }
 
       const interval = setInterval(() => {
           const now = new Date();
-          // Filter tasks that have a reminder set
           const tasksWithReminders = tasks.filter(t => t.reminderTime);
 
           tasksWithReminders.forEach(task => {
               const reminderTime = new Date(task.reminderTime!);
-              // If reminder time is in the past (within last minute tolerance to avoid spam)
               if (reminderTime <= now && reminderTime.getTime() > now.getTime() - 60000) {
-                  // Trigger Notification
                   new Notification(`Aasani Reminder: ${task.title}`, {
                       body: task.description || 'This task is due.',
                       icon: '/favicon.ico'
                   });
-                  
-                  // Clear the reminder so it doesn't fire again
                   updateTask(task.id, { reminderTime: undefined });
               }
           });
-      }, 30000); // Check every 30 seconds
+      }, 30000);
 
       return () => clearInterval(interval);
   }, [tasks]);
@@ -279,11 +301,9 @@ const App: React.FC = () => {
       await dataService.createProject(newProject);
   };
 
-  // Improved Select Project Handler
   const handleSelectProject = (projectId: string) => {
       setActiveProjectId(projectId);
       setActiveDocId(null);
-      // Switch to Project Overview instead of auto-opening documents
       setCurrentView(ViewMode.PROJECT_OVERVIEW); 
   };
 
@@ -460,11 +480,9 @@ const App: React.FC = () => {
     setActiveProjectId(newProject.id);
     setActiveDocId(newDoc.id);
     
-    // CHANGED: Redirect to Overview instead of Documents for better import experience
     setCurrentView(ViewMode.PROJECT_OVERVIEW); 
   };
 
-  // --- Connection Handler ---
   const handleToggleIntegration = async (id: string, apiKey?: string) => {
       setIntegrations(prev => prev.map(i => i.id === id ? { ...i, connected: !i.connected, config: apiKey ? { apiKey } : i.config } : i));
       const isConnecting = !integrations.find(i => i.id === id)?.connected;
@@ -588,7 +606,12 @@ const App: React.FC = () => {
   const selectedTask = tasks.find(t => t.id === selectedTaskId);
 
   return (
-    <div className="flex h-screen w-full bg-white dark:bg-black overflow-hidden font-sans text-gray-900 dark:text-gray-100 transition-colors duration-200">
+    <div 
+      className="flex h-screen w-full bg-white dark:bg-black overflow-hidden font-sans text-gray-900 dark:text-gray-100 transition-colors duration-200"
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+    >
       
       <Sidebar
         currentView={currentView}
@@ -612,10 +635,9 @@ const App: React.FC = () => {
         onHover={setIsSidebarExpanded}
       />
 
-      <main className={`flex-1 flex flex-col h-full relative w-full bg-white dark:bg-black transition-all duration-300 ease-in-out pb-20 md:pb-0 ${isSidebarExpanded ? 'md:pl-64' : 'md:pl-16'}`}>
+      <main className={`flex-1 flex flex-col h-full relative w-full bg-white dark:bg-black transition-all duration-300 ease-in-out pb-24 md:pb-0 ${isSidebarExpanded ? 'md:pl-64' : 'md:pl-16'}`}>
         <header className="h-14 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between px-6 bg-white dark:bg-black shrink-0 z-20">
           <div className="flex items-center space-x-3 text-sm">
-             {/* Hamburger removed for mobile as requested */}
              <span className="font-medium text-black dark:text-white inline">
                  {currentView === ViewMode.HOME ? 'Home' : 
                   currentView === ViewMode.SETTINGS ? 'Settings' : viewTitle}
@@ -629,19 +651,18 @@ const App: React.FC = () => {
                   currentView.toLowerCase().replace('_', ' ')}
              </span>
           </div>
-          <div className="flex items-center space-x-3">
-             <button onClick={() => setIsCommandPaletteOpen(true)} className="text-gray-400 hover:text-black dark:hover:text-white transition-colors">
-                <Command className="w-4 h-4" />
+          <div className="flex items-center space-x-4">
+             <button onClick={() => setIsCommandPaletteOpen(true)} className="text-gray-400 hover:text-black dark:hover:text-white transition-colors p-1">
+                <Command className="w-5 h-5" />
             </button>
-            <button onClick={() => setIsChatOpen(!isChatOpen)} className={`transition-colors ${isChatOpen ? 'text-purple-600 dark:text-purple-400' : 'text-gray-400 hover:text-black dark:hover:text-white'}`}>
-                <Sparkles className="w-4 h-4" />
+            <button onClick={() => setIsChatOpen(!isChatOpen)} className={`transition-colors p-1 ${isChatOpen ? 'text-purple-600 dark:text-purple-400' : 'text-gray-400 hover:text-black dark:hover:text-white'}`}>
+                <Sparkles className="w-5 h-5" />
             </button>
           </div>
         </header>
 
         <div className="flex-1 overflow-hidden relative flex">
             <div className="flex-1 flex flex-col overflow-hidden w-full">
-                {/* View Animation Wrapper */}
                 <div key={currentView} className="flex-1 h-full w-full animate-page-slide flex flex-col overflow-hidden">
                   {currentView === ViewMode.HOME ? (
                       <DashboardView 
