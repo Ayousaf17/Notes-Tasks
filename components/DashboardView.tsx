@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Task, Document, Project, TaskPriority, TaskStatus } from '../types';
 import { geminiService } from '../services/geminiService';
-import { Calendar, Volume2, StopCircle, FileText, Plus, BarChart2, PieChart, Folder } from 'lucide-react';
+import { Calendar, Volume2, StopCircle, FileText, Plus, BarChart2, PieChart, Folder, Sparkles } from 'lucide-react';
 
 interface DashboardViewProps {
   tasks: Task[];
@@ -115,7 +115,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       }
   }, [focusList, userName, briefing]);
 
-  // FIXED: Removed the invalid window.speechSynthesis.addEventListener('end') which crashes mobile browsers
+  // Clean up speech on unmount
   useEffect(() => {
       return () => {
           window.speechSynthesis.cancel();
@@ -130,7 +130,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           const utterance = new SpeechSynthesisUtterance(briefing);
           utterance.rate = 1;
           utterance.pitch = 1;
-          // Correctly attach event listener to the utterance instance
+          // Correct way to handle end event on the utterance itself
           utterance.onend = () => setIsSpeaking(false);
           window.speechSynthesis.speak(utterance);
           setIsSpeaking(true);

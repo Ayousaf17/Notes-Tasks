@@ -96,7 +96,6 @@ const App: React.FC = () => {
     }
   }
 
-  // ... (Rest of existing state logic: Team, Dark Mode, Projects, etc.) ...
   // Team Management State
   const [teamMembers, setTeamMembers] = useState<string[]>(() => {
       if (typeof window !== 'undefined') {
@@ -657,6 +656,7 @@ const App: React.FC = () => {
 
         <div className="flex-1 overflow-hidden relative flex">
             <div className="flex-1 flex flex-col overflow-hidden w-full">
+                {/* View Animation Wrapper */}
                 <div key={currentView} className="flex-1 h-full w-full animate-page-slide flex flex-col overflow-hidden">
                   {currentView === ViewMode.HOME ? (
                       <DashboardView 
