@@ -85,13 +85,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         <div className="max-w-3xl mx-auto pb-12">
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-8">Settings</h1>
 
-            {/* Tabs */}
-            <div className="flex gap-6 mb-8 border-b border-gray-200 dark:border-gray-800 overflow-x-auto no-scrollbar">
+            {/* Tabs - Scrollable on mobile */}
+            <div className="flex gap-6 mb-8 border-b border-gray-200 dark:border-gray-800 overflow-x-auto no-scrollbar pb-1">
                 {tabs.map(tab => (
                     <button 
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id as any)}
-                        className={`pb-3 text-sm font-medium transition-colors relative whitespace-nowrap ${activeTab === tab.id ? 'text-black dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}
+                        className={`pb-3 text-sm font-medium transition-colors relative whitespace-nowrap px-1 ${activeTab === tab.id ? 'text-black dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}
                     >
                         {tab.label}
                         {activeTab === tab.id && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-black dark:bg-white rounded-t-full" />}

@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { InboxItem, Project, InboxAction } from '../types';
 import { Mic, Sparkles, Archive, Loader2, CheckCircle, FileText, Trash2, StopCircle, Paperclip, X, Check, ArrowRight, ChevronDown, Layers, CheckCircle2 } from 'lucide-react';
@@ -128,11 +129,11 @@ export const InboxView: React.FC<InboxViewProps> = ({
   };
 
   return (
-    <div className="flex-1 h-full bg-gray-50 dark:bg-black flex flex-col items-center p-8 overflow-y-auto font-sans transition-colors duration-200">
+    <div className="flex-1 h-full bg-gray-50 dark:bg-black flex flex-col items-center p-4 md:p-8 overflow-y-auto font-sans transition-colors duration-200">
         
         {/* Header */}
-        <div className="w-full max-w-2xl mb-8 text-center animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2 tracking-tight">Brain Dump</h1>
+        <div className="w-full max-w-2xl mb-8 mt-4 md:mt-0 text-center animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-2 tracking-tight">Brain Dump</h1>
             <p className="text-gray-500 dark:text-gray-400 text-sm">Capture ideas now. Aasani sorts them later.</p>
         </div>
 
@@ -143,7 +144,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
                 onChange={(e) => setInputText(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="What's on your mind? (Paste project summaries here for instant import)"
-                className="w-full text-lg text-gray-800 dark:text-gray-200 placeholder-gray-300 dark:placeholder-gray-600 border-none focus:ring-0 resize-none max-h-40 min-h-[60px] bg-transparent"
+                className="w-full text-base md:text-lg text-gray-800 dark:text-gray-200 placeholder-gray-300 dark:placeholder-gray-600 border-none focus:ring-0 resize-none max-h-40 min-h-[80px] bg-transparent"
                 rows={2}
             />
             <div className="flex justify-between items-center mt-2 border-t border-gray-50 dark:border-gray-800 pt-3">
@@ -177,7 +178,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
         </div>
 
         {/* Unprocessed Items */}
-        <div className="w-full max-w-2xl space-y-6">
+        <div className="w-full max-w-2xl space-y-6 pb-20">
             {items.filter(i => i.status === 'pending').length > 0 && (
                 <div className="text-xs font-bold text-gray-400 dark:text-gray-600 uppercase tracking-widest mb-4">Unprocessed Capture</div>
             )}

@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { Task, TaskStatus, TaskPriority, AgentRole, Project } from '../types';
 import { Plus, Filter, X, ArrowUpDown, User, Flag, Link as LinkIcon, AlertCircle, CheckCircle, Sparkles, Loader2, Bot, ChevronDown, ChevronUp, GripVertical, CheckSquare, Square, Calendar, MoreHorizontal, Paperclip, Folder } from 'lucide-react';
@@ -181,7 +182,7 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
         <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
                 <Filter className="w-4 h-4 text-gray-400" />
-                <select value={assigneeFilter} onChange={(e) => setAssigneeFilter(e.target.value)} className="bg-transparent border-none text-sm focus:ring-0 p-0 cursor-pointer hover:text-black dark:hover:text-white font-medium dark:bg-black">
+                <select value={assigneeFilter} onChange={(e) => setAssigneeFilter(e.target.value)} className="bg-transparent border-none text-sm focus:ring-0 p-0 cursor-pointer hover:text-black dark:hover:text-white font-medium dark:bg-black max-w-[120px] md:max-w-none truncate">
                     <option value="ALL">All Assignees</option>
                     <option value="Unassigned">Unassigned</option>
                     <option value="AI_AGENTS">AI Agents</option>
@@ -202,12 +203,12 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
       </div>
 
       {/* Mobile Tabs */}
-      <div className="md:hidden flex p-2 border-b border-gray-100 dark:border-gray-800 gap-1 bg-gray-50/50 dark:bg-black">
+      <div className="md:hidden flex p-2 border-b border-gray-100 dark:border-gray-800 gap-1 bg-gray-50/50 dark:bg-black overflow-x-auto no-scrollbar">
           {columns.map(col => (
               <button
                 key={col.id}
-                onClick={() => setActiveMobileTab(col.id)}
-                className={`flex-1 py-2 text-xs font-medium rounded-lg transition-colors ${
+                onClick={() => setActiveMobileTab(col.id as TaskStatus)}
+                className={`flex-1 py-2 px-3 text-xs font-medium rounded-lg transition-colors whitespace-nowrap min-w-[30%] ${
                     activeMobileTab === col.id 
                     ? 'bg-white dark:bg-gray-800 text-black dark:text-white shadow-sm border border-gray-200 dark:border-gray-700' 
                     : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
@@ -222,14 +223,14 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
       </div>
 
       {/* Board Content */}
-      <div className="flex-1 overflow-x-auto overflow-y-hidden p-4 md:p-6 bg-gray-50/50 dark:bg-black">
-        <div className="flex flex-col md:flex-row gap-6 h-full min-w-full md:min-w-max">
+      <div className="flex-1 overflow-x-auto overflow-y-hidden p-3 md:p-6 bg-gray-50/50 dark:bg-black">
+        <div className="flex h-full w-full gap-6">
             {columns.map(col => {
                 const colTasks = filteredAndSortedTasks.filter(t => t.status === col.id);
                 const isActiveDrop = activeDropZone === col.id;
                 const isEmpty = colTasks.length === 0;
                 
-                // On mobile, hide columns that are not active
+                // Optimized Mobile View: Only show active column, but keep strict structure
                 const isHiddenOnMobile = activeMobileTab !== col.id;
                 
                 return (
@@ -237,7 +238,7 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
                         key={col.id} 
                         className={`
                             ${isHiddenOnMobile ? 'hidden md:flex' : 'flex'}
-                            w-full md:w-80 flex-shrink-0 flex-col h-full rounded-xl transition-all duration-200 
+                            flex-1 md:w-80 md:flex-none flex-col h-full rounded-xl transition-all duration-200 
                             ${isActiveDrop ? 'bg-indigo-50/50 dark:bg-indigo-900/20' : 'bg-transparent'}
                         `}
                         onDragOver={(e) => handleDragOver(e, col.id)}
@@ -250,7 +251,7 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
                         </div>
                         
                         {/* Task List (Scrollable) */}
-                        <div className="flex-1 overflow-y-auto px-1 pb-20 md:pb-4 space-y-3 no-scrollbar">
+                        <div className="flex-1 overflow-y-auto px-1 pb-32 md:pb-4 space-y-3 no-scrollbar">
                             {isEmpty && (
                                 <div className="h-32 flex flex-col items-center justify-center text-gray-300 dark:text-gray-700 border-2 border-dashed border-gray-100 dark:border-gray-800 rounded-lg m-1">
                                     <span className="text-xs font-medium">No tasks</span>
@@ -269,7 +270,7 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
                                         onDragStart={(e) => handleDragStart(e, task.id)}
                                         onDragEnd={handleDragEnd}
                                         onClick={() => onSelectTask && onSelectTask(task.id)}
-                                        className={`group relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 p-4 rounded-lg shadow-sm hover:shadow-md transition-all cursor-grab active:cursor-grabbing flex flex-col gap-3 ${blocked ? 'opacity-70 bg-gray-50 dark:bg-gray-900' : ''} ${isDragging ? 'opacity-50 ring-2 ring-indigo-400 rotate-2 scale-95 z-50' : 'hover:-translate-y-0.5'}`}
+                                        className={`group relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 p-4 rounded-lg shadow-sm hover:shadow-md transition-all cursor-pointer md:cursor-grab md:active:cursor-grabbing flex flex-col gap-3 ${blocked ? 'opacity-70 bg-gray-50 dark:bg-gray-900' : ''} ${isDragging ? 'opacity-50 ring-2 ring-indigo-400 rotate-2 scale-95 z-50' : 'hover:-translate-y-0.5'}`}
                                     >
                                         <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity text-gray-300 dark:text-gray-600 pointer-events-none hidden md:block">
                                             <GripVertical className="w-4 h-4" />
@@ -292,7 +293,7 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
                                                     placeholder="Untitled Task"
                                                     onChange={(e) => {/* Handled by modal usually, but visual sync needed here if editable */}}
                                                     onBlur={() => handleTaskBlur(task)}
-                                                    readOnly // Make readonly in board view to prefer modal edit, but allows blur to trigger on focus loss if we enabled editing
+                                                    readOnly // Make readonly in board view to prefer modal edit
                                                 />
                                             </div>
                                             {task.description && <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2">{task.description}</p>}
@@ -347,9 +348,9 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
                              {/* Quick Add Button */}
                              <button 
                                 onClick={() => handleQuickAdd(col.id as TaskStatus)}
-                                className="w-full py-2 rounded-lg border border-dashed border-gray-200 dark:border-gray-800 text-gray-400 dark:text-gray-500 hover:text-black dark:hover:text-white hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800/50 text-xs font-medium transition-all flex items-center justify-center gap-1"
+                                className="w-full py-3 md:py-2 rounded-lg border border-dashed border-gray-200 dark:border-gray-800 text-gray-400 dark:text-gray-500 hover:text-black dark:hover:text-white hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800/50 text-xs font-medium transition-all flex items-center justify-center gap-1"
                              >
-                                 <Plus className="w-3.5 h-3.5" /> New
+                                 <Plus className="w-3.5 h-3.5" /> New Task
                              </button>
                         </div>
                     </div>
@@ -360,7 +361,7 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
 
       {/* Dependency Modal */}
       {dependencyModalTask && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-white/50 dark:bg-black/50 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-white/50 dark:bg-black/50 backdrop-blur-sm px-4">
               <div className="bg-white dark:bg-gray-900 p-0 rounded-lg shadow-2xl border border-gray-100 dark:border-gray-800 w-full max-w-sm animate-in zoom-in-95 overflow-hidden">
                   <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-white dark:bg-gray-900">
                       <h3 className="font-semibold text-gray-900 dark:text-white text-sm">Dependencies for "{dependencyModalTask.title}"</h3>
@@ -395,7 +396,7 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
 
       {/* Suggestions Modal */}
       {isReviewingSuggestions && (
-           <div className="fixed inset-0 z-[60] flex items-center justify-center bg-white/80 dark:bg-black/80 backdrop-blur-sm">
+           <div className="fixed inset-0 z-[60] flex items-center justify-center bg-white/80 dark:bg-black/80 backdrop-blur-sm px-4">
               <div className="bg-white dark:bg-gray-900 p-6 rounded-lg shadow-xl border border-gray-100 dark:border-gray-800 w-full max-w-md animate-in zoom-in-95">
                    <h3 className="font-medium text-sm mb-4 text-gray-900 dark:text-white">Suggested Tasks</h3>
                    <div className="space-y-2 mb-6 max-h-96 overflow-y-auto">

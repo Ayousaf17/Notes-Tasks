@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Document, Task, TaskPriority, TaskStatus } from '../types';
 import { Wand2, ListChecks, RefreshCw, X, Check, User, Flag, AlignLeft, Tag as TagIcon, Sparkles, Edit3, Eye, SpellCheck, Scissors, Table as TableIcon, Link as LinkIcon, FileText, Maximize2, Minimize2, Heading1, Heading2, List, CheckSquare, Plus, Loader2, Trash2 } from 'lucide-react';
@@ -74,7 +75,7 @@ const MarkdownRenderer: React.FC<{
                 }
 
                 // Headers
-                if (line.startsWith('# ')) return <h1 key={i} className="text-4xl font-bold mt-12 mb-8 text-gray-900 dark:text-white tracking-tight">{line.slice(2)}</h1>;
+                if (line.startsWith('# ')) return <h1 key={i} className="text-3xl md:text-4xl font-bold mt-12 mb-8 text-gray-900 dark:text-white tracking-tight">{line.slice(2)}</h1>;
                 if (line.startsWith('## ')) return <h2 key={i} className="text-2xl font-semibold mt-10 mb-5 text-gray-900 dark:text-white border-b border-gray-100 dark:border-gray-800 pb-2">{line.slice(3)}</h2>;
                 if (line.startsWith('### ')) return <h3 key={i} className="text-xl font-medium mt-8 mb-4 text-gray-900 dark:text-white">{line.slice(4)}</h3>;
                 
@@ -102,7 +103,7 @@ const MarkdownRenderer: React.FC<{
                 // Paragraphs with bold handling
                 const parts = line.split(/(\*\*.*?\*\*)/g);
                 return (
-                    <p key={i} className="text-lg text-gray-700 dark:text-gray-300 mb-6">
+                    <p key={i} className="text-base md:text-lg text-gray-700 dark:text-gray-300 mb-6 leading-relaxed">
                         {parts.map((part, j) => {
                             if (part.startsWith('**') && part.endsWith('**')) {
                                 return <strong key={j} className="font-semibold text-gray-900 dark:text-white">{part.slice(2, -2)}</strong>;
@@ -187,7 +188,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
         // Adjust for scroll position
         const rect = e.target.getBoundingClientRect();
         setSlashMenu({ 
-            x: rect.left + coords.left, 
+            x: Math.min(rect.left + coords.left, window.innerWidth - 200), // Prevent overflow
             y: rect.top + coords.top + 30 + window.scrollY, 
             query: '' 
         });
@@ -205,7 +206,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
           const coords = getCaretCoordinates(textareaRef.current, selectionEnd);
            const rect = textareaRef.current.getBoundingClientRect();
            setHoverMenu({ 
-               x: rect.left + coords.left - 60, 
+               x: Math.max(20, Math.min(rect.left + coords.left - 60, window.innerWidth - 120)), // Bounds check
                y: rect.top + coords.top - 50 + window.scrollY, 
                text: doc.content.substring(selectionStart, selectionEnd), 
                range: [selectionStart, selectionEnd] 
@@ -275,16 +276,16 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
   return (
     <div className={`flex-1 h-full overflow-y-auto bg-white dark:bg-black font-sans transition-all duration-500 ${isZenMode ? 'fixed inset-0 z-[100] px-0 py-0' : ''}`}>
       {/* Container widened to max-w-6xl to utilize entire page space */}
-      <div className={`mx-auto transition-all duration-500 min-h-[calc(100vh-4rem)] ${isZenMode ? 'max-w-7xl px-8 py-20' : 'max-w-6xl px-8 pt-24 pb-12'}`}>
+      <div className={`mx-auto transition-all duration-500 min-h-[calc(100vh-4rem)] ${isZenMode ? 'max-w-7xl px-4 md:px-8 py-20' : 'max-w-6xl px-6 md:px-8 pt-6 md:pt-24 pb-32'}`}>
         
         {/* Minimal Toolbar */}
-        <div className="flex items-center justify-between mb-8 group">
+        <div className="flex items-center justify-between mb-8 group relative">
            {!isZenMode && (
                <div className="text-[10px] text-gray-300 dark:text-gray-600 uppercase tracking-widest">
                  {doc.updatedAt && `Last edited ${doc.updatedAt.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`}
                </div>
            )}
-           <div className={`flex items-center space-x-4 transition-opacity ${isZenMode ? 'opacity-0 hover:opacity-100 absolute top-6 right-8' : 'opacity-0 group-hover:opacity-100'}`}>
+           <div className={`flex items-center space-x-4 transition-opacity ${isZenMode ? 'opacity-0 hover:opacity-100 absolute top-6 right-8' : 'opacity-100 md:opacity-0 md:group-hover:opacity-100'}`}>
               <button onClick={() => setIsReadMode(!isReadMode)} className="text-gray-400 hover:text-black dark:hover:text-white transition-colors" title="Toggle Read Mode">
                 {isReadMode ? <Edit3 className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
@@ -303,14 +304,14 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
 
         {/* Title */}
         {isReadMode ? (
-            <h1 className="w-full text-4xl font-bold text-gray-900 dark:text-white mb-6 tracking-tight leading-tight">{doc.title || 'Untitled'}</h1>
+            <h1 className="w-full text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-6 tracking-tight leading-tight">{doc.title || 'Untitled'}</h1>
         ) : (
             <input
                 type="text"
                 value={doc.title}
                 onChange={(e) => handleUpdate({ ...doc, title: e.target.value })}
                 placeholder="Untitled"
-                className="w-full text-4xl font-bold text-gray-900 dark:text-white placeholder-gray-200 dark:placeholder-gray-700 border-none focus:ring-0 bg-transparent mb-6 p-0 tracking-tight leading-tight"
+                className="w-full text-3xl md:text-4xl font-bold text-gray-900 dark:text-white placeholder-gray-200 dark:placeholder-gray-700 border-none focus:ring-0 bg-transparent mb-6 p-0 tracking-tight leading-tight"
             />
         )}
 
@@ -342,10 +343,20 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
                     onChange={handleContentChange}
                     onSelect={handleSelect}
                     placeholder="Start writing..."
-                    className="w-full min-h-[60vh] text-lg text-gray-800 dark:text-gray-200 border-none focus:ring-0 bg-transparent resize-none p-0 placeholder-gray-200 dark:placeholder-gray-700 leading-loose"
+                    className="w-full min-h-[60vh] text-base md:text-lg text-gray-800 dark:text-gray-200 border-none focus:ring-0 bg-transparent resize-none p-0 placeholder-gray-200 dark:placeholder-gray-700 leading-loose"
                 />
             )}
         </div>
+        
+        {/* Mobile Zen Mode Exit Button (Since no ESC key) */}
+        {isZenMode && (
+            <button 
+                onClick={() => setIsZenMode(false)}
+                className="fixed top-6 left-6 z-[110] md:hidden p-3 bg-black/50 dark:bg-white/20 backdrop-blur rounded-full text-white dark:text-white shadow-lg"
+            >
+                <Minimize2 className="w-5 h-5" />
+            </button>
+        )}
 
         {/* Slash Menu */}
         {slashMenu && !isReadMode && (
@@ -384,8 +395,8 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
 
         {/* Summary Modal */}
         {summary && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/80 dark:bg-black/80 backdrop-blur-sm" onClick={() => setSummary(null)}>
-                <div className="bg-white dark:bg-gray-900 p-8 rounded-lg shadow-xl border border-gray-100 dark:border-gray-800 max-w-lg w-full">
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/80 dark:bg-black/80 backdrop-blur-sm p-4" onClick={() => setSummary(null)}>
+                <div className="bg-white dark:bg-gray-900 p-8 rounded-lg shadow-xl border border-gray-100 dark:border-gray-800 max-w-lg w-full max-h-[80vh] overflow-y-auto">
                     <h3 className="text-lg font-medium mb-4 text-gray-900 dark:text-white">Summary</h3>
                     <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">{summary}</p>
                 </div>
