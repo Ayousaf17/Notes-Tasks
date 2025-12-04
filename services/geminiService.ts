@@ -1,7 +1,19 @@
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { Task, TaskStatus, TaskPriority, ProjectPlan, Attachment, Project, InboxAction, AgentRole, AgentResult, Document, Source } from "../types";
 
-const apiKey = process.env.API_KEY;
+// SAFELY ACCESS API KEY: Prevents "process is not defined" crash in some browser environments
+const getApiKey = () => {
+  try {
+    if (typeof process !== 'undefined' && process.env) {
+      return process.env.API_KEY;
+    }
+  } catch (e) {
+    console.warn("Error accessing process.env", e);
+  }
+  return undefined;
+};
+
+const apiKey = getApiKey();
 const ai = new GoogleGenAI({ apiKey: apiKey || 'dummy_key' });
 
 const MODEL_NAME = "gemini-2.5-flash";

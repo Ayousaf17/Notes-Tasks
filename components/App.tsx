@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Sidebar } from './Sidebar';
 import { DocumentEditor } from './DocumentEditor';
@@ -71,12 +70,16 @@ const App: React.FC = () => {
   const minSwipeDistance = 50;
 
   const onTouchStart = (e: React.TouchEvent) => {
-    setTouchEnd(null);
-    setTouchStart(e.targetTouches[0].clientX);
+    if (e.targetTouches && e.targetTouches.length > 0) {
+        setTouchEnd(null);
+        setTouchStart(e.targetTouches[0].clientX);
+    }
   }
 
   const onTouchMove = (e: React.TouchEvent) => {
-    setTouchEnd(e.targetTouches[0].clientX);
+    if (e.targetTouches && e.targetTouches.length > 0) {
+        setTouchEnd(e.targetTouches[0].clientX);
+    }
   }
 
   const onTouchEnd = () => {
@@ -605,7 +608,7 @@ const App: React.FC = () => {
 
   return (
     <div 
-      className="flex h-[100dvh] w-full bg-white dark:bg-black overflow-hidden font-sans text-gray-900 dark:text-gray-100 transition-colors duration-200"
+      className="flex h-full w-full bg-white dark:bg-black overflow-hidden font-sans text-gray-900 dark:text-gray-100 transition-colors duration-200"
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}

@@ -35,13 +35,12 @@
       }
     </script>
     <style>
-      html {
-        scroll-behavior: smooth;
-      }
-      body { 
-        font-family: 'Inter', sans-serif; 
-        /* Subtle texture/gradient for depth */
-        background-attachment: fixed;
+      html, body, #root {
+        height: 100%;
+        width: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden; /* App handles internal scrolling */
       }
       .font-serif { font-family: 'Playfair Display', serif; }
       
