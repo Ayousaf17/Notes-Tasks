@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Component, ErrorInfo } from 'react';
 import { Sidebar } from './Sidebar';
 import { DocumentEditor } from './DocumentEditor';
 import { TaskBoard } from './TaskBoard';
@@ -17,10 +17,56 @@ import { SettingsView } from './SettingsView';
 import { CreateProjectModal } from './CreateProjectModal';
 import { ConfirmationModal } from './ConfirmationModal';
 import { ViewMode, Document, Task, TaskStatus, ProjectPlan, TaskPriority, ChatMessage, Project, InboxItem, InboxAction, AgentRole, Integration } from '../types';
-import { Sparkles, Command, Plus, Menu, Cloud, MessageSquare, Home, Inbox, Search, CheckSquare } from 'lucide-react';
+import { Sparkles, Command, Plus, Menu, Cloud, MessageSquare, Home, Inbox, Search, CheckSquare, AlertTriangle } from 'lucide-react';
 import { geminiService } from '../services/geminiService';
 import { dataService } from '../services/dataService';
 import { supabase } from '../services/supabase';
+
+// ERROR BOUNDARY COMPONENT
+interface ErrorBoundaryProps {
+  children: React.ReactNode;
+}
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+}
+
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error("App Crash:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex flex-col items-center justify-center h-screen bg-gray-50 text-center p-6">
+          <div className="bg-white p-8 rounded-2xl shadow-xl max-w-sm">
+            <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+            <h1 className="text-xl font-bold text-gray-900 mb-2">Something went wrong</h1>
+            <p className="text-gray-500 text-sm mb-6">The application encountered an unexpected error.</p>
+            <button 
+              onClick={() => { localStorage.clear(); window.location.reload(); }}
+              className="px-6 py-3 bg-black text-white rounded-lg font-medium text-sm hover:opacity-90 transition-opacity"
+            >
+              Reset App & Reload
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 // ENHANCED MOBILE BOTTOM NAV
 const MobileBottomNav = ({ currentView, onChangeView, onOpenMenu, onSearch }: { currentView: ViewMode, onChangeView: (v: ViewMode) => void, onOpenMenu: () => void, onSearch: () => void }) => (
@@ -57,7 +103,7 @@ const MobileBottomNav = ({ currentView, onChangeView, onOpenMenu, onSearch }: { 
   </div>
 );
 
-const App: React.FC = () => {
+const AppContent: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewMode>(ViewMode.HOME); 
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(false); 
@@ -89,12 +135,10 @@ const App: React.FC = () => {
     const isRightSwipe = distance < -minSwipeDistance;
     
     if (isLeftSwipe) {
-      // Swipe Left -> Open Chat
       setIsChatOpen(true);
       setIsMobileSidebarOpen(false);
     }
     if (isRightSwipe) {
-      // Swipe Right -> Open Menu
       setIsMobileSidebarOpen(true);
       setIsChatOpen(false);
     }
@@ -113,7 +157,9 @@ const App: React.FC = () => {
 
   const handleUpdateTeam = (members: string[]) => {
       setTeamMembers(members);
-      localStorage.setItem('teamMembers', JSON.stringify(members));
+      try {
+        localStorage.setItem('teamMembers', JSON.stringify(members));
+      } catch (e) {}
   };
 
   // Confirmation Modal State
@@ -139,7 +185,7 @@ const App: React.FC = () => {
           isDanger: true,
           confirmText: 'Reset Data',
           onConfirm: () => {
-              localStorage.clear();
+              try { localStorage.clear(); } catch(e){}
               window.location.reload();
           }
       });
@@ -159,10 +205,10 @@ const App: React.FC = () => {
   useEffect(() => {
     if (isDarkMode) {
         document.documentElement.classList.add('dark');
-        localStorage.setItem('theme', 'dark');
+        try { localStorage.setItem('theme', 'dark'); } catch(e){}
     } else {
         document.documentElement.classList.remove('dark');
-        localStorage.setItem('theme', 'light');
+        try { localStorage.setItem('theme', 'light'); } catch(e){}
     }
   }, [isDarkMode]);
 
@@ -242,31 +288,6 @@ const App: React.FC = () => {
       window.addEventListener('keydown', handleKeyDown);
       return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
-
-  // Reminder Polling
-  useEffect(() => {
-      if (Notification.permission !== 'granted' && Notification.permission !== 'denied') {
-          Notification.requestPermission();
-      }
-
-      const interval = setInterval(() => {
-          const now = new Date();
-          const tasksWithReminders = tasks.filter(t => t.reminderTime);
-
-          tasksWithReminders.forEach(task => {
-              const reminderTime = new Date(task.reminderTime!);
-              if (reminderTime <= now && reminderTime.getTime() > now.getTime() - 60000) {
-                  new Notification(`Aasani Reminder: ${task.title}`, {
-                      body: task.description || 'This task is due.',
-                      icon: '/favicon.ico'
-                  });
-                  updateTask(task.id, { reminderTime: undefined });
-              }
-          });
-      }, 30000);
-
-      return () => clearInterval(interval);
-  }, [tasks]);
 
   const activeProject = projects.find(p => p.id === activeProjectId) || projects[0];
   const projectDocs = documents.filter(d => d.projectId === activeProjectId);
@@ -608,7 +629,7 @@ const App: React.FC = () => {
 
   return (
     <div 
-      className="flex h-full w-full bg-white dark:bg-black overflow-hidden font-sans text-gray-900 dark:text-gray-100 transition-colors duration-200"
+      className="flex h-[100dvh] w-full bg-white dark:bg-black overflow-hidden font-sans text-gray-900 dark:text-gray-100 transition-colors duration-200"
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
@@ -826,5 +847,11 @@ const App: React.FC = () => {
     </div>
   );
 };
+
+const App: React.FC = () => (
+  <ErrorBoundary>
+    <AppContent />
+  </ErrorBoundary>
+);
 
 export default App;

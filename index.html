@@ -7,6 +7,13 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
     <script>
+      // Polyfill process for browser environments to prevent crashes in libraries that expect it
+      window.process = {
+        env: {
+          NODE_ENV: 'production'
+        }
+      };
+
       tailwind.config = {
         darkMode: 'class',
         theme: {
@@ -42,6 +49,7 @@
         padding: 0;
         overflow: hidden; /* App handles internal scrolling */
         -webkit-tap-highlight-color: transparent; /* Native feel on mobile */
+        touch-action: manipulation;
       }
       .font-serif { font-family: 'Playfair Display', serif; }
       
