@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useMemo } from 'react';
 import { Task, Document, Project, TaskPriority, TaskStatus } from '../types';
 import { geminiService } from '../services/geminiService';
@@ -116,14 +115,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       }
   }, [focusList, userName, briefing]);
 
-  // Clean up speech on unmount - REMOVED the event listener that causes crash
   useEffect(() => {
       return () => {
-          window.speechSynthesis.cancel();
+          if (typeof window !== 'undefined' && window.speechSynthesis) {
+              window.speechSynthesis.cancel();
+          }
       };
   }, []);
 
   const toggleSpeech = () => {
+      if (typeof window === 'undefined' || !window.speechSynthesis) return;
+
       if (isSpeaking) {
           window.speechSynthesis.cancel();
           setIsSpeaking(false);
@@ -131,7 +133,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           const utterance = new SpeechSynthesisUtterance(briefing);
           utterance.rate = 1;
           utterance.pitch = 1;
-          // Correct way to handle end event on the utterance itself, safe for mobile
           utterance.onend = () => setIsSpeaking(false);
           window.speechSynthesis.speak(utterance);
           setIsSpeaking(true);

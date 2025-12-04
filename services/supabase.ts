@@ -1,9 +1,21 @@
 import { createClient } from '@supabase/supabase-js';
 
+// SAFE ENVIRONMENT ACCESS
+// Prevents crash in browsers where 'process' is not defined
+const getEnv = (key: string) => {
+  try {
+    if (typeof process !== 'undefined' && process.env) {
+      return process.env[key];
+    }
+  } catch (e) {
+    // Ignore error
+  }
+  return undefined;
+};
+
 // Live Supabase Connection
-// Prioritize Environment Variables for security, fall back to provided keys for prototype demo
-const SUPABASE_URL = process.env.SUPABASE_URL || 'https://jpfzafujsswrdwuenijt.supabase.co';
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpwZnphZnVqc3N3cmR3dWVuaWp0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQwMTQ0NDYsImV4cCI6MjA3OTU5MDQ0Nn0.O9qm79PrwTFsdY-a2xEy-BDqZeQRyUb4uIoSnLUEXtc';
+const SUPABASE_URL = getEnv('SUPABASE_URL') || 'https://jpfzafujsswrdwuenijt.supabase.co';
+const SUPABASE_ANON_KEY = getEnv('SUPABASE_ANON_KEY') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpwZnphZnVqc3N3cmR3dWVuaWp0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQwMTQ0NDYsImV4cCI6MjA3OTU5MDQ0Nn0.O9qm79PrwTFsdY-a2xEy-BDqZeQRyUb4uIoSnLUEXtc';
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 

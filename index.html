@@ -27,7 +27,7 @@
                 700: '#374151',
                 800: '#1f2937',
                 900: '#111827',
-                950: '#000000', // Pure black for dark mode
+                950: '#000000', 
               }
             }
           }
@@ -41,6 +41,7 @@
         margin: 0;
         padding: 0;
         overflow: hidden; /* App handles internal scrolling */
+        -webkit-tap-highlight-color: transparent; /* Native feel on mobile */
       }
       .font-serif { font-family: 'Playfair Display', serif; }
       
@@ -51,6 +52,11 @@
       .no-scrollbar {
         -ms-overflow-style: none;  /* IE and Edge */
         scrollbar-width: none;  /* Firefox */
+      }
+      
+      /* Smooth scrolling for mobile */
+      .overflow-y-auto {
+        -webkit-overflow-scrolling: touch;
       }
       
       /* Page Slide Animation */
@@ -86,6 +92,12 @@
       }
       .safe-area-top {
         padding-top: env(safe-area-inset-top);
+      }
+      .pt-safe {
+        padding-top: env(safe-area-inset-top);
+      }
+      .pb-safe {
+        padding-bottom: env(safe-area-inset-bottom);
       }
     </style>
   <script type="importmap">
