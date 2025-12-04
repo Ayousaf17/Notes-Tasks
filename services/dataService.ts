@@ -1,5 +1,6 @@
+
 import { supabase } from './supabase';
-import { Project, Task, Document, TaskStatus, TaskPriority } from '../types';
+import { Project, Task, Document, TaskStatus, TaskPriority, Client } from '../types';
 
 export const dataService = {
   async fetchAll() {
@@ -13,6 +14,12 @@ export const dataService = {
         const { data: documents, error: docsError } = await supabase.from('documents').select('*');
         if (docsError) console.warn("Supabase Documents Error:", docsError);
         
+        // Mock Clients Data (since DB might not have table yet)
+        const mockClients: Client[] = [
+            { id: 'c1', name: 'Alice Corp', company: 'Alice Inc.', email: 'alice@corp.com', status: 'Active', value: 15000, lastContact: new Date(), tags: ['Tech'] },
+            { id: 'c2', name: 'Bob Smith', company: 'Smith Designs', email: 'bob@smith.com', status: 'Lead', value: 5000, lastContact: new Date(Date.now() - 86400000 * 3), tags: ['Design'] }
+        ];
+
         return {
           projects: (projects || []).map((p: any) => ({
             id: p.id,
@@ -46,11 +53,13 @@ export const dataService = {
             content: d.content,
             tags: d.tags || [],
             updatedAt: d.updated_at ? new Date(d.updated_at) : new Date()
-          })) as Document[]
+          })) as Document[],
+
+          clients: mockClients
         };
     } catch (e) {
         console.error("CRITICAL: Failed to fetch data from Supabase. Returning empty state to prevent crash.", e);
-        return { projects: [], tasks: [], documents: [] };
+        return { projects: [], tasks: [], documents: [], clients: [] };
     }
   },
 

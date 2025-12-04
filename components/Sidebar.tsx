@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { FileText, Layout, Calendar, Settings, Plus, Inbox, Network, Home, X, Globe, Layers, User, Moon, Sun, Loader2, Folder, Trash2, CheckSquare } from 'lucide-react';
+import { FileText, Layout, Calendar, Settings, Plus, Inbox, Network, Home, X, Globe, Layers, User, Moon, Sun, Loader2, Folder, Trash2, CheckSquare, Users } from 'lucide-react';
 import { ViewMode, Document, Project } from '../types';
 
 interface SidebarProps {
@@ -74,7 +74,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     </button>
   );
 
-  const isProjectContext = ![ViewMode.HOME, ViewMode.INBOX, ViewMode.GLOBAL_BOARD, ViewMode.GLOBAL_CALENDAR, ViewMode.SETTINGS].includes(currentView);
+  const isProjectContext = ![ViewMode.HOME, ViewMode.INBOX, ViewMode.GLOBAL_BOARD, ViewMode.GLOBAL_CALENDAR, ViewMode.SETTINGS, ViewMode.CLIENTS].includes(currentView);
 
   return (
     <>
@@ -139,6 +139,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   label="Timeline" 
                   isActive={currentView === ViewMode.GLOBAL_CALENDAR} 
                   onClick={() => { onChangeView(ViewMode.GLOBAL_CALENDAR); onMobileClose(); }} 
+              />
+              <NavItem 
+                  icon={Users} 
+                  label="Clients" 
+                  isActive={currentView === ViewMode.CLIENTS} 
+                  onClick={() => { onChangeView(ViewMode.CLIENTS); onMobileClose(); }} 
               />
           </div>
 

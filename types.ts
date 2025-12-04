@@ -1,3 +1,4 @@
+
 export enum ViewMode {
   HOME = 'HOME', 
   DOCUMENTS = 'DOCUMENTS',
@@ -9,7 +10,8 @@ export enum ViewMode {
   SETTINGS = 'SETTINGS',
   GLOBAL_BOARD = 'GLOBAL_BOARD',
   GLOBAL_CALENDAR = 'GLOBAL_CALENDAR',
-  PROJECT_OVERVIEW = 'PROJECT_OVERVIEW'
+  PROJECT_OVERVIEW = 'PROJECT_OVERVIEW',
+  CLIENTS = 'CLIENTS' // NEW
 }
 
 export interface Project {
@@ -17,7 +19,20 @@ export interface Project {
   title: string;
   icon?: string;
   description?: string;
+  clientId?: string; // Linked to Client
   createdAt: Date;
+}
+
+// NEW: CRM Client Interface
+export interface Client {
+  id: string;
+  name: string;
+  company: string;
+  email: string;
+  status: 'Lead' | 'Active' | 'Churned';
+  value: number; // Estimated revenue
+  lastContact: Date;
+  tags: string[];
 }
 
 export interface Document {
@@ -61,7 +76,7 @@ export interface Task {
   status: TaskStatus;
   assignee?: string;
   dueDate?: Date;
-  reminderTime?: Date; // NEW: Added field for system notifications
+  reminderTime?: Date;
   priority?: TaskPriority;
   dependencies?: string[]; 
   linkedDocumentId?: string;
@@ -111,6 +126,7 @@ export interface ChatMessage {
   timestamp: Date;
   attachments?: Attachment[];
   sources?: Source[];
+  planProposal?: ProjectPlan; // HITL: The AI proposes a plan here
 }
 
 export interface Attachment {

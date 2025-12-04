@@ -1,6 +1,7 @@
+
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { Document, Task, TaskStatus } from '../types';
-import { FileText, CheckSquare, ZoomIn, ZoomOut, RefreshCw } from 'lucide-react';
+import { FileText, CheckSquare, ZoomIn, ZoomOut, RefreshCw, GitGraph, Layers } from 'lucide-react';
 
 interface GraphViewProps {
   documents: Document[];
@@ -18,6 +19,7 @@ interface Node {
   vy: number;
   data: Document | Task;
   radius: number;
+  column?: number; // For flow mode
 }
 
 interface Link {
@@ -36,6 +38,9 @@ export const GraphView: React.FC<GraphViewProps> = ({ documents, tasks, onNaviga
   const [dragNodeId, setDragNodeId] = useState<string | null>(null);
   const [hoverNodeId, setHoverNodeId] = useState<string | null>(null);
   const [lastTouchPos, setLastTouchPos] = useState({ x: 0, y: 0 });
+  
+  // Layout Mode: 'organic' (Force) or 'flow' (Process/Sankey-ish)
+  const [layoutMode, setLayoutMode] = useState<'organic' | 'flow'>('organic');
 
   // --- 1. Graph Construction ---
   useEffect(() => {
@@ -47,6 +52,15 @@ export const GraphView: React.FC<GraphViewProps> = ({ documents, tasks, onNaviga
     const newNodes: Node[] = [];
     const newLinks: Link[] = [];
 
+    // Assign rough columns for Flow Mode
+    // 0: Documents, 1: Todo, 2: In Progress, 3: Done
+    const getColumn = (type: 'document' | 'task', data: any) => {
+        if (type === 'document') return 0;
+        if (data.status === TaskStatus.TODO) return 1;
+        if (data.status === TaskStatus.IN_PROGRESS) return 2;
+        return 3;
+    };
+
     // Create Nodes
     documents.forEach(doc => {
         const existing = nodes.find(n => n.id === doc.id);
@@ -54,27 +68,30 @@ export const GraphView: React.FC<GraphViewProps> = ({ documents, tasks, onNaviga
             id: doc.id,
             type: 'document',
             label: doc.title || 'Untitled',
-            x: existing ? existing.x : centerX + (Math.random() - 0.5) * 200,
+            x: existing ? existing.x : centerX - 300,
             y: existing ? existing.y : centerY + (Math.random() - 0.5) * 200,
             vx: 0,
             vy: 0,
             data: doc,
-            radius: 25
+            radius: 25,
+            column: 0
         });
     });
 
     tasks.forEach(task => {
         const existing = nodes.find(n => n.id === task.id);
+        const col = getColumn('task', task);
         newNodes.push({
             id: task.id,
             type: 'task',
             label: task.title,
-            x: existing ? existing.x : centerX + (Math.random() - 0.5) * 300,
+            x: existing ? existing.x : centerX - 100 + (col * 200),
             y: existing ? existing.y : centerY + (Math.random() - 0.5) * 300,
             vx: 0,
             vy: 0,
             data: task,
-            radius: 15
+            radius: 15,
+            column: col
         });
     });
 
@@ -83,7 +100,7 @@ export const GraphView: React.FC<GraphViewProps> = ({ documents, tasks, onNaviga
         if (task.linkedDocumentId) newLinks.push({ source: task.id, target: task.linkedDocumentId, type: 'promotion' });
         if (task.dependencies) {
             task.dependencies.forEach(depId => {
-                if (tasks.find(t => t.id === depId)) newLinks.push({ source: task.id, target: depId, type: 'dependency' });
+                if (tasks.find(t => t.id === depId)) newLinks.push({ source: depId, target: task.id, type: 'dependency' }); // Directional
             });
         }
     });
@@ -97,20 +114,12 @@ export const GraphView: React.FC<GraphViewProps> = ({ documents, tasks, onNaviga
             const exists = targetType === 'document' ? documents.find(d => d.id === targetId) : tasks.find(t => t.id === targetId);
             if (exists) newLinks.push({ source: doc.id, target: targetId, type: 'wiki' });
         }
-
-        const regexWiki = /\[\[(.*?)\]\]/g;
-        let wikiMatch;
-        while ((wikiMatch = regexWiki.exec(doc.content)) !== null) {
-            const title = wikiMatch[1];
-            const foundDoc = documents.find(d => d.title.toLowerCase() === title.toLowerCase());
-            if (foundDoc && foundDoc.id !== doc.id) newLinks.push({ source: doc.id, target: foundDoc.id, type: 'wiki' });
-        }
     });
 
     setNodes(newNodes);
     setLinks(newLinks);
     if (nodes.length === 0) setOffset({ x: 0, y: 0 });
-  }, [documents, tasks]); 
+  }, [documents, tasks]); // Re-run when data changes
 
 
   // --- 2. Simulation Loop ---
@@ -119,59 +128,102 @@ export const GraphView: React.FC<GraphViewProps> = ({ documents, tasks, onNaviga
     const tick = () => {
         setNodes(prevNodes => {
             const nextNodes = prevNodes.map(n => ({ ...n }));
-            const k = 0.05;
-            const repulsion = 4000;
-            const drag = 0.90;
+            
+            // Flow Mode: Target positions based on columns
+            if (layoutMode === 'flow' && containerRef.current) {
+                const { width, height } = containerRef.current.getBoundingClientRect();
+                const colWidth = width / 4; // 4 Stages
+                const startX = width * 0.1;
+                
+                nextNodes.forEach(node => {
+                    if (dragNodeId === node.id) return;
+                    
+                    // Target X based on column
+                    const targetX = startX + ((node.column || 0) * colWidth);
+                    // Weak pull towards vertical center
+                    const targetY = height / 2;
 
-            for (let i = 0; i < nextNodes.length; i++) {
-                for (let j = i + 1; j < nextNodes.length; j++) {
-                    const dx = nextNodes[i].x - nextNodes[j].x;
-                    const dy = nextNodes[i].y - nextNodes[j].y;
-                    const distance = Math.sqrt(dx * dx + dy * dy) || 1;
-                    const force = repulsion / (distance * distance);
-                    const fx = (dx / distance) * force;
-                    const fy = (dy / distance) * force;
-                    nextNodes[i].vx += fx;
-                    nextNodes[i].vy += fy;
-                    nextNodes[j].vx -= fx;
-                    nextNodes[j].vy -= fy;
+                    // Apply strict force towards column
+                    node.vx += (targetX - node.x) * 0.05;
+                    // Gentle vertical grouping, allow spread
+                    node.vy += (targetY - node.y) * 0.002;
+                    
+                    // Repulsion to prevent overlap
+                    nextNodes.forEach(other => {
+                        if (node.id !== other.id) {
+                            const dx = node.x - other.x;
+                            const dy = node.y - other.y;
+                            const dist = Math.sqrt(dx*dx + dy*dy) || 1;
+                            if (dist < 60) {
+                                const f = (60 - dist) * 0.1;
+                                node.vx += (dx / dist) * f;
+                                node.vy += (dy / dist) * f;
+                            }
+                        }
+                    });
+
+                    node.x += node.vx;
+                    node.y += node.vy;
+                    node.vx *= 0.8; // Damp
+                    node.vy *= 0.8;
+                });
+
+            } else {
+                // Organic Mode: Standard Force Directed
+                const k = 0.05;
+                const repulsion = 4000;
+                const drag = 0.90;
+
+                for (let i = 0; i < nextNodes.length; i++) {
+                    for (let j = i + 1; j < nextNodes.length; j++) {
+                        const dx = nextNodes[i].x - nextNodes[j].x;
+                        const dy = nextNodes[i].y - nextNodes[j].y;
+                        const distance = Math.sqrt(dx * dx + dy * dy) || 1;
+                        const force = repulsion / (distance * distance);
+                        const fx = (dx / distance) * force;
+                        const fy = (dy / distance) * force;
+                        nextNodes[i].vx += fx;
+                        nextNodes[i].vy += fy;
+                        nextNodes[j].vx -= fx;
+                        nextNodes[j].vy -= fy;
+                    }
                 }
-            }
 
-            links.forEach(link => {
-                const source = nextNodes.find(n => n.id === link.source);
-                const target = nextNodes.find(n => n.id === link.target);
-                if (source && target) {
-                    const dx = target.x - source.x;
-                    const dy = target.y - source.y;
-                    const distance = Math.sqrt(dx * dx + dy * dy) || 1;
-                    const force = (distance - 150) * k; 
-                    const fx = (dx / distance) * force;
-                    const fy = (dy / distance) * force;
-                    source.vx += fx;
-                    source.vy += fy;
-                    target.vx -= fx;
-                    target.vy -= fy;
+                links.forEach(link => {
+                    const source = nextNodes.find(n => n.id === link.source);
+                    const target = nextNodes.find(n => n.id === link.target);
+                    if (source && target) {
+                        const dx = target.x - source.x;
+                        const dy = target.y - source.y;
+                        const distance = Math.sqrt(dx * dx + dy * dy) || 1;
+                        const force = (distance - 150) * k; 
+                        const fx = (dx / distance) * force;
+                        const fy = (dy / distance) * force;
+                        source.vx += fx;
+                        source.vy += fy;
+                        target.vx -= fx;
+                        target.vy -= fy;
+                    }
+                });
+
+                if (containerRef.current) {
+                     const { width, height } = containerRef.current.getBoundingClientRect();
+                     const cx = width / 2;
+                     const cy = height / 2;
+                     nextNodes.forEach(node => {
+                         node.vx += (cx - node.x) * 0.005;
+                         node.vy += (cy - node.y) * 0.005;
+                     });
                 }
-            });
 
-            if (containerRef.current) {
-                 const { width, height } = containerRef.current.getBoundingClientRect();
-                 const cx = width / 2;
-                 const cy = height / 2;
-                 nextNodes.forEach(node => {
-                     node.vx += (cx - node.x) * 0.005;
-                     node.vy += (cy - node.y) * 0.005;
-                 });
+                nextNodes.forEach(node => {
+                    if (dragNodeId === node.id) return;
+                    node.vx *= drag;
+                    node.vy *= drag;
+                    node.x += node.vx;
+                    node.y += node.vy;
+                });
             }
-
-            nextNodes.forEach(node => {
-                if (dragNodeId === node.id) return;
-                node.vx *= drag;
-                node.vy *= drag;
-                node.x += node.vx;
-                node.y += node.vy;
-            });
 
             return nextNodes;
         });
@@ -179,7 +231,7 @@ export const GraphView: React.FC<GraphViewProps> = ({ documents, tasks, onNaviga
     };
     animationFrameId = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(animationFrameId);
-  }, [links, dragNodeId]);
+  }, [links, dragNodeId, layoutMode]);
 
 
   // --- 3. Interaction Handlers ---
@@ -218,8 +270,6 @@ export const GraphView: React.FC<GraphViewProps> = ({ documents, tasks, onNaviga
           setDragNodeId(group.dataset.nodeId);
           setIsDragging(true);
           setLastTouchPos({ x: touch.clientX, y: touch.clientY });
-      } else {
-          // Pan logic could go here
       }
   };
 
@@ -258,11 +308,11 @@ export const GraphView: React.FC<GraphViewProps> = ({ documents, tasks, onNaviga
   };
 
   const getNodeColor = (node: Node) => {
-      if (node.type === 'document') return '#3b82f6';
+      if (node.type === 'document') return '#3b82f6'; // Blue
       const task = node.data as Task;
-      if (task.status === TaskStatus.DONE) return '#22c55e';
-      if (task.status === TaskStatus.IN_PROGRESS) return '#eab308';
-      return '#f97316';
+      if (task.status === TaskStatus.DONE) return '#22c55e'; // Green
+      if (task.status === TaskStatus.IN_PROGRESS) return '#eab308'; // Yellow
+      return '#ef4444'; // Red (Todo)
   };
 
   return (
@@ -276,11 +326,49 @@ export const GraphView: React.FC<GraphViewProps> = ({ documents, tasks, onNaviga
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
     >
+        {/* Controls Overlay */}
         <div className="absolute top-4 right-4 flex flex-col gap-2 z-10">
+            <button onClick={() => setLayoutMode(prev => prev === 'organic' ? 'flow' : 'organic')} className="p-2 bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300" title="Toggle Layout">
+                {layoutMode === 'organic' ? <Layers className="w-4 h-4" /> : <GitGraph className="w-4 h-4" />}
+            </button>
+            <div className="h-px w-full bg-gray-200 dark:bg-gray-700 my-1"></div>
             <button onClick={() => setScale(s => Math.min(4, s + 0.2))} className="p-2 bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300"><ZoomIn className="w-4 h-4" /></button>
             <button onClick={() => setScale(s => Math.max(0.1, s - 0.2))} className="p-2 bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300"><ZoomOut className="w-4 h-4" /></button>
             <button onClick={() => { setScale(1); setOffset({x:0, y:0}); }} className="p-2 bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300"><RefreshCw className="w-4 h-4" /></button>
         </div>
+
+        {/* Legend Overlay */}
+        <div className="absolute bottom-4 left-4 p-4 bg-white/90 dark:bg-gray-900/90 backdrop-blur rounded-xl border border-gray-200 dark:border-gray-800 shadow-lg pointer-events-none z-10">
+            <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Legend</h4>
+            <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full border-2 border-blue-500 bg-white dark:bg-gray-900"></div>
+                    <span className="text-xs text-gray-600 dark:text-gray-300">Document</span>
+                </div>
+                <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded bg-red-500"></div>
+                    <span className="text-xs text-gray-600 dark:text-gray-300">Task: To Do</span>
+                </div>
+                <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded bg-yellow-500"></div>
+                    <span className="text-xs text-gray-600 dark:text-gray-300">Task: In Progress</span>
+                </div>
+                <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded bg-green-500"></div>
+                    <span className="text-xs text-gray-600 dark:text-gray-300">Task: Done</span>
+                </div>
+            </div>
+        </div>
+
+        {/* Flow Mode Labels */}
+        {layoutMode === 'flow' && (
+            <div className="absolute top-4 left-0 w-full flex justify-around pointer-events-none z-0">
+                <div className="text-xs font-bold text-gray-300 dark:text-gray-700 uppercase">Documents</div>
+                <div className="text-xs font-bold text-gray-300 dark:text-gray-700 uppercase">To Do</div>
+                <div className="text-xs font-bold text-gray-300 dark:text-gray-700 uppercase">Active</div>
+                <div className="text-xs font-bold text-gray-300 dark:text-gray-700 uppercase">Done</div>
+            </div>
+        )}
 
         <svg className="w-full h-full pointer-events-none">
             <g transform={`translate(${offset.x}, ${offset.y}) scale(${scale})`}>
@@ -308,7 +396,8 @@ export const GraphView: React.FC<GraphViewProps> = ({ documents, tasks, onNaviga
                         key={node.id} 
                         data-node-id={node.id}
                         transform={`translate(${node.x}, ${node.y})`}
-                        className="pointer-events-auto cursor-pointer"
+                        className="pointer-events-auto cursor-pointer transition-opacity"
+                        style={{ transitionDuration: '0s' }} // Disable CSS transition for drag performance
                         onMouseDown={(e) => handleMouseDown(e, node.id)}
                         onClick={(e) => {
                             if (!isDragging) {

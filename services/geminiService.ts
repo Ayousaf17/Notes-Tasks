@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { Task, TaskStatus, TaskPriority, ProjectPlan, Attachment, Project, InboxAction, AgentRole, AgentResult, Document, Source } from "../types";
 
@@ -178,29 +179,24 @@ export const geminiService = {
       try {
           const response = await ai.models.generateContent({
               model: MODEL_NAME,
-              contents: `You are an Expert Technical Project Manager and Technical Writer. Use the following user note to perform an action.
+              contents: `You are an Expert Technical Project Manager and Technical Writer/Editor. Use the following user note to perform an action.
               
               **User Note**: "${content}"
               
               **Decision Logic**:
               1. **CREATE_PROJECT**: If the note contains a detailed list of features, progress updates (like "1. Feature A", "2. Backend"), or a summary of work done -> Action: 'create_project'.
-              2. **CREATE_TASK/DOC**: If it's a single item.
+              2. **CREATE_TASK**: If it's a single actionable item (e.g. "Meeting with Bob", "Fix bug").
+              3. **CREATE_DOCUMENT**: If it's a "Brain Dump", a summary of notes, a long explanation, a proposal, or a general write-up.
 
-              **IF 'create_project' (CRITICAL INSTRUCTIONS):**
-              - **Project Title**: Extract the name (e.g., "Ironside AI", "V2 Launch").
-              - **Overview Document**: Create a **CLEAN, HIGHLY STRUCTURED** Markdown document.
-                - **CRITICAL FORMATTING RULE**: If the input has numbered items (e.g., "1. Backend", "2. Frontend"), YOU MUST convert these into **H2 Headers** (e.g., "## 1. Backend"). 
-                - **DO NOT** lump them into a single paragraph.
-                - Use **Bullet Points** for the details under each header.
-                - Use **Bold** for key technologies or metrics.
-                - Ensure there is spacing between sections.
-                - Structure it like a professional engineering release note or status update.
-              - **Tasks**: Extract EVERY substantive bullet point as a task.
-                - **Status Mapping (BE STRICT)**:
-                  - Past tense verbs ("Built", "Shipped", "Fixed", "Implemented", "Created", "Delivered", "Completed", "Done", "Sent", "Responded") -> **'Done'**
-                  - Present continuous ("Working on", "In progress", "Refining", "Building") -> **'In Progress'**
-                  - Future/Pending ("Need to", "Plan to", "Waiting for", "Next steps", "To do", "If X wants") -> **'To Do'**
-                - **Priority**: Mark 'High' for "Critical", "Blocker", "Core", or "Phase 1". Default to 'Medium'.
+              **CRITICAL INSTRUCTION FOR 'create_document':**
+              - If the action is 'create_document', the 'content' field in the JSON **MUST** be a fully structured, professional Markdown document.
+              - **DO NOT** just copy the user note.
+              - **RESTRUCTURE IT**: Use H1 for the main title, H2 for sections, Bullet points for lists. 
+              - Organize the thoughts logically. If it's messy, clean it up. 
+              - It should look like a finished page ready for review.
+
+              **IF 'create_project':**
+              - Follow the same rigorous structuring for the 'overviewContent'. Use Headers and Bullets.
 
               **Available Projects**:
               ${projectContext}
@@ -219,7 +215,7 @@ export const geminiService = {
                               properties: {
                                   title: { type: Type.STRING },
                                   description: { type: Type.STRING },
-                                  content: { type: Type.STRING },
+                                  content: { type: Type.STRING, description: "For documents: A FULLY FORMATTED Markdown body. Organized with headers and lists." },
                                   priority: { type: Type.STRING, enum: [TaskPriority.HIGH, TaskPriority.MEDIUM, TaskPriority.LOW] }
                               },
                               required: ["title"]

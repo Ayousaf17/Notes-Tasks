@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect, useRef, Component, ErrorInfo } from 'react';
+import React, { useState, useEffect, useRef, ErrorInfo } from 'react';
 import { Sidebar } from './Sidebar';
 import { DocumentEditor } from './DocumentEditor';
 import { TaskBoard } from './TaskBoard';
@@ -15,17 +14,18 @@ import { ReviewWizard } from './ReviewWizard';
 import { TaskDetailModal } from './TaskDetailModal';
 import { IntegrationsModal } from './IntegrationsModal';
 import { SettingsView } from './SettingsView';
+import { ClientsView } from './ClientsView';
 import { CreateProjectModal } from './CreateProjectModal';
 import { ConfirmationModal } from './ConfirmationModal';
-import { ViewMode, Document, Task, TaskStatus, ProjectPlan, TaskPriority, ChatMessage, Project, InboxItem, InboxAction, AgentRole, Integration } from '../types';
-import { Sparkles, Command, Plus, Menu, Cloud, MessageSquare, Home, Inbox, Search, CheckSquare, AlertTriangle } from 'lucide-react';
+import { ViewMode, Document, Task, TaskStatus, ProjectPlan, TaskPriority, ChatMessage, Project, InboxItem, InboxAction, AgentRole, Integration, Client } from '../types';
+import { Sparkles, Command, Plus, Menu, Cloud, MessageSquare, Home, Inbox, Search, CheckSquare, AlertTriangle, Bot } from 'lucide-react';
 import { geminiService } from '../services/geminiService';
 import { dataService } from '../services/dataService';
 import { supabase } from '../services/supabase';
 
 // ERROR BOUNDARY COMPONENT
 interface ErrorBoundaryProps {
-  children: React.ReactNode;
+  children?: React.ReactNode;
 }
 
 interface ErrorBoundaryState {
@@ -33,11 +33,14 @@ interface ErrorBoundaryState {
   error: Error | null;
 }
 
-class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  public state: ErrorBoundaryState = {
-    hasError: false,
-    error: null
-  };
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = {
+      hasError: false,
+      error: null
+    };
+  }
 
   static getDerivedStateFromError(error: Error) {
     return { hasError: true, error };
@@ -117,7 +120,6 @@ const AppContent: React.FC = () => {
   const minSwipeDistance = 50;
 
   const onTouchStart = (e: React.TouchEvent) => {
-    // Only track if single touch to avoid interfering with multi-touch gestures
     if (e.targetTouches && e.targetTouches.length === 1) {
         touchEnd.current = null;
         touchStart.current = e.targetTouches[0].clientX;
@@ -135,9 +137,6 @@ const AppContent: React.FC = () => {
     const distance = touchStart.current - touchEnd.current;
     const isLeftSwipe = distance > minSwipeDistance;
     const isRightSwipe = distance < -minSwipeDistance;
-    
-    // Only allow horizontal swipes if we moved significantly more horizontally than vertically?
-    // For now, simple horizontal check is okay, but using refs prevents the lag.
     
     if (isLeftSwipe) {
       setIsChatOpen(true);
@@ -241,6 +240,7 @@ const AppContent: React.FC = () => {
   const [activeDocId, setActiveDocId] = useState<string | null>('d1');
   
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
 
   const [inboxItems, setInboxItems] = useState<InboxItem[]>([
       { id: 'i1', content: 'Feedback from CEO: Make the sidebar collapsible on mobile', type: 'text', status: 'pending', createdAt: new Date() }
@@ -257,12 +257,13 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     const loadData = async () => {
         try {
-            const { projects: dbProjects, tasks: dbTasks, documents: dbDocs } = await dataService.fetchAll();
+            const { projects: dbProjects, tasks: dbTasks, documents: dbDocs, clients: dbClients } = await dataService.fetchAll();
             
             if (dbProjects.length > 0) {
                 setProjects(dbProjects);
                 setTasks(dbTasks);
                 setDocuments(dbDocs);
+                setClients(dbClients || []);
                 setActiveProjectId(prev => dbProjects.find(p => p.id === prev) ? prev : dbProjects[0].id);
             }
         } catch (e) {
@@ -667,23 +668,25 @@ const AppContent: React.FC = () => {
           <div className="flex items-center space-x-3 text-sm">
              <span className="font-medium text-black dark:text-white inline">
                  {currentView === ViewMode.HOME ? 'Home' : 
-                  currentView === ViewMode.SETTINGS ? 'Settings' : viewTitle}
+                  currentView === ViewMode.SETTINGS ? 'Settings' : 
+                  currentView === ViewMode.CLIENTS ? 'Clients' : viewTitle}
              </span>
              <span className="hidden md:inline text-gray-300 dark:text-gray-700">/</span>
              <span className="hidden md:block text-gray-500 dark:text-gray-400 truncate">
                  {currentView === ViewMode.DOCUMENTS ? (activeDocument?.title || 'Untitled') : 
                   currentView === ViewMode.BOARD ? 'Board' : 
                   currentView === ViewMode.HOME ? 'Dashboard' :
+                  currentView === ViewMode.CLIENTS ? 'Relationship Manager' :
                   currentView === ViewMode.SETTINGS ? 'Preferences' :
                   currentView.toLowerCase().replace('_', ' ')}
              </span>
           </div>
           <div className="flex items-center space-x-4">
              <button onClick={() => setIsCommandPaletteOpen(true)} className="text-gray-400 hover:text-black dark:hover:text-white transition-colors p-2">
-                <Command className="w-5 h-5" />
+                <Search className="w-5 h-5" />
             </button>
             <button onClick={() => setIsChatOpen(!isChatOpen)} className={`transition-colors p-2 ${isChatOpen ? 'text-purple-600 dark:text-purple-400' : 'text-gray-400 hover:text-black dark:hover:text-white'}`}>
-                <Sparkles className="w-5 h-5" />
+                <Bot className="w-5 h-5" />
             </button>
           </div>
         </header>
@@ -732,6 +735,8 @@ const AppContent: React.FC = () => {
                           integrations={integrations}
                           onToggleIntegration={handleToggleIntegration}
                       />
+                  ) : currentView === ViewMode.CLIENTS ? (
+                      <ClientsView clients={clients} projects={projects} />
                   ) : currentView === ViewMode.REVIEW ? (
                       <ReviewWizard inboxItems={inboxItems} tasks={tasks} projects={projects} onProcessInboxItem={handleProcessInboxItem} onDeleteInboxItem={handleDeleteInboxItem} onDeleteTask={handleDeleteTask} onUpdateTaskStatus={handleUpdateTaskStatus} onUpdateTaskAssignee={handleUpdateTaskAssignee} onClose={() => setCurrentView(ViewMode.HOME)} />
                   ) : currentView === ViewMode.DOCUMENTS && activeDocument ? (
