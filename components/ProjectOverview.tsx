@@ -1,3 +1,4 @@
+
 import React, { useMemo } from 'react';
 import { Project, Task, Document, TaskStatus, TaskPriority, ViewMode } from '../types';
 import { Activity, Users, Target, Zap, AlertCircle, CheckCircle, Clock } from 'lucide-react';
