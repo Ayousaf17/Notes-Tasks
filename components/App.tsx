@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef, ErrorInfo } from 'react';
+
+import React, { useState, useEffect, useRef, ErrorInfo, Component } from 'react';
 import { Sidebar } from './Sidebar';
 import { DocumentEditor } from './DocumentEditor';
 import { TaskBoard } from './TaskBoard';
@@ -33,7 +34,7 @@ interface ErrorBoundaryState {
   error: Error | null;
 }
 
-class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = {
@@ -109,11 +110,29 @@ const MobileBottomNav = ({ currentView, onChangeView, onOpenMenu, onSearch }: { 
 
 const AppContent: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewMode>(ViewMode.HOME); 
+  // History Stack for Navigation "Back" functionality
+  const [viewHistory, setViewHistory] = useState<ViewMode[]>([]);
+
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(false); 
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   
+  // Navigation Handler with History
+  const navigateToView = (newView: ViewMode) => {
+    if (newView === currentView) return;
+    setViewHistory(prev => [...prev, currentView]);
+    setCurrentView(newView);
+  };
+
+  const handleBack = () => {
+    if (viewHistory.length === 0) return false;
+    const prevView = viewHistory[viewHistory.length - 1];
+    setViewHistory(prev => prev.slice(0, -1));
+    setCurrentView(prevView);
+    return true;
+  };
+
   // Optimized Swipe Logic: Using Refs to prevent re-renders on scroll
   const touchStart = useRef<number | null>(null);
   const touchEnd = useRef<number | null>(null);
@@ -139,11 +158,16 @@ const AppContent: React.FC = () => {
     const isRightSwipe = distance < -minSwipeDistance;
     
     if (isLeftSwipe) {
+      // Right-to-Left Swipe (Open Chat)
       setIsChatOpen(true);
       setIsMobileSidebarOpen(false);
     }
     if (isRightSwipe) {
-      setIsMobileSidebarOpen(true);
+      // Left-to-Right Swipe (Back or Open Sidebar)
+      const didGoBack = handleBack();
+      if (!didGoBack) {
+          setIsMobileSidebarOpen(true);
+      }
       setIsChatOpen(false);
     }
   }
@@ -330,14 +354,14 @@ const AppContent: React.FC = () => {
       setProjects(prev => [...prev, newProject]);
       setActiveProjectId(newProject.id);
       setActiveDocId(null);
-      setCurrentView(ViewMode.DOCUMENTS);
+      navigateToView(ViewMode.DOCUMENTS);
       await dataService.createProject(newProject);
   };
 
   const handleSelectProject = (projectId: string) => {
       setActiveProjectId(projectId);
       setActiveDocId(null);
-      setCurrentView(ViewMode.PROJECT_OVERVIEW); 
+      navigateToView(ViewMode.PROJECT_OVERVIEW); 
   };
 
   const handleDeleteProject = (projectId: string) => {
@@ -358,7 +382,7 @@ const AppContent: React.FC = () => {
                   if (remaining.length > 0) {
                       handleSelectProject(remaining[0].id);
                   } else {
-                      setCurrentView(ViewMode.HOME);
+                      navigateToView(ViewMode.HOME);
                   }
               }
               await dataService.deleteProject(projectId);
@@ -377,7 +401,7 @@ const AppContent: React.FC = () => {
     };
     setDocuments(prev => [...prev, newDoc]);
     setActiveDocId(newDoc.id);
-    setCurrentView(ViewMode.DOCUMENTS);
+    navigateToView(ViewMode.DOCUMENTS);
     await dataService.createDocument(newDoc);
   };
 
@@ -470,7 +494,7 @@ const AppContent: React.FC = () => {
       await dataService.createDocument(newDoc);
       setActiveProjectId(task.projectId);
       setActiveDocId(newDoc.id);
-      setCurrentView(ViewMode.DOCUMENTS);
+      navigateToView(ViewMode.DOCUMENTS);
   };
 
   const handleProjectPlanCreated = (plan: ProjectPlan) => {
@@ -512,7 +536,7 @@ const AppContent: React.FC = () => {
 
     setActiveProjectId(newProject.id);
     setActiveDocId(newDoc.id);
-    setCurrentView(ViewMode.PROJECT_OVERVIEW); 
+    navigateToView(ViewMode.PROJECT_OVERVIEW); 
   };
 
   const handleToggleIntegration = async (id: string, apiKey?: string) => {
@@ -532,13 +556,13 @@ const AppContent: React.FC = () => {
           if (doc) {
               setActiveProjectId(doc.projectId);
               setActiveDocId(id);
-              setCurrentView(ViewMode.DOCUMENTS);
+              navigateToView(ViewMode.DOCUMENTS);
           }
       } else if (type === 'task') {
           const task = tasks.find(t => t.id === id);
           if (task) {
               setActiveProjectId(task.projectId);
-              setCurrentView(ViewMode.BOARD);
+              navigateToView(ViewMode.BOARD);
               setSelectedTaskId(id);
           }
       }
@@ -643,7 +667,7 @@ const AppContent: React.FC = () => {
       
       <Sidebar
         currentView={currentView}
-        onChangeView={setCurrentView}
+        onChangeView={navigateToView}
         projects={projects}
         activeProjectId={activeProjectId}
         onSelectProject={handleSelectProject}
@@ -702,7 +726,7 @@ const AppContent: React.FC = () => {
                           projects={projects} 
                           userName="User" 
                           onNavigate={handleNavigate} 
-                          onStartReview={() => setCurrentView(ViewMode.REVIEW)} 
+                          onStartReview={() => navigateToView(ViewMode.REVIEW)} 
                           onCreateProject={handleOpenCreateProject}
                           teamMembers={teamMembers}
                       />
@@ -712,7 +736,7 @@ const AppContent: React.FC = () => {
                           tasks={projectTasks}
                           documents={projectDocs}
                           onNavigate={handleNavigate}
-                          onChangeView={setCurrentView}
+                          onChangeView={navigateToView}
                       />
                   ) : currentView === ViewMode.INBOX ? (
                       <InboxView 
@@ -738,7 +762,7 @@ const AppContent: React.FC = () => {
                   ) : currentView === ViewMode.CLIENTS ? (
                       <ClientsView clients={clients} projects={projects} />
                   ) : currentView === ViewMode.REVIEW ? (
-                      <ReviewWizard inboxItems={inboxItems} tasks={tasks} projects={projects} onProcessInboxItem={handleProcessInboxItem} onDeleteInboxItem={handleDeleteInboxItem} onDeleteTask={handleDeleteTask} onUpdateTaskStatus={handleUpdateTaskStatus} onUpdateTaskAssignee={handleUpdateTaskAssignee} onClose={() => setCurrentView(ViewMode.HOME)} />
+                      <ReviewWizard inboxItems={inboxItems} tasks={tasks} projects={projects} onProcessInboxItem={handleProcessInboxItem} onDeleteInboxItem={handleDeleteInboxItem} onDeleteTask={handleDeleteTask} onUpdateTaskStatus={handleUpdateTaskStatus} onUpdateTaskAssignee={handleUpdateTaskAssignee} onClose={() => navigateToView(ViewMode.HOME)} />
                   ) : currentView === ViewMode.DOCUMENTS && activeDocument ? (
                       <DocumentEditor 
                         document={activeDocument} 
@@ -808,7 +832,7 @@ const AppContent: React.FC = () => {
             allTasks={tasks}
         />
 
-        <CommandPalette isOpen={isCommandPaletteOpen} onClose={() => setIsCommandPaletteOpen(false)} documents={documents} tasks={tasks} projects={projects} onNavigate={handleNavigate} onCreateDocument={handleCreateDocument} onChangeView={setCurrentView} onSelectProject={handleSelectProject} />
+        <CommandPalette isOpen={isCommandPaletteOpen} onClose={() => setIsCommandPaletteOpen(false)} documents={documents} tasks={tasks} projects={projects} onNavigate={handleNavigate} onCreateDocument={handleCreateDocument} onChangeView={navigateToView} onSelectProject={handleSelectProject} />
         
         <CreateProjectModal 
           isOpen={isCreateProjectModalOpen}
@@ -850,7 +874,7 @@ const AppContent: React.FC = () => {
       {/* Mobile Bottom Navigation Bar */}
       <MobileBottomNav 
         currentView={currentView}
-        onChangeView={setCurrentView}
+        onChangeView={navigateToView}
         onOpenMenu={() => setIsMobileSidebarOpen(true)}
         onSearch={() => setIsCommandPaletteOpen(true)}
       />
