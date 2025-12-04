@@ -1,4 +1,5 @@
-import React, { useState, useEffect, Component, ErrorInfo } from 'react';
+
+import React, { useState, useEffect, useRef, Component, ErrorInfo } from 'react';
 import { Sidebar } from './Sidebar';
 import { DocumentEditor } from './DocumentEditor';
 import { TaskBoard } from './TaskBoard';
@@ -32,11 +33,11 @@ interface ErrorBoundaryState {
   error: Error | null;
 }
 
-class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  constructor(props: ErrorBoundaryProps) {
-    super(props);
-    this.state = { hasError: false, error: null };
-  }
+class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  public state: ErrorBoundaryState = {
+    hasError: false,
+    error: null
+  };
 
   static getDerivedStateFromError(error: Error) {
     return { hasError: true, error };
@@ -55,7 +56,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
             <h1 className="text-xl font-bold text-gray-900 mb-2">Something went wrong</h1>
             <p className="text-gray-500 text-sm mb-6">The application encountered an unexpected error.</p>
             <button 
-              onClick={() => { localStorage.clear(); window.location.reload(); }}
+              onClick={() => { try { localStorage.clear(); } catch(e){} window.location.reload(); }}
               className="px-6 py-3 bg-black text-white rounded-lg font-medium text-sm hover:opacity-90 transition-opacity"
             >
               Reset App & Reload
@@ -110,29 +111,33 @@ const AppContent: React.FC = () => {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   
-  // Swipe Logic
-  const [touchStart, setTouchStart] = useState<number | null>(null);
-  const [touchEnd, setTouchEnd] = useState<number | null>(null);
+  // Optimized Swipe Logic: Using Refs to prevent re-renders on scroll
+  const touchStart = useRef<number | null>(null);
+  const touchEnd = useRef<number | null>(null);
   const minSwipeDistance = 50;
 
   const onTouchStart = (e: React.TouchEvent) => {
-    if (e.targetTouches && e.targetTouches.length > 0) {
-        setTouchEnd(null);
-        setTouchStart(e.targetTouches[0].clientX);
+    // Only track if single touch to avoid interfering with multi-touch gestures
+    if (e.targetTouches && e.targetTouches.length === 1) {
+        touchEnd.current = null;
+        touchStart.current = e.targetTouches[0].clientX;
     }
   }
 
   const onTouchMove = (e: React.TouchEvent) => {
-    if (e.targetTouches && e.targetTouches.length > 0) {
-        setTouchEnd(e.targetTouches[0].clientX);
+    if (e.targetTouches && e.targetTouches.length === 1) {
+        touchEnd.current = e.targetTouches[0].clientX;
     }
   }
 
   const onTouchEnd = () => {
-    if (!touchStart || !touchEnd) return;
-    const distance = touchStart - touchEnd;
+    if (!touchStart.current || !touchEnd.current) return;
+    const distance = touchStart.current - touchEnd.current;
     const isLeftSwipe = distance > minSwipeDistance;
     const isRightSwipe = distance < -minSwipeDistance;
+    
+    // Only allow horizontal swipes if we moved significantly more horizontally than vertically?
+    // For now, simple horizontal check is okay, but using refs prevents the lag.
     
     if (isLeftSwipe) {
       setIsChatOpen(true);
