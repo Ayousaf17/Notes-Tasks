@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { Task, TaskStatus, TaskPriority, AgentRole, Project } from '../types';
-import { Plus, Filter, X, ArrowUpDown, User, Flag, Link as LinkIcon, AlertCircle, CheckCircle, Sparkles, Loader2, Bot, ChevronDown, ChevronUp, GripVertical, CheckSquare, Square, Calendar, MoreHorizontal, Paperclip, Folder } from 'lucide-react';
+import { Plus, Filter, X, ArrowUpDown, User, Flag, Link as LinkIcon, AlertCircle, CheckCircle, Sparkles, Loader2, Bot, ChevronDown, ChevronUp, GripVertical, CheckSquare, Square, Calendar, MoreHorizontal, Paperclip, Folder, Wand2 } from 'lucide-react';
 import { geminiService } from '../services/geminiService';
 
 interface TaskBoardProps {
@@ -54,6 +54,8 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
   const [isReviewingSuggestions, setIsReviewingSuggestions] = useState(false);
   const [selectedSuggestionIndices, setSelectedSuggestionIndices] = useState<Set<number>>(new Set());
   
+  const [breakingDownId, setBreakingDownId] = useState<string | null>(null);
+
   // Drag and Drop State
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [activeDropZone, setActiveDropZone] = useState<string | null>(null);
@@ -106,6 +108,25 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
         setSelectedSuggestionIndices(new Set(newTasks.map((_, i) => i)));
         setIsReviewingSuggestions(true);
     }
+  };
+
+  const handleBreakdownTask = async (e: React.MouseEvent, task: Task) => {
+      e.stopPropagation();
+      if (breakingDownId) return;
+      
+      setBreakingDownId(task.id);
+      const subTasks = await geminiService.smartBreakdown(task.title, task.description || '');
+      setBreakingDownId(null);
+
+      if (subTasks && subTasks.length > 0) {
+          const newTasks = subTasks.map(st => ({
+              title: st.title,
+              priority: st.priority,
+              status: TaskStatus.TODO,
+              description: `Subtask of: ${task.title}`
+          }));
+          onAddTasks(newTasks);
+      }
   };
 
   const confirmSuggestions = () => {
@@ -262,6 +283,7 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
                                 const blocked = isTaskBlocked(task);
                                 const isAgentWorking = task.agentStatus === 'working';
                                 const isDragging = draggedTaskId === task.id;
+                                const isBreakingDown = breakingDownId === task.id;
 
                                 return (
                                     <div 
@@ -328,6 +350,16 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
                                              </div>
                                              
                                              <div className="flex items-center gap-3">
+                                                 {/* Smart Breakdown Button */}
+                                                 <button 
+                                                    onClick={(e) => handleBreakdownTask(e, task)} 
+                                                    className={`text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 transition-colors ${isBreakingDown ? 'animate-pulse text-purple-500' : ''}`} 
+                                                    title="Auto Breakdown"
+                                                    disabled={!!isBreakingDown}
+                                                 >
+                                                     <Wand2 className="w-3.5 h-3.5" />
+                                                 </button>
+
                                                  {/* Dependencies Trigger */}
                                                  <button onClick={() => setDependencyModalTask(task)} className={`text-gray-300 hover:text-black dark:hover:text-white transition-colors ${task.dependencies?.length ? 'text-gray-900 dark:text-gray-100' : ''}`} title="Dependencies">
                                                      <LinkIcon className="w-3.5 h-3.5" />

@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect, ErrorInfo, ReactNode } from 'react';
+import React, { useState, useEffect, ErrorInfo, ReactNode, Component } from 'react';
 import { Sidebar } from './Sidebar';
 import { DocumentEditor } from './DocumentEditor';
 import { TaskBoard } from './TaskBoard';
@@ -34,8 +33,11 @@ interface ErrorBoundaryState {
 }
 
 // Error Boundary Component
-class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  public state: ErrorBoundaryState = { hasError: false };
+class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false };
+  }
 
   static getDerivedStateFromError(_: Error): ErrorBoundaryState {
     return { hasError: true };

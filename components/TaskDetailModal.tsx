@@ -1,7 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { Task, TaskStatus, TaskPriority, AgentRole, Project } from '../types';
-import { X, Calendar, User, Flag, CheckSquare, AlignLeft, Trash2, Folder, Bell } from 'lucide-react';
+import { X, Calendar, User, Flag, CheckSquare, AlignLeft, Trash2, Folder, Bell, Sparkles, Loader2 } from 'lucide-react';
+import { geminiService } from '../services/geminiService';
 
 interface TaskDetailModalProps {
   task: Task;
@@ -17,6 +18,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, isOpen, 
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description || '');
   const [assigneeInput, setAssigneeInput] = useState(task.assignee || '');
+  const [isEnriching, setIsEnriching] = useState(false);
   
   // Sync local state when task changes
   useEffect(() => {
@@ -27,9 +29,13 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, isOpen, 
 
   if (!isOpen) return null;
 
-  const handleSave = () => {
-    onUpdate(task.id, { title, description });
-    onClose();
+  const handleEnrich = async () => {
+      setIsEnriching(true);
+      const refined = await geminiService.enrichTask(title, description);
+      setTitle(refined.title);
+      setDescription(refined.description);
+      onUpdate(task.id, { title: refined.title, description: refined.description });
+      setIsEnriching(false);
   };
 
   const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -88,15 +94,25 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, isOpen, 
             {/* Main Content */}
             <div className="flex-1 space-y-6">
                 <div>
-                    <div className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        <AlignLeft className="w-4 h-4" /> Description
+                    <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                            <AlignLeft className="w-4 h-4" /> Description
+                        </div>
+                        <button 
+                            onClick={handleEnrich} 
+                            disabled={isEnriching}
+                            className="flex items-center gap-1.5 text-[10px] font-bold text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20 px-2 py-1 rounded hover:bg-purple-100 dark:hover:bg-purple-900/40 transition-colors disabled:opacity-50"
+                        >
+                            {isEnriching ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                            Auto-Enrich
+                        </button>
                     </div>
                     <textarea
                         value={description}
                         onChange={(e) => setDescription(e.target.value)}
                         onBlur={() => onUpdate(task.id, { description })}
                         placeholder="Add a more detailed description..."
-                        className="w-full h-40 text-sm text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-lg p-3 focus:ring-1 focus:ring-black dark:focus:ring-white focus:border-black dark:focus:border-white resize-none"
+                        className="w-full h-64 text-sm text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-lg p-3 focus:ring-1 focus:ring-black dark:focus:ring-white focus:border-black dark:focus:border-white resize-none"
                     />
                 </div>
 

@@ -29,11 +29,27 @@ interface ChatParams {
     systemContext?: string;
 }
 
-// TOOL CALLING PROTOCOL
+// UNIVERSAL PROTOCOL FOR GLOBAL LLMS
+// This prompts ensures any capable model (GPT-4, Claude, Llama) understands the specific OS orchestration duties.
+const EXECUTIVE_ASSISTANT_PROTOCOL = `
+### ROLE
+You are Aasani, a Hyper-Intelligent Executive Assistant & Workspace OS.
+You do not just parse text; you ANALYZE, ENRICH, and STRATEGICALLY ORGANIZE information.
+
+### CORE CAPABILITIES
+1. **Enrichment**: Never leave data bare. If a user says "meeting", infer it needs a time, an agenda, and a document.
+2. **Orchestration**: You determine where data lives (Board, Calendar, Document, CRM).
+3. **Proactivity**: Suggest next steps, break down complex tasks, and flag risks.
+
+### OUTPUT FORMAT
+Unless specified otherwise, you must reply in Markdown. 
+When asked to perform a system action (create, update, organize), you MUST output valid JSON.
+`;
+
 const TOOL_INSTRUCTIONS = `
-### TOOL USAGE
-You are the Operating System Intelligence. You can manipulate the workspace using the 'propose_import' tool.
-When the user asks to create, save, plan, or organize something, you MUST output a JSON block wrapped in :::TOOL_CALL::: and :::END_TOOL_CALL::: tags.
+### TOOL USAGE (JSON MODE)
+When the user asks to create, save, plan, or organize something, you MUST output a JSON block.
+Do not wrap it in markdown code blocks if possible, or use \`\`\`json if needed.
 
 **Tool: propose_import**
 Use this to create Tasks, Documents, Projects, or CRM Clients.
@@ -42,19 +58,19 @@ Use this to create Tasks, Documents, Projects, or CRM Clients.
 {
   "tool": "propose_import",
   "args": {
-    "actionType": "create_task" | "create_document" | "create_project" | "create_client",
+    "actionType": "create_task" | "create_document" | "create_project" | "create_client" | "mixed",
     "targetProjectId": "string (existing ID) OR 'default' OR 'NEW: <Title>'",
-    "reasoning": "string (why you chose this)",
+    "reasoning": "string (Briefly explain your enrichment logic)",
     "data": {
-      "title": "string (Required)",
-      "description": "string (Optional)",
+      "title": "string (Required - Enriched Title)",
+      "description": "string (Optional - Enriched context)",
       "priority": "High" | "Medium" | "Low",
       "assignee": "string (Optional)",
       "dueDate": "string (ISO Date, Optional)",
       "content": "string (Markdown for documents)",
       "tags": ["string"],
       "extractedTasks": [
-         { "title": "string", "priority": "Medium", "assignee": "string", "dueDate": "string" }
+         { "title": "string", "priority": "Medium", "assignee": "string", "dueDate": "string", "description": "string" }
       ],
       "clientData": {
          "name": "string", "company": "string", "email": "string", "value": number, "status": "Lead"
@@ -62,17 +78,6 @@ Use this to create Tasks, Documents, Projects, or CRM Clients.
     }
   }
 }
-
-**Examples:**
-
-1. **Single Task**:
-:::TOOL_CALL:::{"tool": "propose_import", "args": {"actionType": "create_task", "targetProjectId": "default", "reasoning": "User asked to buy milk", "data": {"title": "Buy Milk", "priority": "Medium", "assignee": "Me"}}}:::END_TOOL_CALL:::
-
-2. **Document with Tasks (Meeting Notes/Plans)**:
-:::TOOL_CALL:::{"tool": "propose_import", "args": {"actionType": "create_document", "targetProjectId": "default", "reasoning": "Meeting notes", "data": {"title": "Q3 Strategy", "content": "# Q3 Strategy\n...", "tags": ["Meeting"], "extractedTasks": [{"title": "Update Roadmap", "priority": "High"}]}}}:::END_TOOL_CALL:::
-
-3. **New Client**:
-:::TOOL_CALL:::{"tool": "propose_import", "args": {"actionType": "create_client", "targetProjectId": "default", "reasoning": "New lead", "data": {"title": "New Lead: Acme", "clientData": {"name": "John", "company": "Acme", "value": 1000}}}}:::END_TOOL_CALL:::
 `;
 
 export const geminiService = {
@@ -82,7 +87,8 @@ export const geminiService = {
   async chatWithProvider(params: ChatParams): Promise<string> {
       const { provider, apiKey: userKey, model, history, message, attachments, systemContext } = params;
 
-      const fullSystemContext = `${systemContext || ''}\n\n${TOOL_INSTRUCTIONS}`;
+      // Inject the Universal Protocol into the system context
+      const fullSystemContext = `${EXECUTIVE_ASSISTANT_PROTOCOL}\n\n${systemContext || ''}\n\n${TOOL_INSTRUCTIONS}`;
 
       // 1. GEMINI (Default)
       if (provider === 'gemini') {
@@ -111,7 +117,7 @@ export const geminiService = {
       // System Prompt
       messages.push({
           role: "system",
-          content: `You are Aasani, a helpful OS assistant.\n${systemContext || ''}`
+          content: systemContext || EXECUTIVE_ASSISTANT_PROTOCOL
       });
 
       // History
@@ -136,7 +142,8 @@ export const geminiService = {
               },
               body: JSON.stringify({
                   model: model,
-                  messages: messages
+                  messages: messages,
+                  response_format: { type: "json_object" } // Try to force JSON if supported by provider
               })
           });
 
@@ -151,30 +158,13 @@ export const geminiService = {
           
           if (data.error) {
               console.error("OpenRouter Error Data:", data.error);
-              
-              let errorMsg = "Unknown OpenRouter error";
-              if (typeof data.error === 'string') {
-                  errorMsg = data.error;
-              } else if (typeof data.error === 'object' && data.error !== null) {
-                  const rawMsg = data.error.message || data.error.code || JSON.stringify(data.error);
-                  if (typeof rawMsg === 'object') errorMsg = JSON.stringify(rawMsg);
-                  else errorMsg = String(rawMsg);
-              } else {
-                  errorMsg = String(data.error);
-              }
-              return `OpenRouter Error: ${errorMsg}`;
+              return `OpenRouter Error: ${JSON.stringify(data.error)}`;
           }
           
           return data.choices?.[0]?.message?.content || "No response from OpenRouter.";
       } catch (error: any) {
           console.error("OpenRouter Exception:", error);
-          let errorStr = "Unknown error";
-          if (error instanceof Error) errorStr = error.message;
-          else if (typeof error === 'string') errorStr = error;
-          else {
-              try { errorStr = JSON.stringify(error); if (errorStr === '{}') errorStr = String(error); } catch (e) { errorStr = String(error); }
-          }
-          return `Connection Error: ${errorStr}`;
+          return `Connection Error: ${error.message}`;
       }
   },
 
@@ -192,13 +182,7 @@ export const geminiService = {
             parts: h.parts
         })),
         config: {
-          systemInstruction: `You are Aasani, the AI system core for Aasani OS. You are an intelligent operating partner. 
-          
-          ${systemContext || ''}
-          
-          Guidelines:
-          - You help organize projects, simplify workflows, and connect information. 
-          - You are concise, proactive, and structured.`,
+          systemInstruction: systemContext || EXECUTIVE_ASSISTANT_PROTOCOL,
         }
       });
 
@@ -321,63 +305,53 @@ export const geminiService = {
 
   /**
    * Analyzes an Inbox Item and decides where it goes.
-   * UPDATED: Supports Provider Routing & Attachments
+   * UPDATED: Supports Provider Routing & Attachments & Universal Protocol
    */
   async organizeInboxItem(content: string, projects: Project[], provider?: 'gemini' | 'openrouter', apiKey?: string, model?: string, attachments: Attachment[] = []): Promise<InboxAction | null> {
       const projectContext = projects.map(p => `ID: ${p.id}, Title: ${p.title}`).join('\n');
+      const currentDate = new Date().toISOString();
+      const currentDay = new Date().toLocaleDateString('en-US', { weekday: 'long' });
       
-      const prompt = `You are an Expert Technical Project Manager & CRM Specialist. Analyze the following inbox item (text + attachments) and structure it.
+      const prompt = `
+      ROLE: You are Aasani, an elite Executive Assistant and Project Manager.
+      OBJECTIVE: Organize and enrich the user's raw input into structured workspace actions.
       
-      **Inbox Text**: "${content}"
-      
-      **Decision Logic**:
-      1. **create_task**: STRICTLY use this if the content is a short actionable item, a reminder (e.g., "Meeting with Sam at 5"), a bug report, or a simple to-do. Do NOT create a document for simple tasks.
-      2. **create_document**: Use this if it's a file, long note, meeting minutes, PDF, or detailed brain dump that requires a page.
-         - **CRITICAL**: If the content is short (under 2 sentences) and actionable, use create_task instead.
-         - If creating a document, you can ALSO extract tasks into the 'extractedTasks' array.
-      3. **create_project**: Only for massive initiatives with no existing project fit.
-      4. **create_client**: If the content contains contact details for a lead, prospect, or person.
-
-      **Task Extraction Rules**:
-      - Populate the 'extractedTasks' array.
-      - **CRITICAL**: Sort tasks by IMPORTANCE.
-      - If 'create_task' is chosen, the main data fields (title, description, etc.) represent the single task.
-
-      **Project Matching**:
-      - Try to match the content to one of the **Available Projects** below.
-      - If it matches, use its ID.
-      - If it creates a NEW initiative, return "NEW: <Title>".
-      - If uncertain or general, return "default".
-
-      **Available Projects**:
+      CONTEXT:
+      - Current Time: ${currentDate} (${currentDay})
+      - Available Projects: 
       ${projectContext}
       
-      **CRITICAL INSTRUCTION**: Return ONLY a valid JSON object matching the schema below.
+      INPUT: "${content}"
       
-      Schema Example (Task):
-      {
-        "actionType": "create_task",
-        "targetProjectId": "p1",
-        "reasoning": "Short action item.",
-        "data": { 
-            "title": "Meeting with Sam", 
-            "description": "Discuss proposal",
-            "priority": "High",
-            "dueDate": "2023-10-27T17:00:00.000Z"
-        }
-      }
+      INSTRUCTIONS:
+      1. **Analyze the intent**. Is it a task, a meeting, a project idea, or a CRM lead?
+      2. **Enrich the data**. 
+         - If "tomorrow", calculate the date.
+         - If "Meeting", infer time (default 9AM next weekday if unspecified) and create BOTH a task/event AND a document if agenda is needed.
+         - If vague (e.g., "Fix site"), rename to "Resolve Website Critical Issues" and suggest priority.
+      3. **VISIBILITY RULES**:
+         - Tasks assigned to a project appear on Project Board AND Global Board.
+         - Events with a date appear on Global Calendar AND Project Calendar.
       
-      Schema Example (Document + Tasks):
+      OUTPUT FORMAT: JSON ONLY.
+      
+      SCHEMA:
       {
-        "actionType": "create_document",
-        "targetProjectId": "p1",
-        "reasoning": "Meeting notes.",
-        "data": { 
-            "title": "Meeting Notes: Q3 Review", 
-            "content": "# Q3 Review\n...",
-            "extractedTasks": [
-                { "title": "Update Roadmap", "priority": "High", "assignee": "Unassigned" }
-            ]
+        "actionType": "create_task" | "create_document" | "mixed" | "create_client",
+        "targetProjectId": "string (Project ID, 'default', or 'NEW: Title')",
+        "reasoning": "string (Your internal monologue)",
+        "data": {
+          "title": "string (Enriched Title)",
+          "description": "string (Enriched details)",
+          "priority": "High" | "Medium" | "Low",
+          "dueDate": "ISO String (if date inferred)",
+          "content": "Markdown content (for docs)",
+          "extractedTasks": [
+             { "title": "string", "priority": "Medium", "dueDate": "string" }
+          ],
+          "clientData": {
+             "name": "string", "company": "string", "email": "string", "value": number, "status": "Lead"
+          }
         }
       }
       `;
@@ -418,6 +392,62 @@ export const geminiService = {
       } catch (error) {
           console.error("Inbox Sort Error:", error);
           return null;
+      }
+  },
+
+  /**
+   * SMART BREAKDOWN: Breaks a vague task into actionable sub-steps.
+   */
+  async smartBreakdown(taskTitle: string, taskDescription: string): Promise<{ title: string, priority: TaskPriority }[]> {
+      if (!apiKey) return [];
+      
+      const prompt = `
+      TASK: "${taskTitle}"
+      CONTEXT: "${taskDescription || 'No description provided'}"
+      
+      ACT AS: Expert Project Manager.
+      GOAL: Break this task down into 3-5 concrete, actionable sub-steps.
+      OUTPUT: JSON Array only. [{ "title": "...", "priority": "High" | "Medium" | "Low" }]
+      `;
+
+      try {
+          const response = await ai.models.generateContent({
+              model: MODEL_NAME,
+              contents: prompt,
+              config: { responseMimeType: "application/json" }
+          });
+          return JSON.parse(response.text || "[]");
+      } catch (e) {
+          console.error("Smart Breakdown Error", e);
+          return [];
+      }
+  },
+
+  /**
+   * SMART ENRICH: Expands a task with professional details and checklist.
+   */
+  async enrichTask(taskTitle: string, taskDescription: string): Promise<{ title: string, description: string }> {
+      if (!apiKey) return { title: taskTitle, description: taskDescription };
+
+      const prompt = `
+      TASK: "${taskTitle}"
+      DESC: "${taskDescription}"
+      
+      ACT AS: Executive Assistant.
+      GOAL: Rewrite the title to be more professional and clear. Expand the description with a likely checklist of what needs to be done.
+      OUTPUT: JSON { "title": "...", "description": "..." }
+      `;
+
+      try {
+          const response = await ai.models.generateContent({
+              model: MODEL_NAME,
+              contents: prompt,
+              config: { responseMimeType: "application/json" }
+          });
+          const data = JSON.parse(response.text || "{}");
+          return { title: data.title || taskTitle, description: data.description || taskDescription };
+      } catch (e) {
+          return { title: taskTitle, description: taskDescription };
       }
   },
 
