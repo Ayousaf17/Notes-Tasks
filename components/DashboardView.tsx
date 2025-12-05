@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useMemo } from 'react';
 import { Task, Document, Project, TaskPriority, TaskStatus } from '../types';
 import { geminiService } from '../services/geminiService';
@@ -208,11 +207,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 </button>
             </div>
             
-            {/* Executive Summary Card */}
-            <div className="bg-white dark:bg-zinc-900 border border-gray-100 dark:border-gray-800 rounded-xl p-6 shadow-sm relative overflow-hidden">
+            {/* Executive Summary Card - Constrained Height with scroll if necessary */}
+            <div className="bg-white dark:bg-zinc-900 border border-gray-100 dark:border-gray-800 rounded-xl p-6 shadow-sm relative overflow-hidden min-h-[120px] max-h-[250px] overflow-y-auto">
                 <div className="absolute top-0 left-0 w-1 h-full bg-black dark:bg-white" />
                 {loadingBriefing ? (
-                    <div className="flex items-center gap-2 text-sm text-gray-500 animate-pulse">
+                    <div className="flex items-center gap-2 text-sm text-gray-500 animate-pulse mt-1">
                         <Sparkles className="w-4 h-4" /> Generating executive summary...
                     </div>
                 ) : (
@@ -279,14 +278,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 {/* Verse of the Day (Context Aware) */}
                 {verseData && (
                     <div className="bg-white dark:bg-black rounded-xl border border-gray-200 dark:border-gray-800 p-6 relative overflow-hidden group">
-                        <div className="absolute top-0 right-0 p-4 opacity-10">
+                        <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
                             <BookOpen className="w-24 h-24 text-gray-900 dark:text-white" />
                         </div>
                         <div className="relative z-10">
                             <div className="flex items-center gap-2 mb-3">
                                 <span className="bg-gray-100 dark:bg-gray-800 text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded text-gray-500">Verse of the Day</span>
                             </div>
-                            <blockquote className="font-serif text-xl md:text-2xl text-gray-800 dark:text-gray-100 italic leading-relaxed mb-4">
+                            <blockquote className="font-serif text-lg md:text-xl text-gray-800 dark:text-gray-100 italic leading-relaxed mb-4">
                                 "{verseData.verse}"
                             </blockquote>
                             <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4 text-sm">
