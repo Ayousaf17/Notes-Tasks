@@ -11,7 +11,7 @@ export enum ViewMode {
   GLOBAL_BOARD = 'GLOBAL_BOARD',
   GLOBAL_CALENDAR = 'GLOBAL_CALENDAR',
   PROJECT_OVERVIEW = 'PROJECT_OVERVIEW',
-  CLIENTS = 'CLIENTS' // NEW
+  CLIENTS = 'CLIENTS' 
 }
 
 export interface Project {
@@ -19,7 +19,7 @@ export interface Project {
   title: string;
   icon?: string;
   description?: string;
-  clientId?: string; // Linked to Client
+  clientId?: string; 
   createdAt: Date;
 }
 
@@ -30,7 +30,6 @@ export interface ClientActivity {
   timestamp: Date;
 }
 
-// NEW: CRM Client Interface
 export interface Client {
   id: string;
   name: string;
@@ -38,22 +37,22 @@ export interface Client {
   email: string;
   phone?: string;
   status: 'Lead' | 'Negotiation' | 'Active' | 'Churned';
-  value: number; // Estimated revenue
+  value: number; 
   lastContact: Date;
   tags: string[];
   activities?: ClientActivity[];
   notes?: string;
-  googleDriveFolder?: string; // Link to external folder
+  googleDriveFolder?: string; 
 }
 
 export interface Document {
   id: string;
-  projectId: string; // Relational Link
+  projectId: string; 
   title: string;
   content: string;
   updatedAt: Date;
   tags: string[];
-  lastSyncedAt?: Date; // For Google Sync tracking
+  lastSyncedAt?: Date; 
 }
 
 export enum TaskStatus {
@@ -113,15 +112,23 @@ export interface InboxItem {
 }
 
 export interface InboxAction {
-  actionType: 'create_task' | 'create_document' | 'create_project';
+  actionType: 'create_task' | 'create_document' | 'create_project' | 'mixed';
   targetProjectId: string;
   data: {
     title: string;
     description?: string; 
     content?: string;     
     priority?: TaskPriority;
+    // Smart features
+    tags?: string[];
+    extractedTasks?: Array<{
+        title: string;
+        description?: string;
+        priority: TaskPriority;
+        assignee?: string;
+    }>;
   };
-  projectPlan?: ProjectPlan; // Carries the full project structure for 'create_project' actions
+  projectPlan?: ProjectPlan; 
   reasoning: string;
 }
 
@@ -131,6 +138,14 @@ export interface Source {
   type: 'document' | 'task';
 }
 
+// NEW: ActionProposal for HITL (Human-in-the-loop) flows
+export interface ActionProposal {
+  type: 'create_task';
+  data: Partial<Task>;
+  status: 'proposed' | 'confirmed' | 'cancelled';
+  originalToolCall: string; // To keep track
+}
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'model';
@@ -138,12 +153,13 @@ export interface ChatMessage {
   timestamp: Date;
   attachments?: Attachment[];
   sources?: Source[];
-  planProposal?: ProjectPlan; // HITL: The AI proposes a plan here
+  planProposal?: ProjectPlan; 
+  actionProposal?: ActionProposal; // NEW field for UI widgets
 }
 
 export interface Attachment {
   mimeType: string;
-  data: string; // Base64
+  data: string; 
   name?: string;
 }
 

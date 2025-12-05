@@ -78,10 +78,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   };
 
   const handleSaveKey = async (id: string) => {
-      if (!apiKeyInput.trim()) return;
+      const trimmedKey = apiKeyInput.trim();
+      if (!trimmedKey) return;
+      
       setIsSubmitting(true);
       await new Promise(resolve => setTimeout(resolve, 800));
-      await onToggleIntegration(id, apiKeyInput);
+      await onToggleIntegration(id, trimmedKey);
       setIsSubmitting(false);
       setConnectingId(null);
       setApiKeyInput('');

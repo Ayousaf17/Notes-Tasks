@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, FileText, CheckSquare, Command, ArrowRight, Sparkles, Folder, X } from 'lucide-react';
 import { Document, Task, SearchResult, ViewMode, Project } from '../types';
@@ -138,14 +139,14 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-start justify-center pt-0 md:pt-[20vh] safe-area-top bg-white dark:bg-black md:bg-transparent">
+    <div className="fixed inset-0 z-[100] flex items-start justify-center pt-8 md:pt-[20vh] safe-area-top bg-white dark:bg-black md:bg-transparent">
       {/* Desktop Backdrop */}
       <div className="hidden md:block absolute inset-0 bg-black/20 backdrop-blur-sm" onClick={onClose}></div>
       
       <div className="relative bg-white dark:bg-black md:dark:bg-gray-900 w-full max-w-2xl h-full md:h-auto md:rounded-xl shadow-none md:shadow-2xl overflow-hidden ring-0 md:ring-1 ring-gray-900/5 dark:ring-white/10 flex flex-col animate-in fade-in zoom-in-95 duration-200">
         
         {/* Input */}
-        <div className="flex items-center px-4 border-b border-gray-100 dark:border-gray-800 h-16 md:h-14 shrink-0">
+        <div className="flex items-center px-4 border-b border-gray-100 dark:border-gray-800 h-16 md:h-14 shrink-0 mt-safe md:mt-0">
             {query.startsWith('?') ? <Sparkles className="w-5 h-5 text-purple-500 mr-3" /> : <Search className="w-5 h-5 text-gray-400 mr-3" />}
             <input
                 ref={inputRef}

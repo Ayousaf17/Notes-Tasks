@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect, useRef, ErrorInfo, Component, ReactNode } from 'react';
+import React, { useState, useEffect, Component, ErrorInfo, ReactNode } from 'react';
 import { Sidebar } from './Sidebar';
 import { DocumentEditor } from './DocumentEditor';
 import { TaskBoard } from './TaskBoard';
@@ -15,97 +14,84 @@ import { ReviewWizard } from './ReviewWizard';
 import { TaskDetailModal } from './TaskDetailModal';
 import { IntegrationsModal } from './IntegrationsModal';
 import { SettingsView } from './SettingsView';
-import { ClientsView } from './ClientsView';
 import { CreateProjectModal } from './CreateProjectModal';
-import { CreateClientModal } from './CreateClientModal'; 
 import { ConfirmationModal } from './ConfirmationModal';
+import { ClientsView } from './ClientsView';
+import { CreateClientModal } from './CreateClientModal';
 import { ViewMode, Document, Task, TaskStatus, ProjectPlan, TaskPriority, ChatMessage, Project, InboxItem, InboxAction, AgentRole, Integration, Client } from '../types';
-import { Sparkles, Command, Plus, Menu, Cloud, MessageSquare, Home, Inbox, Search, CheckSquare, AlertTriangle, Bot, Network } from 'lucide-react';
+import { Sparkles, Command, Plus, Menu, Cloud, MessageSquare, Home, Inbox, Search, CheckSquare } from 'lucide-react';
 import { geminiService } from '../services/geminiService';
 import { dataService } from '../services/dataService';
 import { supabase } from '../services/supabase';
 
-// ERROR BOUNDARY COMPONENT
-interface ErrorBoundaryProps {
-  children?: ReactNode;
-}
-
-interface ErrorBoundaryState {
-  hasError: boolean;
-  error: Error | null;
-}
-
-class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  public state: ErrorBoundaryState;
-
-  constructor(props: ErrorBoundaryProps) {
+class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
+  constructor(props: { children: ReactNode }) {
     super(props);
-    this.state = {
-      hasError: false,
-      error: null
-    };
+    this.state = { hasError: false };
   }
 
-  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
-    return { hasError: true, error };
+  static getDerivedStateFromError(_: Error) {
+    return { hasError: true };
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error("App Crash:", error, errorInfo);
+    console.error("Uncaught error:", error, errorInfo);
   }
 
   render() {
     if (this.state.hasError) {
       return (
-        <div className="flex flex-col items-center justify-center h-screen bg-gray-50 text-center p-6">
-          <div className="bg-white p-8 rounded-2xl shadow-xl max-w-sm">
-            <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-            <h1 className="text-xl font-bold text-gray-900 mb-2">Something went wrong</h1>
-            <p className="text-gray-500 text-sm mb-6">The application encountered an unexpected error.</p>
-            <button 
-              onClick={() => { try { localStorage.clear(); } catch(e){} window.location.reload(); }}
-              className="px-6 py-3 bg-black text-white rounded-lg font-medium text-sm hover:opacity-90 transition-opacity"
-            >
-              Reset App & Reload
-            </button>
-          </div>
+        <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white">
+            <div className="text-center">
+                <h1 className="text-2xl font-bold mb-4">Something went wrong.</h1>
+                <button 
+                    onClick={() => window.location.reload()} 
+                    className="px-4 py-2 bg-black dark:bg-white text-white dark:text-black rounded-lg"
+                >
+                    Reload Application
+                </button>
+            </div>
         </div>
       );
     }
+
     return this.props.children;
   }
 }
 
-// ENHANCED MOBILE BOTTOM NAV
 const MobileBottomNav = ({ currentView, onChangeView, onOpenMenu, onSearch }: { currentView: ViewMode, onChangeView: (v: ViewMode) => void, onOpenMenu: () => void, onSearch: () => void }) => (
-  <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/85 dark:bg-black/85 backdrop-blur-xl border-t border-gray-200 dark:border-gray-800 z-50 px-6 h-24 pb-6 flex items-center justify-between transition-transform duration-300 shadow-[0_-5px_20px_rgba(0,0,0,0.05)] safe-area-bottom">
+  <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-black/90 backdrop-blur-xl border-t border-gray-100 dark:border-gray-800 z-50 px-6 py-2 safe-area-bottom flex items-center justify-between transition-transform duration-300 shadow-2xl">
     {/* Left Group */}
-    <div className="flex items-center gap-10 pl-2">
-      <button onClick={() => onChangeView(ViewMode.HOME)} className={`flex flex-col items-center gap-1.5 transition-colors active:scale-95 ${currentView === ViewMode.HOME ? 'text-black dark:text-white' : 'text-gray-400 dark:text-gray-500'}`}>
-         <Home className="w-7 h-7" strokeWidth={currentView === ViewMode.HOME ? 2.5 : 2} />
+    <div className="flex items-center gap-8">
+      <button onClick={() => onChangeView(ViewMode.HOME)} className={`flex flex-col items-center gap-1 transition-colors ${currentView === ViewMode.HOME ? 'text-black dark:text-white' : 'text-gray-400 dark:text-gray-500'}`}>
+         <Home className="w-6 h-6" />
+         <span className="text-[9px] font-medium">Home</span>
       </button>
-      <button onClick={onSearch} className="flex flex-col items-center gap-1.5 text-gray-400 dark:text-gray-500 active:text-black dark:active:text-white transition-colors active:scale-95">
-         <Search className="w-7 h-7" strokeWidth={2} />
+      <button onClick={onSearch} className="flex flex-col items-center gap-1 text-gray-400 dark:text-gray-500 active:text-black dark:active:text-white transition-colors">
+         <Search className="w-6 h-6" />
+         <span className="text-[9px] font-medium">Search</span>
       </button>
     </div>
 
-    {/* Center Hero Button (Tasks) - Elevated */}
-    <div className="relative -top-8 group">
+    {/* Center Hero Button (Tasks) */}
+    <div className="relative -top-6 group">
       <button
           onClick={() => onChangeView(ViewMode.GLOBAL_BOARD)}
-          className={`flex items-center justify-center w-16 h-16 rounded-2xl shadow-xl shadow-black/20 dark:shadow-white/10 border-4 border-gray-50 dark:border-black transition-all duration-300 active:scale-90 active:rotate-3 ${currentView === ViewMode.GLOBAL_BOARD ? 'bg-black dark:bg-white text-white dark:text-black' : 'bg-black dark:bg-white text-white dark:text-black'}`}
+          className={`flex items-center justify-center w-14 h-14 rounded-full shadow-xl shadow-black/20 dark:shadow-white/10 border-4 border-gray-50 dark:border-black transition-all duration-300 active:scale-95 group-hover:-translate-y-1 ${currentView === ViewMode.GLOBAL_BOARD ? 'bg-black dark:bg-white text-white dark:text-black' : 'bg-black dark:bg-white text-white dark:text-black'}`}
       >
-         <CheckSquare className="w-8 h-8" strokeWidth={2.5} />
+         <CheckSquare className="w-6 h-6" />
       </button>
     </div>
 
     {/* Right Group */}
-    <div className="flex items-center gap-10 pr-2">
-      <button onClick={() => onChangeView(ViewMode.INBOX)} className={`flex flex-col items-center gap-1.5 transition-colors active:scale-95 ${currentView === ViewMode.INBOX ? 'text-black dark:text-white' : 'text-gray-400 dark:text-gray-500'}`}>
-         <Inbox className="w-7 h-7" strokeWidth={currentView === ViewMode.INBOX ? 2.5 : 2} />
+    <div className="flex items-center gap-8">
+      <button onClick={() => onChangeView(ViewMode.INBOX)} className={`flex flex-col items-center gap-1 transition-colors ${currentView === ViewMode.INBOX ? 'text-black dark:text-white' : 'text-gray-400 dark:text-gray-500'}`}>
+         <Inbox className="w-6 h-6" />
+         <span className="text-[9px] font-medium">Inbox</span>
       </button>
-      <button onClick={onOpenMenu} className="flex flex-col items-center gap-1.5 text-gray-400 dark:text-gray-500 active:text-black dark:active:text-white transition-colors active:scale-95">
-         <Menu className="w-7 h-7" strokeWidth={2} />
+      <button onClick={onOpenMenu} className="flex flex-col items-center gap-1 text-gray-400 dark:text-gray-500 active:text-black dark:active:text-white transition-colors">
+         <Menu className="w-6 h-6" />
+         <span className="text-[9px] font-medium">Menu</span>
       </button>
     </div>
   </div>
@@ -113,96 +99,21 @@ const MobileBottomNav = ({ currentView, onChangeView, onOpenMenu, onSearch }: { 
 
 const AppContent: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewMode>(ViewMode.HOME); 
-  const [viewHistory, setViewHistory] = useState<ViewMode[]>([]);
-
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(false); 
-  const [isChatOpen, setIsChatOpen] = useState(false);
-  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   
-  const navigateToView = (newView: ViewMode) => {
-    if (newView === currentView) return;
-    setViewHistory(prev => [...prev, currentView]);
-    setCurrentView(newView);
-  };
-
-  const handleBack = () => {
-    if (viewHistory.length === 0) return false;
-    const prevView = viewHistory[viewHistory.length - 1];
-    setViewHistory(prev => prev.slice(0, -1));
-    setCurrentView(prevView);
-    return true;
-  };
-
-  // Optimized Swipe Logic
-  const touchStart = useRef<number | null>(null);
-  const touchEnd = useRef<number | null>(null);
-  const minSwipeDistance = 50;
-  const edgeThreshold = 35; // px from edge to consider it a "bezel swipe"
-
-  const onTouchStart = (e: React.TouchEvent) => {
-    if (e.targetTouches && e.targetTouches.length === 1) {
-        touchEnd.current = null;
-        touchStart.current = e.targetTouches[0].clientX;
-    }
-  }
-
-  const onTouchMove = (e: React.TouchEvent) => {
-    if (e.targetTouches && e.targetTouches.length === 1) {
-        touchEnd.current = e.targetTouches[0].clientX;
-    }
-  }
-
-  const onTouchEnd = () => {
-    if (!touchStart.current || !touchEnd.current) return;
-    const distanceX = touchStart.current - touchEnd.current;
-    
-    // Positive distance = swipe left (finger moves right to left)
-    // Negative distance = swipe right (finger moves left to right)
-    
-    const isLeftSwipe = distanceX > minSwipeDistance; 
-    const isRightSwipe = distanceX < -minSwipeDistance;
-    
-    const startX = touchStart.current;
-    const screenWidth = window.innerWidth;
-
-    // 1. Right Edge Swipe -> Open Chat (Pulling from right to left)
-    if (isLeftSwipe && startX > (screenWidth - edgeThreshold)) {
-      setIsChatOpen(true);
-      setIsMobileSidebarOpen(false);
-      return;
-    }
-
-    // 2. Left Edge Swipe -> Open Sidebar (Pulling from left to right)
-    if (isRightSwipe && startX < edgeThreshold) {
-      setIsMobileSidebarOpen(true);
-      setIsChatOpen(false);
-      return;
-    }
-
-    // 3. Middle Screen Swipe Right -> Back Navigation
-    // If not on the edge, allow normal back flow
-    if (isRightSwipe && startX >= edgeThreshold) {
-        handleBack();
-    }
-  }
-
   // Team Management State
   const [teamMembers, setTeamMembers] = useState<string[]>(() => {
       if (typeof window !== 'undefined') {
-          try {
-              const stored = localStorage.getItem('teamMembers');
-              return stored ? JSON.parse(stored) : ['Me', 'Kate'];
-          } catch (e) { return ['Me', 'Kate']; }
+          const stored = localStorage.getItem('teamMembers');
+          return stored ? JSON.parse(stored) : ['Me', 'Kate'];
       }
       return ['Me', 'Kate'];
   });
 
   const handleUpdateTeam = (members: string[]) => {
       setTeamMembers(members);
-      try {
-        localStorage.setItem('teamMembers', JSON.stringify(members));
-      } catch (e) {}
+      localStorage.setItem('teamMembers', JSON.stringify(members));
   };
 
   // Confirmation Modal State
@@ -228,7 +139,7 @@ const AppContent: React.FC = () => {
           isDanger: true,
           confirmText: 'Reset Data',
           onConfirm: () => {
-              try { localStorage.clear(); } catch(e){}
+              localStorage.clear();
               window.location.reload();
           }
       });
@@ -237,10 +148,8 @@ const AppContent: React.FC = () => {
   // Dark Mode State
   const [isDarkMode, setIsDarkMode] = useState(() => {
     if (typeof window !== 'undefined') {
-        try {
-            return localStorage.getItem('theme') === 'dark' || 
+        return localStorage.getItem('theme') === 'dark' || 
                (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches);
-        } catch (e) { return false; }
     }
     return false;
   });
@@ -248,38 +157,37 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     if (isDarkMode) {
         document.documentElement.classList.add('dark');
-        try { localStorage.setItem('theme', 'dark'); } catch(e){}
+        localStorage.setItem('theme', 'dark');
     } else {
         document.documentElement.classList.remove('dark');
-        try { localStorage.setItem('theme', 'light'); } catch(e){}
+        localStorage.setItem('theme', 'light');
     }
   }, [isDarkMode]);
 
-  // Integrations State - LOAD KEYS FROM LOCAL STORAGE
+  // Integrations State
   const [isIntegrationsOpen, setIsIntegrationsOpen] = useState(false);
-  const [integrations, setIntegrations] = useState<Integration[]>(() => {
-      const defaultIntegrations: Integration[] = [
-          { id: 'google', name: 'Google Workspace', description: 'Sync Docs, Calendar, and Drive.', icon: Cloud, connected: false, category: 'Cloud' },
-          { id: 'openrouter', name: 'OpenRouter', description: 'Access GPT-4o, Claude 3.5, and Llama 3.', icon: Network, connected: false, category: 'AI' },
-      ];
-      
-      // Attempt to load connected state and keys
-      if (typeof window !== 'undefined') {
-          return defaultIntegrations.map(int => {
-              const storedKey = localStorage.getItem(`integration_${int.id}_key`);
-              if (storedKey) {
-                  return { ...int, connected: true, config: { apiKey: storedKey } };
-              }
-              return int;
-          });
-      }
-      return defaultIntegrations;
-  });
+  const [integrations, setIntegrations] = useState<Integration[]>([
+      { id: 'google', name: 'Google Workspace', description: 'Sync Docs, Calendar, and Drive.', icon: Cloud, connected: false, category: 'Cloud' },
+      { id: 'chatgpt', name: 'ChatGPT', description: 'Connect GPT-4o for advanced reasoning.', icon: MessageSquare, connected: false, category: 'AI' },
+      { id: 'claude', name: 'Claude', description: 'Anthropic\'s Claude 3.5 Sonnet model.', icon: MessageSquare, connected: false, category: 'AI' },
+      { id: 'perplexity', name: 'Perplexity', description: 'Real-time web search and sourcing.', icon: MessageSquare, connected: false, category: 'AI' },
+      { id: 'openrouter', name: 'OpenRouter', description: 'Access 100+ LLMs via one API.', icon: MessageSquare, connected: false, category: 'AI' },
+  ]);
   
-  const [projects, setProjects] = useState<Project[]>([]);
+  const [projects, setProjects] = useState<Project[]>([
+      { id: 'p1', title: 'V2 Redesign', createdAt: new Date() },
+      { id: 'p2', title: 'Marketing Launch', createdAt: new Date() },
+      { id: 'p3', title: 'Backend Migration', createdAt: new Date() }
+  ]);
   const [activeProjectId, setActiveProjectId] = useState<string>('p1');
-  const [documents, setDocuments] = useState<Document[]>([]);
-  const [activeDocId, setActiveDocId] = useState<string | null>(null);
+
+  const [documents, setDocuments] = useState<Document[]>([
+    { id: 'd1', projectId: 'p1', title: 'Design System Specs', content: '# V2 Design System\n\n- Primary Color: #000000\n- Typography: Inter\n\nSee [[Marketing Launch]] for usage guidelines.', updatedAt: new Date(), tags: ['Specs', 'Design'] },
+    { id: 'd2', projectId: 'p2', title: 'Q3 Campaign', content: '# Q3 Campaign Strategy\n\nFocus on "Zero Friction" messaging.\n\nTasks:\n- [ ] nexus://task/t2', updatedAt: new Date(), tags: ['Strategy'] }
+  ]);
+  
+  const [activeDocId, setActiveDocId] = useState<string | null>('d1');
+  
   const [tasks, setTasks] = useState<Task[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
 
@@ -291,11 +199,13 @@ const AppContent: React.FC = () => {
     { id: 'init', role: 'model', text: 'I am Aasani. I can help you organize this project, generate plans, or summarize your documents.', timestamp: new Date() }
   ]);
   
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [isCreateProjectModalOpen, setIsCreateProjectModalOpen] = useState(false);
   const [isCreateClientModalOpen, setIsCreateClientModalOpen] = useState(false);
 
-  // Load Data
+  // Load Data from Supabase on Mount & Setup Realtime Subscription
   useEffect(() => {
     const loadData = async () => {
         try {
@@ -305,15 +215,17 @@ const AppContent: React.FC = () => {
                 setProjects(dbProjects);
                 setTasks(dbTasks);
                 setDocuments(dbDocs);
-                setClients(dbClients || []);
+                setClients(dbClients);
+                // Keep active project if valid, else switch to first
                 setActiveProjectId(prev => dbProjects.find(p => p.id === prev) ? prev : dbProjects[0].id);
             }
         } catch (e) {
-            console.error("Failed to load data", e);
+            console.error("Failed to load data from Supabase", e);
         }
     };
     loadData();
 
+    // Realtime Subscription
     const channel = supabase
         .channel('db-changes')
         .on('postgres_changes', { event: '*', schema: 'public' }, () => {
@@ -358,6 +270,7 @@ const AppContent: React.FC = () => {
       }
   }, [activeProjectId, activeDocId, documents]);
 
+  // Handler to open modal
   const handleOpenCreateProject = () => {
       setIsCreateProjectModalOpen(true);
   };
@@ -372,36 +285,16 @@ const AppContent: React.FC = () => {
       setProjects(prev => [...prev, newProject]);
       setActiveProjectId(newProject.id);
       setActiveDocId(null);
-      navigateToView(ViewMode.DOCUMENTS);
+      setCurrentView(ViewMode.DOCUMENTS);
       await dataService.createProject(newProject);
   };
 
-  const handleCreateClient = async (clientData: Partial<Client>) => {
-      const newClient: Client = {
-          id: crypto.randomUUID(),
-          name: clientData.name!,
-          company: clientData.company!,
-          email: clientData.email!,
-          status: clientData.status || 'Lead',
-          value: clientData.value || 0,
-          lastContact: new Date(),
-          tags: [],
-          activities: [],
-          googleDriveFolder: `https://drive.google.com/drive/folders/simulated_${crypto.randomUUID()}` 
-      };
-      setClients(prev => [...prev, newClient]);
-      await dataService.createClient(newClient);
-  };
-
-  const handleDeleteClient = async (clientId: string) => {
-      setClients(prev => prev.filter(c => c.id !== clientId));
-      await dataService.deleteClient(clientId);
-  };
-
+  // Improved Select Project Handler
   const handleSelectProject = (projectId: string) => {
       setActiveProjectId(projectId);
       setActiveDocId(null);
-      navigateToView(ViewMode.PROJECT_OVERVIEW); 
+      // Switch to Project Overview instead of auto-opening documents
+      setCurrentView(ViewMode.PROJECT_OVERVIEW); 
   };
 
   const handleDeleteProject = (projectId: string) => {
@@ -409,7 +302,7 @@ const AppContent: React.FC = () => {
       setConfirmationModal({
           isOpen: true,
           title: 'Delete Project',
-          message: `Are you sure you want to delete "${project?.title}"?`,
+          message: `Are you sure you want to delete "${project?.title}"? All associated documents and tasks will be permanently removed.`,
           isDanger: true,
           confirmText: 'Delete Project',
           onConfirm: async () => {
@@ -422,7 +315,7 @@ const AppContent: React.FC = () => {
                   if (remaining.length > 0) {
                       handleSelectProject(remaining[0].id);
                   } else {
-                      navigateToView(ViewMode.HOME);
+                      setCurrentView(ViewMode.HOME);
                   }
               }
               await dataService.deleteProject(projectId);
@@ -441,7 +334,7 @@ const AppContent: React.FC = () => {
     };
     setDocuments(prev => [...prev, newDoc]);
     setActiveDocId(newDoc.id);
-    navigateToView(ViewMode.DOCUMENTS);
+    setCurrentView(ViewMode.DOCUMENTS);
     await dataService.createDocument(newDoc);
   };
 
@@ -449,7 +342,7 @@ const AppContent: React.FC = () => {
       setConfirmationModal({
           isOpen: true,
           title: 'Delete Page',
-          message: 'Are you sure you want to delete this page?',
+          message: 'Are you sure you want to delete this page? This cannot be undone.',
           isDanger: true,
           confirmText: 'Delete Page',
           onConfirm: async () => {
@@ -534,7 +427,7 @@ const AppContent: React.FC = () => {
       await dataService.createDocument(newDoc);
       setActiveProjectId(task.projectId);
       setActiveDocId(newDoc.id);
-      navigateToView(ViewMode.DOCUMENTS);
+      setCurrentView(ViewMode.DOCUMENTS);
   };
 
   const handleProjectPlanCreated = (plan: ProjectPlan) => {
@@ -576,9 +469,10 @@ const AppContent: React.FC = () => {
 
     setActiveProjectId(newProject.id);
     setActiveDocId(newDoc.id);
-    navigateToView(ViewMode.PROJECT_OVERVIEW); 
+    setCurrentView(ViewMode.DOCUMENTS);
   };
 
+  // --- Connection Handler ---
   const handleToggleIntegration = async (id: string, apiKey?: string) => {
       setIntegrations(prev => prev.map(i => i.id === id ? { ...i, connected: !i.connected, config: apiKey ? { apiKey } : i.config } : i));
       const isConnecting = !integrations.find(i => i.id === id)?.connected;
@@ -596,13 +490,13 @@ const AppContent: React.FC = () => {
           if (doc) {
               setActiveProjectId(doc.projectId);
               setActiveDocId(id);
-              navigateToView(ViewMode.DOCUMENTS);
+              setCurrentView(ViewMode.DOCUMENTS);
           }
       } else if (type === 'task') {
           const task = tasks.find(t => t.id === id);
           if (task) {
               setActiveProjectId(task.projectId);
-              navigateToView(ViewMode.BOARD);
+              setCurrentView(ViewMode.BOARD);
               setSelectedTaskId(id);
           }
       }
@@ -630,14 +524,9 @@ const AppContent: React.FC = () => {
   };
 
   const handleProcessInboxItem = async (itemId: string, action: InboxAction) => {
-      if (action.actionType === 'create_project' && action.projectPlan) {
-          handleProjectPlanCreated(action.projectPlan);
-          setInboxItems(prev => prev.filter(i => i.id !== itemId));
-          return;
-      }
-
       let targetProjectId = action.targetProjectId;
-      if (targetProjectId.startsWith('NEW:')) {
+      
+      if (targetProjectId && targetProjectId.startsWith('NEW:')) {
           const title = targetProjectId.substring(4);
           const newProject: Project = {
               id: crypto.randomUUID(),
@@ -648,6 +537,10 @@ const AppContent: React.FC = () => {
           await dataService.createProject(newProject);
           setProjects(prev => [...prev, newProject]);
           targetProjectId = newProject.id;
+      }
+
+      if (!targetProjectId || targetProjectId === 'default') {
+          targetProjectId = projects[0]?.id;
       }
 
       if (action.actionType === 'create_task') {
@@ -666,23 +559,63 @@ const AppContent: React.FC = () => {
           };
           setTasks(prev => [...prev, newTask]);
           dataService.createTask(newTask);
-      } else if (action.actionType === 'create_document') {
+      } else if (action.actionType === 'create_document' || action.actionType === 'mixed') {
+           const newDocId = crypto.randomUUID();
            const newDoc: Document = {
-              id: crypto.randomUUID(),
+              id: newDocId,
               projectId: targetProjectId,
               title: action.data.title,
-              content: action.data.content || '# ' + action.data.title,
-              tags: ['Inbox Processed'],
+              content: action.data.content || `# ${action.data.title}\n\n${action.data.description || ''}`,
+              tags: action.data.tags || ['Inbox Processed'],
               updatedAt: new Date()
            };
            setDocuments(prev => [...prev, newDoc]);
            dataService.createDocument(newDoc);
+
+           if (action.data.extractedTasks && action.data.extractedTasks.length > 0) {
+               const newTasks = action.data.extractedTasks.map(t => ({
+                   id: crypto.randomUUID(),
+                   projectId: targetProjectId,
+                   title: t.title,
+                   description: t.description || '',
+                   status: TaskStatus.TODO,
+                   priority: t.priority || TaskPriority.MEDIUM,
+                   assignee: t.assignee || 'Unassigned',
+                   linkedDocumentId: newDocId,
+                   createdAt: new Date(),
+                   updatedAt: new Date()
+               }));
+               setTasks(prev => [...prev, ...newTasks]);
+               newTasks.forEach(t => dataService.createTask(t));
+           }
       }
       setInboxItems(prev => prev.map(item => item.id === itemId ? { ...item, status: 'processed' } : item).filter(i => i.status !== 'processed'));
   };
   
   const handleStoreInboxSuggestion = (itemId: string, action: InboxAction) => {
       setInboxItems(prev => prev.map(item => item.id === itemId ? { ...item, processedResult: action } : item));
+  };
+
+  const handleAddClient = async (client: Partial<Client>) => {
+      const newClient: Client = {
+          id: crypto.randomUUID(),
+          name: client.name!,
+          company: client.company!,
+          email: client.email || '',
+          status: client.status || 'Lead',
+          value: client.value || 0,
+          tags: client.tags || [],
+          lastContact: new Date(),
+          activities: [],
+          googleDriveFolder: ''
+      };
+      setClients(prev => [...prev, newClient]);
+      await dataService.createClient(newClient);
+  };
+
+  const handleDeleteClient = async (id: string) => {
+      setClients(prev => prev.filter(c => c.id !== id));
+      await dataService.deleteClient(id);
   };
 
   const activeDocument = documents.find(d => d.id === activeDocId);
@@ -698,16 +631,11 @@ const AppContent: React.FC = () => {
   const selectedTask = tasks.find(t => t.id === selectedTaskId);
 
   return (
-    <div 
-      className="flex h-[100dvh] w-full bg-white dark:bg-black overflow-hidden font-sans text-gray-900 dark:text-gray-100 transition-colors duration-200"
-      onTouchStart={onTouchStart}
-      onTouchMove={onTouchMove}
-      onTouchEnd={onTouchEnd}
-    >
+    <div className="flex h-screen w-full bg-white dark:bg-black overflow-hidden font-sans text-gray-900 dark:text-gray-100 transition-colors duration-200">
       
       <Sidebar
         currentView={currentView}
-        onChangeView={navigateToView}
+        onChangeView={setCurrentView}
         projects={projects}
         activeProjectId={activeProjectId}
         onSelectProject={handleSelectProject}
@@ -727,30 +655,30 @@ const AppContent: React.FC = () => {
         onHover={setIsSidebarExpanded}
       />
 
-      <main className={`flex-1 flex flex-col h-full relative w-full bg-white dark:bg-black transition-all duration-300 ease-in-out pb-24 md:pb-0 safe-area-bottom ${isSidebarExpanded ? 'md:pl-64' : 'md:pl-16'}`}>
-        <header className="h-14 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between px-6 bg-white dark:bg-black shrink-0 z-20 safe-area-top pt-2 md:pt-0">
+      <main className={`flex-1 flex flex-col h-full relative w-full bg-white dark:bg-black transition-all duration-300 ease-in-out pb-20 md:pb-0 ${isSidebarExpanded ? 'md:pl-64' : 'md:pl-16'}`}>
+        <header className="h-14 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between px-6 bg-white dark:bg-black shrink-0 z-20">
           <div className="flex items-center space-x-3 text-sm">
              <span className="font-medium text-black dark:text-white inline">
                  {currentView === ViewMode.HOME ? 'Home' : 
                   currentView === ViewMode.SETTINGS ? 'Settings' : 
-                  currentView === ViewMode.CLIENTS ? 'Clients' : viewTitle}
+                  currentView === ViewMode.CLIENTS ? 'CRM' : viewTitle}
              </span>
-             <span className="hidden md:inline text-gray-300 dark:text-gray-700">/</span>
-             <span className="hidden md:block text-gray-500 dark:text-gray-400 truncate">
+             <span className="text-gray-300 dark:text-gray-700 inline">/</span>
+             <span className="text-gray-500 dark:text-gray-400 truncate">
                  {currentView === ViewMode.DOCUMENTS ? (activeDocument?.title || 'Untitled') : 
                   currentView === ViewMode.BOARD ? 'Board' : 
                   currentView === ViewMode.HOME ? 'Dashboard' :
-                  currentView === ViewMode.CLIENTS ? 'Relationship Manager' :
                   currentView === ViewMode.SETTINGS ? 'Preferences' :
+                  currentView === ViewMode.CLIENTS ? 'Pipeline' :
                   currentView.toLowerCase().replace('_', ' ')}
              </span>
           </div>
-          <div className="flex items-center space-x-4">
-             <button onClick={() => setIsCommandPaletteOpen(true)} className="text-gray-400 hover:text-black dark:hover:text-white transition-colors p-2">
-                <Search className="w-5 h-5" />
+          <div className="flex items-center space-x-3">
+             <button onClick={() => setIsCommandPaletteOpen(true)} className="text-gray-400 hover:text-black dark:hover:text-white transition-colors">
+                <Command className="w-4 h-4" />
             </button>
-            <button onClick={() => setIsChatOpen(!isChatOpen)} className={`transition-colors p-2 ${isChatOpen ? 'text-purple-600 dark:text-purple-400' : 'text-gray-400 hover:text-black dark:hover:text-white'}`}>
-                <Bot className="w-5 h-5" />
+            <button onClick={() => setIsChatOpen(!isChatOpen)} className={`transition-colors ${isChatOpen ? 'text-purple-600 dark:text-purple-400' : 'text-gray-400 hover:text-black dark:hover:text-white'}`}>
+                <Sparkles className="w-4 h-4" />
             </button>
           </div>
         </header>
@@ -766,7 +694,7 @@ const AppContent: React.FC = () => {
                           projects={projects} 
                           userName="User" 
                           onNavigate={handleNavigate} 
-                          onStartReview={() => navigateToView(ViewMode.REVIEW)} 
+                          onStartReview={() => setCurrentView(ViewMode.REVIEW)} 
                           onCreateProject={handleOpenCreateProject}
                           teamMembers={teamMembers}
                       />
@@ -776,16 +704,21 @@ const AppContent: React.FC = () => {
                           tasks={projectTasks}
                           documents={projectDocs}
                           onNavigate={handleNavigate}
-                          onChangeView={navigateToView}
+                          onChangeView={setCurrentView}
                       />
                   ) : currentView === ViewMode.INBOX ? (
                       <InboxView 
                           items={inboxItems} 
                           onAddItem={handleAddInboxItem} 
-                          onProcessItem={(id, action) => { const item = inboxItems.find(i => i.id === id); if (item && item.processedResult) handleProcessInboxItem(id, action); else handleStoreInboxSuggestion(id, action); }} 
+                          onProcessItem={(id, action) => { 
+                              const item = inboxItems.find(i => i.id === id); 
+                              if (item && item.processedResult) handleProcessInboxItem(id, action); 
+                              else handleStoreInboxSuggestion(id, action); 
+                          }} 
                           onDeleteItem={handleDeleteInboxItem} 
                           onUpdateItem={handleUpdateInboxItem}
                           projects={projects} 
+                          integrations={integrations}
                       />
                   ) : currentView === ViewMode.SETTINGS ? (
                       <SettingsView 
@@ -799,15 +732,8 @@ const AppContent: React.FC = () => {
                           integrations={integrations}
                           onToggleIntegration={handleToggleIntegration}
                       />
-                  ) : currentView === ViewMode.CLIENTS ? (
-                      <ClientsView 
-                        clients={clients} 
-                        projects={projects} 
-                        onAddClient={() => setIsCreateClientModalOpen(true)}
-                        onDeleteClient={handleDeleteClient}
-                      />
                   ) : currentView === ViewMode.REVIEW ? (
-                      <ReviewWizard inboxItems={inboxItems} tasks={tasks} projects={projects} onProcessInboxItem={handleProcessInboxItem} onDeleteInboxItem={handleDeleteInboxItem} onDeleteTask={handleDeleteTask} onUpdateTaskStatus={handleUpdateTaskStatus} onUpdateTaskAssignee={handleUpdateTaskAssignee} onClose={() => navigateToView(ViewMode.HOME)} />
+                      <ReviewWizard inboxItems={inboxItems} tasks={tasks} projects={projects} onProcessInboxItem={handleProcessInboxItem} onDeleteInboxItem={handleDeleteInboxItem} onDeleteTask={handleDeleteTask} onUpdateTaskStatus={handleUpdateTaskStatus} onUpdateTaskAssignee={handleUpdateTaskAssignee} onClose={() => setCurrentView(ViewMode.HOME)} />
                   ) : currentView === ViewMode.DOCUMENTS && activeDocument ? (
                       <DocumentEditor 
                         document={activeDocument} 
@@ -849,6 +775,8 @@ const AppContent: React.FC = () => {
                       />
                   ) : currentView === ViewMode.GRAPH ? (
                       <GraphView documents={projectDocs} tasks={projectTasks} onNavigate={handleNavigate} />
+                  ) : currentView === ViewMode.CLIENTS ? (
+                      <ClientsView clients={clients} projects={projects} onAddClient={() => setIsCreateClientModalOpen(true)} onDeleteClient={handleDeleteClient} />
                   ) : (
                       <CalendarView 
                         tasks={tasksToDisplay} 
@@ -875,10 +803,30 @@ const AppContent: React.FC = () => {
             setMessages={setChatMessages}
             allDocuments={documents}
             allTasks={tasks}
+            projects={projects}
+            clients={clients}
+            teamMembers={teamMembers}
             integrations={integrations}
+            onAddTask={(task) => {
+                const newTask: Task = {
+                    id: crypto.randomUUID(),
+                    projectId: task.projectId || projects[0]?.id || 'default',
+                    title: task.title || 'New Task',
+                    description: task.description,
+                    status: (task.status as TaskStatus) || TaskStatus.TODO,
+                    priority: task.priority || TaskPriority.MEDIUM,
+                    assignee: task.assignee || 'Unassigned',
+                    dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
+                    dependencies: [],
+                    createdAt: new Date(),
+                    updatedAt: new Date()
+                };
+                setTasks(prev => [...prev, newTask]);
+                dataService.createTask(newTask);
+            }}
         />
 
-        <CommandPalette isOpen={isCommandPaletteOpen} onClose={() => setIsCommandPaletteOpen(false)} documents={documents} tasks={tasks} projects={projects} onNavigate={handleNavigate} onCreateDocument={handleCreateDocument} onChangeView={navigateToView} onSelectProject={handleSelectProject} />
+        <CommandPalette isOpen={isCommandPaletteOpen} onClose={() => setIsCommandPaletteOpen(false)} documents={documents} tasks={tasks} projects={projects} onNavigate={handleNavigate} onCreateDocument={handleCreateDocument} onChangeView={setCurrentView} onSelectProject={handleSelectProject} />
         
         <CreateProjectModal 
           isOpen={isCreateProjectModalOpen}
@@ -887,9 +835,9 @@ const AppContent: React.FC = () => {
         />
 
         <CreateClientModal
-          isOpen={isCreateClientModalOpen}
-          onClose={() => setIsCreateClientModalOpen(false)}
-          onCreate={handleCreateClient}
+            isOpen={isCreateClientModalOpen}
+            onClose={() => setIsCreateClientModalOpen(false)}
+            onCreate={handleAddClient}
         />
 
         <IntegrationsModal 
@@ -926,7 +874,7 @@ const AppContent: React.FC = () => {
       {/* Mobile Bottom Navigation Bar */}
       <MobileBottomNav 
         currentView={currentView}
-        onChangeView={navigateToView}
+        onChangeView={setCurrentView}
         onOpenMenu={() => setIsMobileSidebarOpen(true)}
         onSearch={() => setIsCommandPaletteOpen(true)}
       />
