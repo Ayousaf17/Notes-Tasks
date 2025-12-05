@@ -23,16 +23,27 @@ export interface Project {
   createdAt: Date;
 }
 
+export interface ClientActivity {
+  id: string;
+  type: 'call' | 'email' | 'meeting' | 'note';
+  content: string;
+  timestamp: Date;
+}
+
 // NEW: CRM Client Interface
 export interface Client {
   id: string;
   name: string;
   company: string;
   email: string;
-  status: 'Lead' | 'Active' | 'Churned';
+  phone?: string;
+  status: 'Lead' | 'Negotiation' | 'Active' | 'Churned';
   value: number; // Estimated revenue
   lastContact: Date;
   tags: string[];
+  activities?: ClientActivity[];
+  notes?: string;
+  googleDriveFolder?: string; // Link to external folder
 }
 
 export interface Document {
@@ -42,6 +53,7 @@ export interface Document {
   content: string;
   updatedAt: Date;
   tags: string[];
+  lastSyncedAt?: Date; // For Google Sync tracking
 }
 
 export enum TaskStatus {

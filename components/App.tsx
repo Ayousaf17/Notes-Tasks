@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect, useRef, ErrorInfo, Component } from 'react';
+import React, { useState, useEffect, useRef, ErrorInfo } from 'react';
 import { Sidebar } from './Sidebar';
 import { DocumentEditor } from './DocumentEditor';
 import { TaskBoard } from './TaskBoard';
@@ -17,9 +16,10 @@ import { IntegrationsModal } from './IntegrationsModal';
 import { SettingsView } from './SettingsView';
 import { ClientsView } from './ClientsView';
 import { CreateProjectModal } from './CreateProjectModal';
+import { CreateClientModal } from './CreateClientModal'; 
 import { ConfirmationModal } from './ConfirmationModal';
 import { ViewMode, Document, Task, TaskStatus, ProjectPlan, TaskPriority, ChatMessage, Project, InboxItem, InboxAction, AgentRole, Integration, Client } from '../types';
-import { Sparkles, Command, Plus, Menu, Cloud, MessageSquare, Home, Inbox, Search, CheckSquare, AlertTriangle, Bot } from 'lucide-react';
+import { Sparkles, Command, Plus, Menu, Cloud, MessageSquare, Home, Inbox, Search, CheckSquare, AlertTriangle, Bot, Network } from 'lucide-react';
 import { geminiService } from '../services/geminiService';
 import { dataService } from '../services/dataService';
 import { supabase } from '../services/supabase';
@@ -34,16 +34,13 @@ interface ErrorBoundaryState {
   error: Error | null;
 }
 
-class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  constructor(props: ErrorBoundaryProps) {
-    super(props);
-    this.state = {
-      hasError: false,
-      error: null
-    };
-  }
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  public state: ErrorBoundaryState = {
+    hasError: false,
+    error: null
+  };
 
-  static getDerivedStateFromError(error: Error) {
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
     return { hasError: true, error };
   }
 
@@ -125,14 +122,6 @@ const AppContent: React.FC = () => {
     setCurrentView(newView);
   };
 
-  const handleBack = () => {
-    if (viewHistory.length === 0) return false;
-    const prevView = viewHistory[viewHistory.length - 1];
-    setViewHistory(prev => prev.slice(0, -1));
-    setCurrentView(prevView);
-    return true;
-  };
-
   // Optimized Swipe Logic: Using Refs to prevent re-renders on scroll
   const touchStart = useRef<number | null>(null);
   const touchEnd = useRef<number | null>(null);
@@ -158,14 +147,16 @@ const AppContent: React.FC = () => {
     const isRightSwipe = distance < -minSwipeDistance;
     
     if (isLeftSwipe) {
-      // Right-to-Left Swipe (Open Chat)
       setIsChatOpen(true);
       setIsMobileSidebarOpen(false);
     }
     if (isRightSwipe) {
       // Left-to-Right Swipe (Back or Open Sidebar)
-      const didGoBack = handleBack();
-      if (!didGoBack) {
+      if (viewHistory.length > 0) {
+        const prevView = viewHistory[viewHistory.length - 1];
+        setViewHistory(prev => prev.slice(0, -1));
+        setCurrentView(prevView);
+      } else {
           setIsMobileSidebarOpen(true);
       }
       setIsChatOpen(false);
@@ -244,9 +235,7 @@ const AppContent: React.FC = () => {
   const [isIntegrationsOpen, setIsIntegrationsOpen] = useState(false);
   const [integrations, setIntegrations] = useState<Integration[]>([
       { id: 'google', name: 'Google Workspace', description: 'Sync Docs, Calendar, and Drive.', icon: Cloud, connected: false, category: 'Cloud' },
-      { id: 'chatgpt', name: 'ChatGPT', description: 'Connect GPT-4o for advanced reasoning.', icon: MessageSquare, connected: false, category: 'AI' },
-      { id: 'claude', name: 'Claude', description: 'Anthropic\'s Claude 3.5 Sonnet model.', icon: MessageSquare, connected: false, category: 'AI' },
-      { id: 'perplexity', name: 'Perplexity', description: 'Real-time web search and sourcing.', icon: MessageSquare, connected: false, category: 'AI' },
+      { id: 'openrouter', name: 'OpenRouter', description: 'Access GPT-4o, Claude 3.5, and Llama 3 via one key.', icon: Network, connected: false, category: 'AI' },
   ]);
   
   const [projects, setProjects] = useState<Project[]>([
@@ -276,6 +265,7 @@ const AppContent: React.FC = () => {
   
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [isCreateProjectModalOpen, setIsCreateProjectModalOpen] = useState(false);
+  const [isCreateClientModalOpen, setIsCreateClientModalOpen] = useState(false);
 
   // Load Data
   useEffect(() => {
@@ -356,6 +346,22 @@ const AppContent: React.FC = () => {
       setActiveDocId(null);
       navigateToView(ViewMode.DOCUMENTS);
       await dataService.createProject(newProject);
+  };
+
+  const handleCreateClient = (clientData: Partial<Client>) => {
+      const newClient: Client = {
+          id: crypto.randomUUID(),
+          name: clientData.name!,
+          company: clientData.company!,
+          email: clientData.email!,
+          status: clientData.status || 'Lead',
+          value: clientData.value || 0,
+          lastContact: new Date(),
+          tags: [],
+          activities: [],
+          googleDriveFolder: `https://drive.google.com/drive/folders/simulated_${crypto.randomUUID()}` 
+      };
+      setClients(prev => [...prev, newClient]);
   };
 
   const handleSelectProject = (projectId: string) => {
@@ -760,7 +766,11 @@ const AppContent: React.FC = () => {
                           onToggleIntegration={handleToggleIntegration}
                       />
                   ) : currentView === ViewMode.CLIENTS ? (
-                      <ClientsView clients={clients} projects={projects} />
+                      <ClientsView 
+                        clients={clients} 
+                        projects={projects} 
+                        onAddClient={() => setIsCreateClientModalOpen(true)}
+                      />
                   ) : currentView === ViewMode.REVIEW ? (
                       <ReviewWizard inboxItems={inboxItems} tasks={tasks} projects={projects} onProcessInboxItem={handleProcessInboxItem} onDeleteInboxItem={handleDeleteInboxItem} onDeleteTask={handleDeleteTask} onUpdateTaskStatus={handleUpdateTaskStatus} onUpdateTaskAssignee={handleUpdateTaskAssignee} onClose={() => navigateToView(ViewMode.HOME)} />
                   ) : currentView === ViewMode.DOCUMENTS && activeDocument ? (
@@ -830,6 +840,7 @@ const AppContent: React.FC = () => {
             setMessages={setChatMessages}
             allDocuments={documents}
             allTasks={tasks}
+            integrations={integrations}
         />
 
         <CommandPalette isOpen={isCommandPaletteOpen} onClose={() => setIsCommandPaletteOpen(false)} documents={documents} tasks={tasks} projects={projects} onNavigate={handleNavigate} onCreateDocument={handleCreateDocument} onChangeView={navigateToView} onSelectProject={handleSelectProject} />
@@ -838,6 +849,12 @@ const AppContent: React.FC = () => {
           isOpen={isCreateProjectModalOpen}
           onClose={() => setIsCreateProjectModalOpen(false)}
           onCreate={handleCreateProjectConfirm}
+        />
+
+        <CreateClientModal
+          isOpen={isCreateClientModalOpen}
+          onClose={() => setIsCreateClientModalOpen(false)}
+          onCreate={handleCreateClient}
         />
 
         <IntegrationsModal 

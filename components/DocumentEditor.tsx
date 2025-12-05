@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Document, Task, TaskPriority, TaskStatus } from '../types';
-import { Wand2, ListChecks, RefreshCw, X, Check, User, Flag, AlignLeft, Tag as TagIcon, Sparkles, Edit3, Eye, SpellCheck, Scissors, Table as TableIcon, Link as LinkIcon, FileText, Maximize2, Minimize2, Heading1, Heading2, List, CheckSquare, Plus, Loader2, Trash2 } from 'lucide-react';
+import { Wand2, ListChecks, RefreshCw, X, Check, User, Flag, AlignLeft, Tag as TagIcon, Sparkles, Edit3, Eye, SpellCheck, Scissors, Table as TableIcon, Link as LinkIcon, FileText, Maximize2, Minimize2, Heading1, Heading2, List, CheckSquare, Plus, Loader2, Trash2, Cloud } from 'lucide-react';
 import { geminiService } from '../services/geminiService';
 
 interface DocumentEditorProps {
@@ -152,6 +152,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
   const [isZenMode, setIsZenMode] = useState(false);
   const [tagInput, setTagInput] = useState('');
   const [isExtractingTask, setIsExtractingTask] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [slashMenu, setSlashMenu] = useState<{ x: number, y: number, query: string } | null>(null);
@@ -223,6 +224,14 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
     setIsSummarizing(false);
   };
 
+  const handleSyncToGoogle = async () => {
+      setIsSyncing(true);
+      // Simulate API call to Google Docs
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      setIsSyncing(false);
+      handleUpdate({ ...doc, lastSyncedAt: new Date() });
+  };
+
   const handleExtractTaskFromSelection = async () => {
       if (hoverMenu && hoverMenu.text) {
           setIsExtractingTask(true);
@@ -281,8 +290,22 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
         {/* Minimal Toolbar */}
         <div className="flex items-center justify-between mb-8 group relative">
            {!isZenMode && (
-               <div className="text-[10px] text-gray-300 dark:text-gray-600 uppercase tracking-widest">
-                 {doc.updatedAt && `Last edited ${doc.updatedAt.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`}
+               <div className="flex items-center gap-4">
+                   <div className="text-[10px] text-gray-300 dark:text-gray-600 uppercase tracking-widest">
+                     {doc.updatedAt && `Last edited ${doc.updatedAt.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`}
+                   </div>
+                   
+                   {/* Google Corridor Status */}
+                   {doc.lastSyncedAt ? (
+                       <div className="flex items-center gap-1 text-[10px] text-gray-400 dark:text-gray-500 font-medium">
+                           <Cloud className="w-3 h-3" /> Synced to Drive
+                       </div>
+                   ) : (
+                       <button onClick={handleSyncToGoogle} disabled={isSyncing} className="flex items-center gap-1 text-[10px] text-blue-500 dark:text-blue-400 font-bold hover:underline transition-all">
+                           {isSyncing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Cloud className="w-3 h-3" />}
+                           {isSyncing ? 'Pushing...' : 'Push to Drive'}
+                       </button>
+                   )}
                </div>
            )}
            <div className={`flex items-center space-x-4 transition-opacity ${isZenMode ? 'opacity-0 hover:opacity-100 absolute top-6 right-8' : 'opacity-100 md:opacity-0 md:group-hover:opacity-100'}`}>

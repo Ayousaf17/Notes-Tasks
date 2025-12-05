@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { User, Trash2, Plus, Moon, Sun, Database, ShieldAlert, Folder, Cloud, MessageSquare, Check, Loader2, Lock, AlertCircle, Plug } from 'lucide-react';
+import { User, Trash2, Plus, Moon, Sun, Database, ShieldAlert, Folder, Cloud, MessageSquare, Check, Loader2, Lock, AlertCircle, Plug, ShieldCheck, Globe, Key } from 'lucide-react';
 import { Project, Integration } from '../types';
 
 interface SettingsViewProps {
@@ -30,9 +30,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [activeTab, setActiveTab] = useState<'team' | 'general' | 'data' | 'integrations'>('team');
   
   // Integration Local State
-  const [activeConfigId, setActiveConfigId] = useState<string | null>(null);
+  const [connectingId, setConnectingId] = useState<string | null>(null);
   const [apiKeyInput, setApiKeyInput] = useState('');
-  const [loadingId, setLoadingId] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleAddMember = () => {
       if (newMember.trim() && !(teamMembers || []).includes(newMember.trim())) {
@@ -50,27 +50,28 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           onToggleIntegration(integration.id);
           return;
       }
+      
       if (integration.category === 'AI') {
-          setActiveConfigId(integration.id);
+          setConnectingId(integration.id);
           setApiKeyInput('');
       } else {
-          setLoadingId(integration.id);
+          // Simulate Cloud OAuth
+          setIsSubmitting(true);
           setTimeout(() => {
               onToggleIntegration(integration.id);
-              setLoadingId(null);
-          }, 1500); 
+              setIsSubmitting(false);
+          }, 1000);
       }
   };
 
-  const confirmApiKey = () => {
-      if (activeConfigId) {
-          setLoadingId(activeConfigId);
-          setTimeout(() => {
-              onToggleIntegration(activeConfigId, apiKeyInput);
-              setLoadingId(null);
-              setActiveConfigId(null);
-          }, 1000);
-      }
+  const handleSaveKey = async (id: string) => {
+      if (!apiKeyInput.trim()) return;
+      setIsSubmitting(true);
+      await new Promise(resolve => setTimeout(resolve, 800));
+      await onToggleIntegration(id, apiKeyInput);
+      setIsSubmitting(false);
+      setConnectingId(null);
+      setApiKeyInput('');
   };
 
   const tabs = [
@@ -82,7 +83,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
   return (
     <div className="flex-1 h-full bg-gray-50 dark:bg-black p-4 md:p-8 overflow-y-auto font-sans transition-colors duration-200">
-        <div className="max-w-3xl mx-auto pb-12">
+        <div className="max-w-3xl mx-auto pb-12 relative">
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-8">Settings</h1>
 
             {/* Tabs - Scrollable on mobile */}
@@ -184,66 +185,71 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
                     <div className="space-y-4">
                         {integrations.map(integration => {
-                            const isConfiguring = activeConfigId === integration.id;
-                            const isLoading = loadingId === integration.id;
+                            const isConnecting = connectingId === integration.id;
                             
                             return (
-                                <div key={integration.id} className={`border rounded-xl transition-all duration-200 overflow-hidden ${isConfiguring ? 'ring-2 ring-black dark:ring-white border-transparent' : 'border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700'}`}>
-                                    <div className="p-4 flex items-start gap-4">
-                                        <div className={`p-3 rounded-lg flex-shrink-0 ${integration.connected ? 'bg-black dark:bg-white text-white dark:text-black' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300'}`}>
-                                            <integration.icon className="w-5 h-5" />
-                                        </div>
-                                        
-                                        <div className="flex-1 min-w-0 pt-1">
-                                            <div className="flex items-center justify-between mb-1">
-                                                <div className="flex items-center gap-2">
-                                                    <h4 className="font-semibold text-gray-900 dark:text-white text-sm">{integration.name}</h4>
-                                                    <span className="text-[10px] uppercase font-bold text-gray-400 bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">{integration.category}</span>
+                                <div key={integration.id} className={`border rounded-xl transition-all duration-200 overflow-hidden border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700 ${isConnecting ? 'ring-2 ring-black dark:ring-white border-transparent' : ''}`}>
+                                    <div className="p-4">
+                                        <div className="flex items-start gap-4 mb-4">
+                                            <div className={`p-3 rounded-lg flex-shrink-0 ${integration.connected ? 'bg-black dark:bg-white text-white dark:text-black' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300'}`}>
+                                                <integration.icon className="w-5 h-5" />
+                                            </div>
+                                            
+                                            <div className="flex-1 min-w-0 pt-1">
+                                                <div className="flex items-center justify-between mb-1">
+                                                    <div className="flex items-center gap-2">
+                                                        <h4 className="font-semibold text-gray-900 dark:text-white text-sm">{integration.name}</h4>
+                                                        <span className="text-[10px] uppercase font-bold text-gray-400 bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">{integration.category}</span>
+                                                    </div>
+                                                    {integration.connected && <div className="flex items-center gap-1 text-[10px] font-bold text-green-600 bg-green-50 dark:bg-green-900/20 px-2 py-0.5 rounded-full"><Check className="w-3 h-3" /> CONNECTED</div>}
                                                 </div>
-                                                {integration.connected && <div className="flex items-center gap-1 text-[10px] font-bold text-green-600 bg-green-50 dark:bg-green-900/20 px-2 py-0.5 rounded-full"><Check className="w-3 h-3" /> CONNECTED</div>}
+                                                <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">{integration.description}</p>
                                             </div>
-                                            <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">{integration.description}</p>
                                         </div>
 
-                                        <button 
-                                            onClick={() => handleConnectClick(integration)}
-                                            disabled={isLoading}
-                                            className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-all min-w-[80px] flex items-center justify-center ${
-                                                integration.connected 
-                                                ? 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600'
-                                                : 'bg-black dark:bg-white text-white dark:text-black hover:opacity-80'
-                                            }`}
-                                        >
-                                            {isLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : integration.connected ? 'Disconnect' : 'Connect'}
-                                        </button>
+                                        {isConnecting ? (
+                                            <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
+                                                <div className="relative">
+                                                    <Key className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+                                                    <input 
+                                                        type="password"
+                                                        autoFocus
+                                                        value={apiKeyInput}
+                                                        onChange={(e) => setApiKeyInput(e.target.value)}
+                                                        placeholder={`Enter ${integration.name} API Key`}
+                                                        className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-black dark:focus:ring-white outline-none"
+                                                    />
+                                                </div>
+                                                <div className="flex gap-2">
+                                                    <button 
+                                                        onClick={() => handleSaveKey(integration.id)}
+                                                        disabled={!apiKeyInput.trim() || isSubmitting}
+                                                        className="flex-1 bg-black dark:bg-white text-white dark:text-black py-2 rounded-lg text-xs font-bold hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
+                                                    >
+                                                        {isSubmitting ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Save Key'}
+                                                    </button>
+                                                    <button 
+                                                        onClick={() => setConnectingId(null)}
+                                                        className="px-3 py-2 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 rounded-lg text-xs font-medium hover:bg-gray-200 dark:hover:bg-gray-700"
+                                                    >
+                                                        Cancel
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <button 
+                                                onClick={() => handleConnectClick(integration)}
+                                                disabled={isSubmitting && !integration.connected}
+                                                className={`w-full py-2 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-2 ${
+                                                    integration.connected 
+                                                    ? 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600'
+                                                    : 'bg-black dark:bg-white text-white dark:text-black hover:opacity-80'
+                                                }`}
+                                            >
+                                                {isSubmitting ? <Loader2 className="w-3 h-3 animate-spin" /> : integration.connected ? 'Disconnect' : 'Connect'}
+                                            </button>
+                                        )}
                                     </div>
-
-                                    {/* Config Drawer */}
-                                    {isConfiguring && (
-                                        <div className="px-4 pb-4 pt-2 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-100 dark:border-gray-800 animate-in slide-in-from-top-2">
-                                            <div className="flex items-center gap-2 mb-3 text-xs text-gray-500 dark:text-gray-400">
-                                                <Lock className="w-3 h-3" />
-                                                <span>Enter API Key</span>
-                                            </div>
-                                            <div className="flex gap-2">
-                                                <input 
-                                                    type="password" 
-                                                    value={apiKeyInput}
-                                                    onChange={(e) => setApiKeyInput(e.target.value)}
-                                                    placeholder={`sk-...`}
-                                                    className="flex-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-black dark:focus:ring-white outline-none"
-                                                    autoFocus
-                                                />
-                                                <button 
-                                                    onClick={confirmApiKey}
-                                                    disabled={!apiKeyInput}
-                                                    className="px-4 py-2 bg-black dark:bg-white text-white dark:text-black rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50"
-                                                >
-                                                    Save
-                                                </button>
-                                            </div>
-                                        </div>
-                                    )}
                                 </div>
                             );
                         })}

@@ -16,17 +16,72 @@ export const dataService = {
         
         // Mock Clients Data (since DB might not have table yet)
         const mockClients: Client[] = [
-            { id: 'c1', name: 'Alice Corp', company: 'Alice Inc.', email: 'alice@corp.com', status: 'Active', value: 15000, lastContact: new Date(), tags: ['Tech'] },
-            { id: 'c2', name: 'Bob Smith', company: 'Smith Designs', email: 'bob@smith.com', status: 'Lead', value: 5000, lastContact: new Date(Date.now() - 86400000 * 3), tags: ['Design'] }
+            { 
+                id: 'c1', 
+                name: 'Alice Johnson', 
+                company: 'TechFlow Corp', 
+                email: 'alice@techflow.com', 
+                status: 'Active', 
+                value: 45000, 
+                lastContact: new Date(), 
+                tags: ['SaaS', 'Enterprise'],
+                activities: [
+                    { id: 'a1', type: 'call', content: 'Quarterly review call - Positive feedback on V2.', timestamp: new Date(Date.now() - 86400000) },
+                    { id: 'a2', type: 'email', content: 'Sent contract renewal proposal.', timestamp: new Date(Date.now() - 86400000 * 5) }
+                ]
+            },
+            { 
+                id: 'c2', 
+                name: 'Bob Smith', 
+                company: 'Smith Designs', 
+                email: 'bob@smith.com', 
+                status: 'Lead', 
+                value: 5000, 
+                lastContact: new Date(Date.now() - 86400000 * 3), 
+                tags: ['Design', 'Small Biz'],
+                activities: [
+                    { id: 'a3', type: 'note', content: 'Met at conference. Interested in branding package.', timestamp: new Date(Date.now() - 86400000 * 10) }
+                ]
+            },
+            { 
+                id: 'c3', 
+                name: 'Charlie Davis', 
+                company: 'Omega Logistics', 
+                email: 'c.davis@omega.io', 
+                status: 'Negotiation', 
+                value: 120000, 
+                lastContact: new Date(Date.now() - 86400000 * 1), 
+                tags: ['Logistics'],
+                activities: [
+                    { id: 'a4', type: 'meeting', content: 'Demo with CTO went well. Waiting on budget approval.', timestamp: new Date(Date.now() - 86400000 * 2) }
+                ]
+            },
+            { 
+                id: 'c4', 
+                name: 'Diana Prince', 
+                company: 'Global Exports', 
+                email: 'diana@global.com', 
+                status: 'Churned', 
+                value: 0, 
+                lastContact: new Date(Date.now() - 86400000 * 60), 
+                tags: ['Retail'],
+                activities: [
+                    { id: 'a5', type: 'email', content: 'Client cancelled due to budget cuts.', timestamp: new Date(Date.now() - 86400000 * 60) }
+                ]
+            }
         ];
 
-        return {
-          projects: (projects || []).map((p: any) => ({
+        // Link projects to clients for demo
+        const mappedProjects = (projects || []).map((p: any, index: number) => ({
             id: p.id,
             title: p.title,
             icon: p.icon,
+            clientId: index === 0 ? 'c1' : index === 1 ? 'c3' : undefined, // Assign first project to Alice, second to Omega
             createdAt: p.created_at ? new Date(p.created_at) : new Date()
-          })) as Project[],
+        })) as Project[];
+
+        return {
+          projects: mappedProjects,
           
           tasks: (tasks || []).map((t: any) => ({
             id: t.id,

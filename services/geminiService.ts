@@ -19,9 +19,159 @@ const ai = new GoogleGenAI({ apiKey: apiKey || 'dummy_key' });
 
 const MODEL_NAME = "gemini-2.5-flash";
 
+interface ChatParams {
+    provider: 'gemini' | 'chatgpt' | 'claude' | 'perplexity';
+    apiKey?: string;
+    history: { role: string; parts: { text?: string; inlineData?: any }[] }[];
+    message: string;
+    attachments: Attachment[];
+    systemContext?: string;
+}
+
 export const geminiService = {
   /**
-   * Multimodal Chat interaction
+   * Unified Chat interaction handling multiple providers
+   */
+  async chatWithProvider(params: ChatParams): Promise<string> {
+      const { provider, apiKey: userKey, history, message, attachments, systemContext } = params;
+
+      // 1. GEMINI (Default)
+      if (provider === 'gemini') {
+          return this.chat(history, message, attachments, systemContext);
+      }
+
+      // 2. CHECK API KEY
+      if (!userKey) {
+          return `Error: Missing API Key for ${provider}. Please configure it in Settings.`;
+      }
+
+      // 3. PROVIDER ROUTING
+      try {
+          if (provider === 'chatgpt') {
+              return this.callOpenAI(userKey, history, message, systemContext);
+          } else if (provider === 'claude') {
+              return this.callAnthropic(userKey, history, message, systemContext);
+          } else if (provider === 'perplexity') {
+              return this.callPerplexity(userKey, message, systemContext);
+          }
+      } catch (error: any) {
+          console.error(`${provider} API Error:`, error);
+          if (error.message && error.message.includes('Failed to fetch')) {
+              return `Error: Browser Security (CORS) blocked the call to ${provider}. This usually requires a backend server. Perplexity and OpenAI sometimes work directly if enabled in your dashboard.`;
+          }
+          return `Error communicating with ${provider}: ${error.message || 'Unknown error'}`;
+      }
+
+      return "Provider not supported.";
+  },
+
+  /**
+   * OpenAI Implementation (GPT-4o)
+   */
+  async callOpenAI(key: string, history: any[], message: string, systemContext?: string): Promise<string> {
+      const messages = [];
+      
+      // System Prompt
+      messages.push({
+          role: "system",
+          content: `You are Aasani, a helpful OS assistant. 
+          ${systemContext ? `\n\nCURRENT CONTEXT:\n${systemContext}` : ''}`
+      });
+
+      // History
+      history.forEach(h => {
+          messages.push({
+              role: h.role === 'model' ? 'assistant' : 'user',
+              content: h.parts[0]?.text || ''
+          });
+      });
+
+      // Current Message
+      messages.push({ role: "user", content: message });
+
+      const response = await fetch("https://api.openai.com/v1/chat/completions", {
+          method: "POST",
+          headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${key}`
+          },
+          body: JSON.stringify({
+              model: "gpt-4o",
+              messages: messages,
+              temperature: 0.7
+          })
+      });
+
+      const data = await response.json();
+      if (data.error) throw new Error(data.error.message);
+      return data.choices[0]?.message?.content || "No response from OpenAI.";
+  },
+
+  /**
+   * Anthropic Implementation (Claude 3.5 Sonnet)
+   * Note: This often fails due to CORS in pure browser environments.
+   */
+  async callAnthropic(key: string, history: any[], message: string, systemContext?: string): Promise<string> {
+      const messages = [];
+      
+      history.forEach(h => {
+          messages.push({
+              role: h.role === 'model' ? 'assistant' : 'user',
+              content: h.parts[0]?.text || ''
+          });
+      });
+
+      messages.push({ role: "user", content: message });
+
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+          method: "POST",
+          headers: {
+              "x-api-key": key,
+              "anthropic-version": "2023-06-01",
+              "content-type": "application/json",
+              "dangerously-allow-browser": "true" // Experimental flag
+          },
+          body: JSON.stringify({
+              model: "claude-3-5-sonnet-20240620",
+              max_tokens: 1024,
+              system: systemContext || "You are Aasani, a helpful OS assistant.",
+              messages: messages
+          })
+      });
+
+      const data = await response.json();
+      if (data.error) throw new Error(data.error.message);
+      return data.content[0]?.text || "No response from Claude.";
+  },
+
+  /**
+   * Perplexity Implementation (Sonar)
+   */
+  async callPerplexity(key: string, message: string, systemContext?: string): Promise<string> {
+      const messages = [
+          { role: "system", content: "You are a helpful search assistant. Use the provided context if relevant, but prioritize real-time search." },
+          { role: "user", content: `Context: ${systemContext || 'None'}\n\nQuery: ${message}` }
+      ];
+
+      const response = await fetch("https://api.perplexity.ai/chat/completions", {
+          method: "POST",
+          headers: {
+              "Authorization": `Bearer ${key}`,
+              "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+              model: "sonar-pro",
+              messages: messages
+          })
+      });
+
+      const data = await response.json();
+      if (data.error) throw new Error(data.error.message);
+      return data.choices[0]?.message?.content || "No response from Perplexity.";
+  },
+
+  /**
+   * Original Gemini Chat interaction
    */
   async chat(history: { role: string; parts: { text?: string; inlineData?: any }[] }[], message: string, attachments: Attachment[] = [], systemContext?: string): Promise<string> {
     if (!apiKey) return "Error: No API Key configured.";
