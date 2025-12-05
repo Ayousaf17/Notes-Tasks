@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { InboxItem, Project, InboxAction, Integration, TaskPriority, TaskStatus, Task, Attachment, AgentRole, Client } from '../types';
-import { Mic, Sparkles, Archive, Loader2, CheckCircle, FileText, Trash2, StopCircle, Paperclip, X, Check, ArrowRight, ChevronDown, Layers, CheckCircle2, Bot, Search, Lock, Settings, User, Calendar, CheckSquare, File, Tag, Flag, Briefcase, Plus, Folder, UserPlus, Bug, Rocket } from 'lucide-react';
+import { Mic, Sparkles, Archive, Loader2, CheckCircle, FileText, Trash2, StopCircle, Paperclip, X, Check, ArrowRight, ChevronDown, Layers, CheckCircle2, Bot, Search, Lock, Settings, User, Calendar, CheckSquare, File, Tag, Flag, Briefcase, Plus, Folder, UserPlus, Bug, Rocket, MessageSquare, Zap } from 'lucide-react';
 import { geminiService } from '../services/geminiService';
 
 interface InboxViewProps {
@@ -10,6 +10,7 @@ interface InboxViewProps {
   onProcessItem: (itemId: string, action: InboxAction) => void;
   onDeleteItem: (itemId: string) => void;
   onUpdateItem?: (itemId: string, updates: Partial<InboxItem>) => void; 
+  onDiscussItem?: (item: InboxItem) => void; // New Handoff Prop
   projects: Project[];
   integrations?: Integration[];
   activeProjectId?: string;
@@ -27,10 +28,12 @@ export const InboxView: React.FC<InboxViewProps> = ({
     onProcessItem, 
     onDeleteItem,
     onUpdateItem,
+    onDiscussItem,
     projects,
     integrations,
     activeProjectId
 }) => {
+  // ... (Existing State & Logic)
   const [inputText, setInputText] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [processingId, setProcessingId] = useState<string | null>(null);
@@ -59,7 +62,6 @@ export const InboxView: React.FC<InboxViewProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // --- INITIALIZATION ---
-  // Ensure tasks are selected by default when component mounts or items change
   useEffect(() => {
       setSelectionState(prev => {
           const nextState = { ...prev };
@@ -119,11 +121,11 @@ export const InboxView: React.FC<InboxViewProps> = ({
       );
   }, [availableModels, modelSearchQuery]);
 
-  // --- Handlers ---
+  // --- Handlers (Existing logic kept, just ensuring full implementation) ---
 
   const handleSubmit = () => {
       if (!inputText.trim()) return;
-      onAddItem(inputText, 'text');
+      onAddItem(inputText, 'text', undefined, undefined);
       setInputText('');
   };
 
@@ -207,7 +209,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
           item.attachments || [] 
       );
 
-      // Force default assignee to AI Writer if result doesn't have one or is Unassigned
+      // (Logic for default assignee remains same)
       if (result) {
           if (result.actionType === 'create_task' && !result.data.extractedTasks) {
               result.data.extractedTasks = [{
@@ -224,7 +226,6 @@ export const InboxView: React.FC<InboxViewProps> = ({
               }));
           }
 
-          // Pre-select top 7 tasks immediately
           const initialSelection: Record<string, boolean> = {};
           if (result.data.extractedTasks) {
               result.data.extractedTasks.forEach((_, idx) => {
@@ -288,26 +289,20 @@ export const InboxView: React.FC<InboxViewProps> = ({
         return openRouterModel.split('/')[1] || 'OpenRouter';
   };
 
-  // Helper to handle the "Import All" action with filtering for selected tasks
   const handleImport = (item: InboxItem) => {
       if (!item.processedResult) return;
 
-      // DEEP CLONE to prevent mutation of props and ensure clean state handoff
       const finalResult: InboxAction = JSON.parse(JSON.stringify(item.processedResult));
       
-      // Handle "New Project" Logic
       if (showProjectInput[item.id] && newProjectInput[item.id]) {
           finalResult.targetProjectId = `NEW:${newProjectInput[item.id]}`;
       } else if (!finalResult.targetProjectId || finalResult.targetProjectId === 'default') {
-          // If no specific project set by AI or user, rely on App.tsx to use activeProjectId
           finalResult.targetProjectId = 'default';
       }
 
-      // Filter tasks based on selection
       if (finalResult.data.extractedTasks) {
           finalResult.data.extractedTasks = finalResult.data.extractedTasks.filter((_, idx) => {
               const key = `${item.id}-${idx}`;
-              // Must be strictly true OR undefined (default top 7 handled by state init, but safety check)
               const isSelected = selectionState[key];
               if (isSelected === undefined) return idx < 7;
               return isSelected;
@@ -317,7 +312,6 @@ export const InboxView: React.FC<InboxViewProps> = ({
       onProcessItem(item.id, finalResult);
   };
 
-  // Helper to get selection state with safe default
   const isTaskSelected = (itemId: string, index: number) => {
       const key = `${itemId}-${index}`;
       if (selectionState[key] !== undefined) return selectionState[key];
@@ -427,7 +421,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
                 <button 
                     onClick={handleSubmit}
                     disabled={!inputText.trim()}
-                    className="bg-black dark:bg-white text-white dark:text-black px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-800 dark:hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                    className="bg-black dark:bg-white text-white dark:text-black px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                 >
                     Capture
                 </button>
@@ -655,21 +649,37 @@ export const InboxView: React.FC<InboxViewProps> = ({
                                         )}
                                     </div>
 
-                                    <div className="flex justify-end gap-3 p-4 bg-gray-50 dark:bg-gray-900/30 border-t border-gray-200 dark:border-gray-800">
-                                        <button onClick={() => onDeleteItem(item.id)} className="px-4 py-2 text-xs font-bold text-gray-500 hover:text-red-500 transition-colors">Discard</button>
+                                    <div className="flex justify-between items-center gap-3 p-4 bg-gray-50 dark:bg-gray-900/30 border-t border-gray-200 dark:border-gray-800">
                                         <button 
-                                            onClick={() => handleImport(item)} 
-                                            className="px-6 py-2 bg-black dark:bg-white text-white dark:text-black rounded-lg text-xs font-bold hover:opacity-90 flex items-center gap-2 shadow-sm"
+                                            onClick={() => onDiscussItem && onDiscussItem(item)}
+                                            className="text-xs font-medium text-purple-600 dark:text-purple-400 flex items-center gap-1.5 hover:underline"
                                         >
-                                            Import {item.processedResult.data.extractedTasks ? item.processedResult.data.extractedTasks.filter((_, idx) => isTaskSelected(item.id, idx)).length : 0} Items <ArrowRight className="w-3 h-3" />
+                                            <MessageSquare className="w-3 h-3" /> Discuss with Aasani
                                         </button>
+                                        <div className="flex gap-3">
+                                            <button onClick={() => onDeleteItem(item.id)} className="px-4 py-2 text-xs font-bold text-gray-500 hover:text-red-500 transition-colors">Discard</button>
+                                            <button 
+                                                onClick={() => handleImport(item)} 
+                                                className="px-6 py-2 bg-black dark:bg-white text-white dark:text-black rounded-lg text-xs font-bold hover:opacity-90 flex items-center gap-2 shadow-sm"
+                                            >
+                                                Import {item.processedResult.data.extractedTasks ? item.processedResult.data.extractedTasks.filter((_, idx) => isTaskSelected(item.id, idx)).length : 0} Items <ArrowRight className="w-3 h-3" />
+                                            </button>
+                                        </div>
                                     </div>
                                 </>
                             )}
                         </div>
                     ) : (
                         // ACTION BAR
-                        <div className="bg-gray-50 dark:bg-gray-800/50 border-t border-gray-100 dark:border-gray-800 px-4 py-3 flex justify-end">
+                        <div className="bg-gray-50 dark:bg-gray-800/50 border-t border-gray-100 dark:border-gray-800 px-4 py-3 flex justify-between items-center">
+                             {/* New Discuss Button */}
+                             <button 
+                                onClick={() => onDiscussItem && onDiscussItem(item)}
+                                className="flex items-center gap-2 text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors"
+                             >
+                                <MessageSquare className="w-4 h-4" /> Discuss
+                             </button>
+
                              <div className="flex gap-2">
                                 <button onClick={() => onDeleteItem(item.id)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" title="Delete">
                                     <Trash2 className="w-4 h-4" />
@@ -687,8 +697,8 @@ export const InboxView: React.FC<InboxViewProps> = ({
                     )}
                 </div>
             ))}
-
-            {/* Empty State ... */}
+            
+            {/* Empty State... (Existing Code) */}
             {items.filter(i => i.status === 'pending').length === 0 && (
                 <div className="text-center py-8 text-gray-400 dark:text-gray-600 flex flex-col items-center">
                     <CheckCircle2 className="w-12 h-12 text-gray-200 dark:text-gray-800 mb-6" />

@@ -50,10 +50,7 @@ interface ErrorBoundaryState {
 }
 
 class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  constructor(props: ErrorBoundaryProps) {
-    super(props);
-    this.state = { hasError: false };
-  }
+  state: ErrorBoundaryState = { hasError: false };
 
   static getDerivedStateFromError(_: Error): ErrorBoundaryState {
     return { hasError: true };
@@ -237,6 +234,9 @@ const AppContent: React.FC = () => {
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [isCreateProjectModalOpen, setIsCreateProjectModalOpen] = useState(false);
   const [isCreateClientModalOpen, setIsCreateClientModalOpen] = useState(false);
+
+  // NEW: State for connecting Inbox to Chat
+  const [activeInboxItemId, setActiveInboxItemId] = useState<string | null>(null);
 
   // Load Data from Supabase on Mount & Setup Realtime Subscription
   useEffect(() => {
@@ -775,7 +775,16 @@ const AppContent: React.FC = () => {
       });
   };
 
+  // New: Handoff from Inbox to Chat
+  const handleDiscussInboxItem = (item: InboxItem) => {
+      setActiveInboxItemId(item.id);
+      setIsChatOpen(true);
+  };
+
   const activeDocument = documents.find(d => d.id === activeDocId);
+  
+  // Find the focused item for chat context
+  const activeInboxItem = activeInboxItemId ? inboxItems.find(i => i.id === activeInboxItemId) : null;
 
   const getContextForTaskBoard = () => {
     let context = `Project Context: ${activeProject?.title || 'General'}\n`;
@@ -896,6 +905,7 @@ const AppContent: React.FC = () => {
                             }} 
                             onDeleteItem={handleDeleteInboxItem} 
                             onUpdateItem={handleUpdateInboxItem}
+                            onDiscussItem={handleDiscussInboxItem} // Pass the handler
                             projects={projects} 
                             integrations={integrations}
                             activeProjectId={activeProjectId}
@@ -978,7 +988,8 @@ const AppContent: React.FC = () => {
             <AIChatSidebar 
                 isOpen={isChatOpen} 
                 onClose={() => setIsChatOpen(false)}
-                contextData={currentView === ViewMode.DOCUMENTS ? activeDocument?.content : ''}
+                // Pass active item context if available
+                contextData={activeInboxItem ? `[FOCUS: Analyzing Inbox Item "${activeInboxItem.content}"]` : (currentView === ViewMode.DOCUMENTS ? activeDocument?.content : '')}
                 onProjectPlanCreated={handleProjectPlanCreated}
                 messages={chatMessages}
                 setMessages={setChatMessages}
@@ -1010,67 +1021,27 @@ const AppContent: React.FC = () => {
                 }}
             />
 
+            {/* ... Modals ... */}
             <CommandPalette isOpen={isCommandPaletteOpen} onClose={() => setIsCommandPaletteOpen(false)} documents={documents} tasks={tasks} projects={projects} onNavigate={handleNavigate} onCreateDocument={handleCreateDocument} onChangeView={setCurrentView} onSelectProject={handleSelectProject} />
-            
-            <CreateProjectModal 
-            isOpen={isCreateProjectModalOpen}
-            onClose={() => setIsCreateProjectModalOpen(false)}
-            onCreate={handleCreateProjectConfirm}
-            />
-
-            <CreateClientModal
-                isOpen={isCreateClientModalOpen}
-                onClose={() => setIsCreateClientModalOpen(false)}
-                onCreate={handleAddClient}
-            />
-
-            <IntegrationsModal 
-            isOpen={isIntegrationsOpen} 
-            onClose={() => setIsIntegrationsOpen(false)} 
-            integrations={integrations}
-            onToggleIntegration={handleToggleIntegration}
-            />
-
-            {/* Global Confirmation Modal */}
-            <ConfirmationModal 
-                isOpen={confirmationModal.isOpen}
-                title={confirmationModal.title}
-                message={confirmationModal.message}
-                onClose={() => setConfirmationModal(prev => ({ ...prev, isOpen: false }))}
-                onConfirm={confirmationModal.onConfirm}
-                isDanger={confirmationModal.isDanger}
-                confirmText={confirmationModal.confirmText}
-            />
-
-            {selectedTask && (
-                <TaskDetailModal 
-                    task={selectedTask}
-                    isOpen={!!selectedTask}
-                    onClose={() => setSelectedTaskId(null)}
-                    onUpdate={updateTask}
-                    onDelete={handleDeleteTask}
-                    users={teamMembers}
-                    projects={projects}
-                />
-            )}
+            <CreateProjectModal isOpen={isCreateProjectModalOpen} onClose={() => setIsCreateProjectModalOpen(false)} onCreate={handleCreateProjectConfirm} />
+            <CreateClientModal isOpen={isCreateClientModalOpen} onClose={() => setIsCreateClientModalOpen(false)} onCreate={handleAddClient} />
+            <IntegrationsModal isOpen={isIntegrationsOpen} onClose={() => setIsIntegrationsOpen(false)} integrations={integrations} onToggleIntegration={handleToggleIntegration} />
+            <ConfirmationModal isOpen={confirmationModal.isOpen} title={confirmationModal.title} message={confirmationModal.message} onClose={() => setConfirmationModal(prev => ({ ...prev, isOpen: false }))} onConfirm={confirmationModal.onConfirm} isDanger={confirmationModal.isDanger} confirmText={confirmationModal.confirmText} />
+            {selectedTask && <TaskDetailModal task={selectedTask} isOpen={!!selectedTask} onClose={() => setSelectedTaskId(null)} onUpdate={updateTask} onDelete={handleDeleteTask} users={teamMembers} projects={projects} />}
         </main>
 
-        {/* Mobile Bottom Navigation Bar */}
-        <MobileBottomNav 
-            currentView={currentView}
-            onChangeView={setCurrentView}
-            onOpenMenu={() => setIsMobileSidebarOpen(true)}
-            onSearch={() => setIsCommandPaletteOpen(true)}
-        />
+        <MobileBottomNav currentView={currentView} onChangeView={setCurrentView} onOpenMenu={() => setIsMobileSidebarOpen(true)} onSearch={() => setIsCommandPaletteOpen(true)} />
         </div>
     </ToastContext.Provider>
   );
 };
 
-const App: React.FC = () => (
-  <ErrorBoundary>
-    <AppContent />
-  </ErrorBoundary>
-);
+const App: React.FC = () => {
+  return (
+    <ErrorBoundary>
+      <AppContent />
+    </ErrorBoundary>
+  );
+};
 
 export default App;

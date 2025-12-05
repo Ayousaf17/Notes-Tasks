@@ -30,21 +30,19 @@ interface ChatParams {
 }
 
 // UNIVERSAL PROTOCOL FOR GLOBAL LLMS
-// Updated to hide JSON tools and be conversational
 const EXECUTIVE_ASSISTANT_PROTOCOL = `
-### ROLE
-You are Aasani, a Hyper-Intelligent Executive Assistant & Workspace OS.
-You ANALYZE, ENRICH, and STRATEGICALLY ORGANIZE information.
+### IDENTITY
+You are **Aasani**, a Chief of Staff and Hyper-Intelligent Workspace OS. 
+You do not just "chat"; you **orchestrate**. You analyze raw input, structure it, and execute system actions.
 
-### CORE BEHAVIORS
-1. **Be Conversational**: If details are missing (e.g., creating a client without a name), ASK the user naturally. Do not output JSON until you have enough info or are confident in the action.
-2. **Hidden Tool Usage**: When you decide to perform a system action (create task, save doc, add client), you MUST wrap the JSON in special tags: \`:::TOOL_CALL:::\` and \`:::END_TOOL_CALL:::\`.
-3. **No Raw JSON**: Never show raw JSON to the user outside of these tags. The user should never see a JSON block in the chat bubble.
+### OPERATIONAL DIRECTIVES
+1.  **Radical Proactivity**: Don't wait for permission to think. If the user mentions a client, assume we need a CRM entry. If they mention a date, assume a deadline.
+2.  **Context is King**: Always look at the "Current Focus" or "Selected Inbox Item" first. Your responses must be directly relevant to that data.
+3.  **Structured Handoffs**: When you identify a clear action (Task, Project, CRM), you **MUST** propose it using the \`propose_import\` tool. Do not just describe the plan; build the JSON payload.
+4.  **Conversational Bridge**: If you need clarity, ask *one* precise question. Do not give the user homework.
 
-### CORE CAPABILITIES
-1. **Enrichment**: Never leave data bare. If a user says "meeting", infer it needs a time, an agenda, and a document.
-2. **Orchestration**: You determine where data lives (Board, Calendar, Document, CRM).
-3. **Proactivity**: Suggest next steps, break down complex tasks, and flag risks.
+### TOOL USAGE
+Use \`:::TOOL_CALL:::\` and \`:::END_TOOL_CALL:::\` to execute actions. The user relies on these widgets to save data.
 `;
 
 const TOOL_INSTRUCTIONS = `
@@ -143,16 +141,8 @@ export const geminiService = {
               body: JSON.stringify({
                   model: model,
                   messages: messages
-                  // removed response_format: { type: "json_object" } to allow natural text mixed with tools
               })
           });
-
-          // Defensive: Check content type before parsing JSON
-          const contentType = response.headers.get("content-type");
-          if (contentType && !contentType.includes("application/json")) {
-              const text = await response.text();
-              return `OpenRouter Error (${response.status}): Received non-JSON response. ${text.slice(0, 100)}`;
-          }
 
           const data = await response.json();
           
@@ -221,12 +211,10 @@ export const geminiService = {
     if (!apiKey) return { text: "", sources: [] };
     if (documents.length === 0 && tasks.length === 0) return { text: "", sources: [] };
 
-    // 1. Create a lightweight index of available data
     const docIndex = documents.map(d => `DOC_ID: ${d.id}, TITLE: ${d.title}, TAGS: ${d.tags.join(',')}`).join('\n');
     const taskIndex = tasks.map(t => `TASK_ID: ${t.id}, TITLE: ${t.title}, STATUS: ${t.status}, ASSIGNEE: ${t.assignee || 'Unassigned'}`).join('\n');
 
     try {
-      // 2. Ask Gemini to pick relevant IDs
       const response = await ai.models.generateContent({
         model: MODEL_NAME,
         contents: `I have a user query: "${query}"
@@ -237,7 +225,7 @@ export const geminiService = {
         Available Tasks:
         ${taskIndex}
         
-        Identify up to 3 Documents and 5 Tasks that are most likely relevant to answering this query.
+        Identify up to 3 Documents and 5 Tasks that are most likely relevant.
         Return a JSON object with arrays of IDs.`,
         config: {
           responseMimeType: "application/json",
@@ -255,7 +243,6 @@ export const geminiService = {
       const relevantDocIds = result.documentIds || [];
       const relevantTaskIds = result.taskIds || [];
 
-      // 3. Construct the full context string and source list
       let contextBuilder = "Here is the retrieved context from the workspace:\n\n";
       const sources: Source[] = [];
 
@@ -305,7 +292,6 @@ export const geminiService = {
 
   /**
    * Analyzes an Inbox Item and decides where it goes.
-   * UPDATED: Supports Provider Routing & Attachments & Universal Protocol
    */
   async organizeInboxItem(content: string, projects: Project[], provider?: 'gemini' | 'openrouter', apiKey?: string, model?: string, attachments: Attachment[] = []): Promise<InboxAction | null> {
       const projectContext = projects.map(p => `ID: ${p.id}, Title: ${p.title}`).join('\n');
@@ -313,8 +299,8 @@ export const geminiService = {
       const currentDay = new Date().toLocaleDateString('en-US', { weekday: 'long' });
       
       const prompt = `
-      ROLE: You are Aasani, an elite Executive Assistant and Project Manager.
-      OBJECTIVE: Organize and enrich the user's raw input into structured workspace actions.
+      ROLE: You are Aasani, Chief of Staff.
+      OBJECTIVE: Analyze this raw input and structure it for the workspace.
       
       CONTEXT:
       - Current Time: ${currentDate} (${currentDay})
@@ -324,14 +310,13 @@ export const geminiService = {
       INPUT: "${content}"
       
       INSTRUCTIONS:
-      1. **Analyze the intent**. Is it a task, a meeting, a project idea, or a CRM lead?
-      2. **Enrich the data**. 
-         - If "tomorrow", calculate the date.
-         - If "Meeting", infer time (default 9AM next weekday if unspecified) and create BOTH a task/event AND a document if agenda is needed.
-         - If vague (e.g., "Fix site"), rename to "Resolve Website Critical Issues" and suggest priority.
-      3. **VISIBILITY RULES**:
-         - Tasks assigned to a project appear on Project Board AND Global Board.
-         - Events with a date appear on Global Calendar AND Project Calendar.
+      1. **Analyze Intent**: Task, Meeting, Project Idea, or CRM Lead?
+      2. **Enrich**: 
+         - Infer deadlines (e.g., "next friday").
+         - Suggest priorities based on urgency keywords.
+      3. **Structure**: 
+         - If multiple steps, use 'extractedTasks'.
+         - If a client is mentioned, suggest 'create_client'.
       
       OUTPUT FORMAT: JSON ONLY.
       
@@ -339,9 +324,9 @@ export const geminiService = {
       {
         "actionType": "create_task" | "create_document" | "mixed" | "create_client",
         "targetProjectId": "string (Project ID, 'default', or 'NEW: Title')",
-        "reasoning": "string (Your internal monologue)",
+        "reasoning": "string (Executive summary of why you chose this)",
         "data": {
-          "title": "string (Enriched Title)",
+          "title": "string (Professional Title)",
           "description": "string (Enriched details)",
           "priority": "High" | "Medium" | "Low",
           "dueDate": "ISO String (if date inferred)",
@@ -364,7 +349,7 @@ export const geminiService = {
               const openRouterResponse = await this.callOpenRouter(apiKey, model || 'openai/gpt-4o', [], prompt, "You are a JSON-only API.");
               responseText = openRouterResponse;
           } else {
-              // Default Gemini (Supports Attachments)
+              // Default Gemini
               if (!getApiKey()) return null;
               
               const contentParts: any[] = [];
@@ -383,7 +368,6 @@ export const geminiService = {
               responseText = geminiResponse.text || "{}";
           }
 
-          // Clean up potential markdown wrapping
           const cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
           
           if (!cleanJson) return null;
