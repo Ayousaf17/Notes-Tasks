@@ -35,7 +35,9 @@ interface ErrorBoundaryState {
   error: Error | null;
 }
 
-class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  public state: ErrorBoundaryState;
+
   constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = {
@@ -136,6 +138,7 @@ const AppContent: React.FC = () => {
   const touchStart = useRef<number | null>(null);
   const touchEnd = useRef<number | null>(null);
   const minSwipeDistance = 50;
+  const edgeThreshold = 35; // px from edge to consider it a "bezel swipe"
 
   const onTouchStart = (e: React.TouchEvent) => {
     if (e.targetTouches && e.targetTouches.length === 1) {
@@ -152,20 +155,35 @@ const AppContent: React.FC = () => {
 
   const onTouchEnd = () => {
     if (!touchStart.current || !touchEnd.current) return;
-    const distance = touchStart.current - touchEnd.current;
-    const isLeftSwipe = distance > minSwipeDistance;
-    const isRightSwipe = distance < -minSwipeDistance;
+    const distanceX = touchStart.current - touchEnd.current;
     
-    if (isLeftSwipe) {
+    // Positive distance = swipe left (finger moves right to left)
+    // Negative distance = swipe right (finger moves left to right)
+    
+    const isLeftSwipe = distanceX > minSwipeDistance; 
+    const isRightSwipe = distanceX < -minSwipeDistance;
+    
+    const startX = touchStart.current;
+    const screenWidth = window.innerWidth;
+
+    // 1. Right Edge Swipe -> Open Chat (Pulling from right to left)
+    if (isLeftSwipe && startX > (screenWidth - edgeThreshold)) {
       setIsChatOpen(true);
       setIsMobileSidebarOpen(false);
+      return;
     }
-    if (isRightSwipe) {
-      const didGoBack = handleBack();
-      if (!didGoBack) {
-          setIsMobileSidebarOpen(true);
-      }
+
+    // 2. Left Edge Swipe -> Open Sidebar (Pulling from left to right)
+    if (isRightSwipe && startX < edgeThreshold) {
+      setIsMobileSidebarOpen(true);
       setIsChatOpen(false);
+      return;
+    }
+
+    // 3. Middle Screen Swipe Right -> Back Navigation
+    // If not on the edge, allow normal back flow
+    if (isRightSwipe && startX >= edgeThreshold) {
+        handleBack();
     }
   }
 
