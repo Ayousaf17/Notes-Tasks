@@ -331,55 +331,52 @@ export const geminiService = {
       **Inbox Text**: "${content}"
       
       **Decision Logic**:
-      1. **create_task**: If it's a short, single actionable item (e.g., "Email John", "Fix bug").
-      2. **create_document**: If it's a file, note, meeting minutes, PDF, or detailed brain dump.
-         - **CRITICAL REQUIREMENT**: If creating a document from a file/PDF or long text:
-           - The 'content' field MUST be a **comprehensive, long-form Markdown report**. 
-           - Do NOT summarize heavily. Preserve all details.
-           - Extract ALL charts, timelines, and phases as Markdown tables or lists.
-           - If it's a 10-page PDF, write a detailed breakdown, not a 1-paragraph summary. Aim for 1000+ words if the source supports it.
+      1. **create_task**: STRICTLY use this if the content is a short actionable item, a reminder (e.g., "Meeting with Sam at 5"), a bug report, or a simple to-do. Do NOT create a document for simple tasks.
+      2. **create_document**: Use this if it's a file, long note, meeting minutes, PDF, or detailed brain dump that requires a page.
+         - **CRITICAL**: If the content is short (under 2 sentences) and actionable, use create_task instead.
+         - If creating a document, you can ALSO extract tasks into the 'extractedTasks' array.
       3. **create_project**: Only for massive initiatives with no existing project fit.
-      4. **create_client**: If the content contains contact details for a lead, prospect, or person (e.g. "Meet John Doe from Acme", "Lead: Jane Smith").
-         - Extract 'clientData' object with: name, company, email, value (estimate), status ('Lead' default).
+      4. **create_client**: If the content contains contact details for a lead, prospect, or person.
 
       **Task Extraction Rules**:
-      - Extract actionable steps found in the content.
-      - **CRITICAL**: Sort tasks by IMPORTANCE and URGENCY. Put the most critical tasks first.
       - Populate the 'extractedTasks' array.
+      - **CRITICAL**: Sort tasks by IMPORTANCE.
+      - If 'create_task' is chosen, the main data fields (title, description, etc.) represent the single task.
 
       **Project Matching**:
       - Try to match the content to one of the **Available Projects** below.
-      - If it strongly matches an existing project, use its ID.
-      - If it is clearly a NEW initiative, return "NEW: <Suggested Title>" as the targetProjectId.
-      - If uncertain, default to "default" (the user will choose).
+      - If it matches, use its ID.
+      - If it creates a NEW initiative, return "NEW: <Title>".
+      - If uncertain or general, return "default".
 
       **Available Projects**:
       ${projectContext}
       
       **CRITICAL INSTRUCTION**: Return ONLY a valid JSON object matching the schema below.
       
-      Schema Example (Client Lead):
+      Schema Example (Task):
       {
-        "actionType": "create_client",
-        "targetProjectId": "default",
-        "reasoning": "New lead detected.",
+        "actionType": "create_task",
+        "targetProjectId": "p1",
+        "reasoning": "Short action item.",
         "data": { 
-            "title": "New Lead: John Doe", 
-            "clientData": { "name": "John Doe", "company": "Acme Inc", "email": "john@acme.com", "value": 5000, "status": "Lead" }
+            "title": "Meeting with Sam", 
+            "description": "Discuss proposal",
+            "priority": "High",
+            "dueDate": "2023-10-27T17:00:00.000Z"
         }
       }
       
       Schema Example (Document + Tasks):
       {
         "actionType": "create_document",
-        "targetProjectId": "p1" OR "NEW: Q3 Marketing",
-        "reasoning": "Meeting notes regarding Q3.",
+        "targetProjectId": "p1",
+        "reasoning": "Meeting notes.",
         "data": { 
             "title": "Meeting Notes: Q3 Review", 
-            "content": "# Q3 Review\n## Executive Summary\n...",
-            "tags": ["Meeting", "Strategy"],
+            "content": "# Q3 Review\n...",
             "extractedTasks": [
-                { "title": "Update Roadmap", "description": "Based on phase 1 feedback", "priority": "High", "assignee": "Unassigned" }
+                { "title": "Update Roadmap", "priority": "High", "assignee": "Unassigned" }
             ]
         }
       }

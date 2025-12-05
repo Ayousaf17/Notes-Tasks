@@ -35,7 +35,7 @@ interface ErrorBoundaryState {
 
 // Error Boundary Component
 class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  state: ErrorBoundaryState = { hasError: false };
+  public state: ErrorBoundaryState = { hasError: false };
 
   static getDerivedStateFromError(_: Error): ErrorBoundaryState {
     return { hasError: true };
@@ -531,7 +531,7 @@ const AppContent: React.FC = () => {
   const handleProcessInboxItem = async (itemId: string, action: InboxAction) => {
       let targetProjectId = action.targetProjectId;
       
-      // Fallback to active project if AI says 'default' or no ID
+      // Fallback logic: Use activeProjectId if AI returns "default" or no ID
       if (!targetProjectId || targetProjectId === 'default') {
           targetProjectId = activeProjectId || projects[0]?.id;
       }
@@ -558,7 +558,7 @@ const AppContent: React.FC = () => {
               status: TaskStatus.TODO,
               priority: action.data.priority || TaskPriority.MEDIUM,
               assignee: 'Unassigned',
-              dueDate: new Date(),
+              dueDate: action.data.dueDate ? new Date(action.data.dueDate) : undefined,
               dependencies: [],
               createdAt: new Date(),
               updatedAt: new Date()
