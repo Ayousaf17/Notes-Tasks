@@ -1,7 +1,6 @@
-
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { ChatMessage, ProjectPlan, Document, Task, Integration, TaskStatus, TaskPriority, Project, Client, ActionProposal } from '../types';
-import { Send, X, Bot, Paperclip, Loader2, Sparkles, User, ChevronDown, Lock, Settings, Search, CheckCircle2, Calendar, Briefcase, Flag, Plus } from 'lucide-react';
+import { ChatMessage, ProjectPlan, Document, Task, Integration, TaskStatus, TaskPriority, Project, Client, ActionProposal, Attachment, AgentRole } from '../types';
+import { Send, X, Bot, Paperclip, Loader2, Sparkles, User, ChevronDown, Lock, Settings, Search, CheckCircle2, Calendar, Briefcase, Flag, Plus, File } from 'lucide-react';
 import { geminiService } from '../services/geminiService';
 
 interface AIChatSidebarProps {
@@ -13,9 +12,9 @@ interface AIChatSidebarProps {
   setMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>;
   allDocuments: Document[];
   allTasks: Task[];
-  projects: Project[]; // Added
-  clients: Client[];   // Added
-  teamMembers: string[]; // Added
+  projects: Project[]; 
+  clients: Client[];   
+  teamMembers: string[]; 
   integrations?: Integration[];
   onAddTask?: (task: Partial<Task>) => void;
 }
@@ -26,7 +25,7 @@ interface OpenRouterModel {
     description?: string;
 }
 
-// --- SUB-COMPONENT: TASK PROPOSAL CARD ---
+// ... TaskProposalCard (No changes needed here)
 const TaskProposalCard = ({ 
     proposal, 
     projects, 
@@ -42,7 +41,10 @@ const TaskProposalCard = ({
     onConfirm: (data: Partial<Task>) => void,
     onCancel: () => void
 }) => {
-    const [data, setData] = useState(proposal.data);
+    const [data, setData] = useState({
+        ...proposal.data,
+        assignee: proposal.data.assignee || AgentRole.WRITER // Default to AI Writer if undefined
+    });
     const [isConfirmed, setIsConfirmed] = useState(proposal.status === 'confirmed');
 
     if (isConfirmed) {
@@ -110,7 +112,10 @@ const TaskProposalCard = ({
                                 onChange={(e) => setData({ ...data, assignee: e.target.value })}
                                 className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded p-2 pr-8 text-xs appearance-none focus:ring-2 focus:ring-purple-500 outline-none text-gray-900 dark:text-white cursor-pointer"
                             >
-                                <option value="">Unassigned</option>
+                                <option value={AgentRole.WRITER}>AI Writer</option>
+                                <option value={AgentRole.RESEARCHER}>AI Researcher</option>
+                                <option value={AgentRole.PLANNER}>AI Planner</option>
+                                <option value="Unassigned">Unassigned</option>
                                 {teamMembers.map(m => <option key={m} value={m}>{m}</option>)}
                             </select>
                             <User className="w-3 h-3 text-gray-400 absolute right-2 top-2.5 pointer-events-none" />
@@ -170,8 +175,7 @@ const TaskProposalCard = ({
     );
 };
 
-// --- MAIN CHAT COMPONENT ---
-
+// ... FormattedMessage (No changes needed)
 const FormattedMessage: React.FC<{ text: string }> = ({ text }) => {
   // Hide tool calls from raw text
   const cleanText = text.replace(/:::TOOL_CALL:::[\s\S]*?:::END_TOOL_CALL:::/g, '').trim();
@@ -249,11 +253,16 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
     integrations,
     onAddTask
 }) => {
+    // ... (rest of component logic remains the same)
     const [input, setInput] = useState('');
     const [isThinking, setIsThinking] = useState(false);
     const [selectedProvider, setSelectedProvider] = useState<'gemini' | 'openrouter'>('gemini');
     const [openRouterModel, setOpenRouterModel] = useState<string>('openai/gpt-4o');
     const [isCustomModel, setIsCustomModel] = useState(false);
+    
+    // Attachments State
+    const [attachments, setAttachments] = useState<Attachment[]>([]);
+    const fileInputRef = useRef<HTMLInputElement>(null);
     
     // Model Fetching State
     const [availableModels, setAvailableModels] = useState<OpenRouterModel[]>([]);
@@ -334,7 +343,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                             priority: (toolJson.args.priority as TaskPriority) || TaskPriority.MEDIUM,
                             status: TaskStatus.TODO,
                             projectId: matchedProjectId,
-                            assignee: toolJson.args.assignee || 'Unassigned',
+                            assignee: toolJson.args.assignee || AgentRole.WRITER, // DEFAULT
                             dueDate: toolJson.args.dueDate ? new Date(toolJson.args.dueDate) : undefined
                         }
                     };
@@ -347,8 +356,31 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
         return { text: response, proposal };
     };
 
+    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            const file = e.target.files[0];
+            const reader = new FileReader();
+            reader.onload = () => {
+                const base64String = (reader.result as string).split(',')[1];
+                const newAttachment: Attachment = {
+                    mimeType: file.type,
+                    data: base64String,
+                    name: file.name
+                };
+                setAttachments(prev => [...prev, newAttachment]);
+            };
+            reader.readAsDataURL(file);
+            // Reset input so same file can be selected again if needed
+            if (fileInputRef.current) fileInputRef.current.value = '';
+        }
+    };
+
+    const removeAttachment = (index: number) => {
+        setAttachments(prev => prev.filter((_, i) => i !== index));
+    };
+
     const handleSendMessage = async () => {
-        if (!input.trim()) return;
+        if (!input.trim() && attachments.length === 0) return;
 
         let apiKey: string | undefined = undefined;
         if (selectedProvider === 'openrouter') {
@@ -360,9 +392,17 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
             apiKey = int.config.apiKey;
         }
 
-        const userMsg: ChatMessage = { id: Date.now().toString(), role: 'user', text: input, timestamp: new Date() };
+        const userMsg: ChatMessage = { 
+            id: Date.now().toString(), 
+            role: 'user', 
+            text: input, 
+            timestamp: new Date(),
+            attachments: [...attachments] // Store copy
+        };
+        
         setMessages(prev => [...prev, userMsg]);
         setInput('');
+        setAttachments([]); // Clear attachments after send
         setIsThinking(true);
 
         try {
@@ -383,7 +423,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                 model: openRouterModel,
                 history,
                 message: input,
-                attachments: [],
+                attachments: userMsg.attachments || [],
                 systemContext
             });
 
@@ -540,6 +580,16 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                                     {msg.role === 'user' ? 'You' : 'Aasani'}
                                 </div>
                                 <div className={`text-sm leading-relaxed ${msg.role === 'user' ? '' : 'markdown-body'}`}>
+                                    {msg.attachments && msg.attachments.length > 0 && (
+                                        <div className="mb-2 flex flex-wrap gap-2">
+                                            {msg.attachments.map((att, idx) => (
+                                                <div key={idx} className="bg-white/20 dark:bg-black/20 p-1.5 rounded-md flex items-center gap-2 text-xs">
+                                                    <File className="w-3 h-3" />
+                                                    <span className="truncate max-w-[150px]">{att.name}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
                                     <FormattedMessage text={msg.text} />
                                     {/* Action Proposal Widget */}
                                     {msg.actionProposal && (
@@ -571,8 +621,25 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                 </div>
 
                 <div className="p-4 border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-black shrink-0 pb-safe">
+                    {attachments.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mb-3">
+                            {attachments.map((att, idx) => (
+                                <div key={idx} className="bg-gray-100 dark:bg-gray-800 pl-3 pr-2 py-1.5 rounded-lg flex items-center gap-2 text-xs text-gray-700 dark:text-gray-300">
+                                    <File className="w-3 h-3 text-blue-500" />
+                                    <span className="truncate max-w-[150px]">{att.name}</span>
+                                    <button onClick={() => removeAttachment(idx)} className="hover:text-red-500 ml-1"><X className="w-3 h-3" /></button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                     <div className="relative flex items-center gap-2">
-                        <button className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"><Paperclip className="w-5 h-5" /></button>
+                        <button 
+                            onClick={() => fileInputRef.current?.click()}
+                            className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                        >
+                            <Paperclip className="w-5 h-5" />
+                        </button>
+                        <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileSelect} />
                         <input
                             type="text"
                             value={input}
@@ -583,7 +650,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                         />
                         <button 
                             onClick={handleSendMessage}
-                            disabled={!input.trim() || isThinking}
+                            disabled={(!input.trim() && attachments.length === 0) || isThinking}
                             className="p-2 bg-black dark:bg-white text-white dark:text-black rounded-full hover:opacity-90 disabled:opacity-50 transition-opacity"
                         >
                             <Send className="w-4 h-4" />

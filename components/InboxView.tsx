@@ -1,11 +1,11 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { InboxItem, Project, InboxAction, Integration, TaskPriority, TaskStatus, Task } from '../types';
-import { Mic, Sparkles, Archive, Loader2, CheckCircle, FileText, Trash2, StopCircle, Paperclip, X, Check, ArrowRight, ChevronDown, Layers, CheckCircle2, Bot, Search, Lock, Settings, User, Calendar, CheckSquare, File, Tag } from 'lucide-react';
+import { InboxItem, Project, InboxAction, Integration, TaskPriority, TaskStatus, Task, Attachment, AgentRole } from '../types';
+import { Mic, Sparkles, Archive, Loader2, CheckCircle, FileText, Trash2, StopCircle, Paperclip, X, Check, ArrowRight, ChevronDown, Layers, CheckCircle2, Bot, Search, Lock, Settings, User, Calendar, CheckSquare, File, Tag, Flag } from 'lucide-react';
 import { geminiService } from '../services/geminiService';
 
 interface InboxViewProps {
   items: InboxItem[];
-  onAddItem: (content: string, type: 'text' | 'audio' | 'file', fileName?: string) => void;
+  onAddItem: (content: string, type: 'text' | 'audio' | 'file', fileName?: string, attachments?: Attachment[]) => void;
   onProcessItem: (itemId: string, action: InboxAction) => void;
   onDeleteItem: (itemId: string) => void;
   onUpdateItem?: (itemId: string, updates: Partial<InboxItem>) => void; 
@@ -48,7 +48,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
   const audioChunksRef = useRef<Blob[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // --- MODEL FETCHING (UNCHANGED) ---
+  // --- MODEL FETCHING ---
   useEffect(() => {
         const fetchModels = async () => {
             if (availableModels.length > 0) return;
@@ -131,10 +131,22 @@ export const InboxView: React.FC<InboxViewProps> = ({
       }
   };
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
       if (e.target.files && e.target.files[0]) {
           const file = e.target.files[0];
-          onAddItem(`Attached: ${file.name}`, 'file', file.name);
+          
+          const reader = new FileReader();
+          reader.onload = () => {
+              const base64String = (reader.result as string).split(',')[1];
+              const attachment: Attachment = {
+                  mimeType: file.type,
+                  data: base64String,
+                  name: file.name
+              };
+              onAddItem(`Attached: ${file.name}`, 'file', file.name, [attachment]);
+          };
+          reader.readAsDataURL(file);
+
           if (fileInputRef.current) fileInputRef.current.value = '';
       }
   };
@@ -157,11 +169,29 @@ export const InboxView: React.FC<InboxViewProps> = ({
           projects, 
           selectedProvider, 
           apiKey, 
-          openRouterModel
+          openRouterModel,
+          item.attachments || [] 
       );
 
+      // Force default assignee to AI Writer if result doesn't have one or is Unassigned
+      if (result) {
+          if (result.actionType === 'create_task' && !result.data.extractedTasks) {
+              result.data.extractedTasks = [{
+                  title: result.data.title,
+                  description: result.data.description,
+                  priority: result.data.priority || TaskPriority.MEDIUM,
+                  assignee: AgentRole.WRITER,
+                  dueDate: undefined
+              }];
+          } else if (result.data.extractedTasks) {
+              result.data.extractedTasks = result.data.extractedTasks.map(t => ({
+                  ...t,
+                  assignee: t.assignee === 'Unassigned' ? AgentRole.WRITER : t.assignee
+              }));
+          }
+      }
+
       if (result && onUpdateItem) {
-          // Clean up the project ID if AI guessed it (optional fuzzy match logic handled elsewhere but good to sanitize)
           onUpdateItem(item.id, { processedResult: result });
       } else if (result) {
           onProcessItem(item.id, result);
@@ -175,6 +205,44 @@ export const InboxView: React.FC<InboxViewProps> = ({
           if (item && item.processedResult) {
               onUpdateItem(itemId, { 
                   processedResult: { ...item.processedResult, data: { ...item.processedResult.data, ...newData } } 
+              });
+          }
+      }
+  };
+
+  const handleUpdateExtractedTask = (itemId: string, taskIndex: number, taskUpdates: any) => {
+      if (onUpdateItem) {
+          const item = items.find(i => i.id === itemId);
+          if (item && item.processedResult && item.processedResult.data.extractedTasks) {
+              const newTasks = [...item.processedResult.data.extractedTasks];
+              newTasks[taskIndex] = { ...newTasks[taskIndex], ...taskUpdates };
+              
+              onUpdateItem(itemId, {
+                  processedResult: {
+                      ...item.processedResult,
+                      data: {
+                          ...item.processedResult.data,
+                          extractedTasks: newTasks
+                      }
+                  }
+              });
+          }
+      }
+  };
+
+  const handleDeleteExtractedTask = (itemId: string, taskIndex: number) => {
+      if (onUpdateItem) {
+          const item = items.find(i => i.id === itemId);
+          if (item && item.processedResult && item.processedResult.data.extractedTasks) {
+              const newTasks = item.processedResult.data.extractedTasks.filter((_, idx) => idx !== taskIndex);
+              onUpdateItem(itemId, {
+                  processedResult: {
+                      ...item.processedResult,
+                      data: {
+                          ...item.processedResult.data,
+                          extractedTasks: newTasks
+                      }
+                  }
               });
           }
       }
@@ -216,7 +284,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
                     {/* Model Dropdown */}
                     {showModelDropdown && (
                         <div className="absolute top-full right-0 md:left-1/2 md:-translate-x-1/2 mt-2 w-72 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-xl z-50 overflow-hidden text-left animate-in zoom-in-95 flex flex-col max-h-[400px]">
-                            {/* ... Dropdown Content (Same as previous) ... */}
+                            {/* ... Content ... */}
                             <div className="p-2 border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50">
                                 <button onClick={() => { setSelectedProvider('gemini'); setIsCustomModel(false); setShowModelDropdown(false); }} className="w-full text-left px-3 py-2 text-xs hover:bg-white dark:hover:bg-gray-800 rounded-lg flex items-center justify-between group/item border border-transparent hover:border-gray-200 dark:hover:border-gray-700 transition-all">
                                     <div className="flex items-center gap-2">
@@ -343,21 +411,28 @@ export const InboxView: React.FC<InboxViewProps> = ({
                                                 </select>
                                                 <ChevronDown className="w-3 h-3 text-gray-400 absolute right-2 top-2.5 pointer-events-none" />
                                             </div>
-                                            {/* Priority */}
-                                            <div className="flex rounded border border-gray-200 dark:border-gray-800 overflow-hidden">
-                                                {[TaskPriority.LOW, TaskPriority.MEDIUM, TaskPriority.HIGH].map(p => (
-                                                    <button 
-                                                        key={p} 
-                                                        onClick={() => handleUpdateActionData(item.id, { priority: p })}
-                                                        className={`flex-1 py-1 text-[10px] font-bold uppercase ${
-                                                            item.processedResult!.data.priority === p 
-                                                            ? (p === 'High' ? 'bg-red-500 text-white' : p === 'Medium' ? 'bg-orange-400 text-white' : 'bg-blue-400 text-white')
-                                                            : 'bg-white dark:bg-gray-900 text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
-                                                        }`}
-                                                    >
-                                                        {p.charAt(0)}
-                                                    </button>
-                                                ))}
+                                            {/* Priority Selector (Clean UI) */}
+                                            <div className="flex bg-white dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-800 p-0.5">
+                                                {[TaskPriority.LOW, TaskPriority.MEDIUM, TaskPriority.HIGH].map(p => {
+                                                    const isSelected = item.processedResult!.data.priority === p;
+                                                    let colorClass = 'bg-gray-100 dark:bg-gray-700 text-black dark:text-white';
+                                                    if (isSelected && p === TaskPriority.HIGH) colorClass = 'bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400';
+                                                    if (isSelected && p === TaskPriority.MEDIUM) colorClass = 'bg-orange-50 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400';
+                                                    if (isSelected && p === TaskPriority.LOW) colorClass = 'bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400';
+
+                                                    return (
+                                                        <button 
+                                                            key={p} 
+                                                            onClick={() => handleUpdateActionData(item.id, { priority: p })}
+                                                            className={`flex-1 py-1.5 text-[10px] font-bold uppercase rounded transition-all flex items-center justify-center gap-1.5 ${
+                                                                isSelected ? colorClass : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
+                                                            }`}
+                                                        >
+                                                            {isSelected && <div className={`w-1.5 h-1.5 rounded-full ${p === TaskPriority.HIGH ? 'bg-red-500' : p === TaskPriority.MEDIUM ? 'bg-orange-500' : 'bg-blue-500'}`}></div>}
+                                                            {p}
+                                                        </button>
+                                                    );
+                                                })}
                                             </div>
                                         </div>
                                     </div>
@@ -400,32 +475,106 @@ export const InboxView: React.FC<InboxViewProps> = ({
                                             <div>
                                                 <label className="block text-[10px] font-bold text-gray-400 uppercase mb-2">Smart Tags</label>
                                                 <div className="flex flex-wrap gap-2">
-                                                    {item.processedResult.data.tags.map(tag => (
-                                                        <span key={tag} className="flex items-center gap-1 px-2 py-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md text-xs text-gray-600 dark:text-gray-300">
+                                                    {item.processedResult.data.tags.map((tag, idx) => (
+                                                        <span key={idx} className="flex items-center gap-1 px-2 py-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md text-xs text-gray-600 dark:text-gray-300">
                                                             <Tag className="w-3 h-3" /> #{tag}
+                                                            <button 
+                                                                onClick={() => {
+                                                                    const newTags = item.processedResult!.data.tags!.filter((_, i) => i !== idx);
+                                                                    handleUpdateActionData(item.id, { tags: newTags });
+                                                                }} 
+                                                                className="ml-1 hover:text-red-500"
+                                                            >
+                                                                <X className="w-3 h-3" />
+                                                            </button>
                                                         </span>
                                                     ))}
+                                                    <button 
+                                                        onClick={() => {
+                                                            const newTag = prompt("Enter new tag:");
+                                                            if (newTag) {
+                                                                const newTags = [...(item.processedResult!.data.tags || []), newTag];
+                                                                handleUpdateActionData(item.id, { tags: newTags });
+                                                            }
+                                                        }}
+                                                        className="px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded-md text-xs text-gray-500 hover:text-black dark:hover:text-white transition-colors"
+                                                    >
+                                                        + Tag
+                                                    </button>
                                                 </div>
                                             </div>
                                         )}
 
-                                        {/* Tasks Preview List */}
+                                        {/* Editable Tasks List */}
                                         {item.processedResult.data.extractedTasks && item.processedResult.data.extractedTasks.length > 0 && (
                                             <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg overflow-hidden">
                                                 <div className="px-3 py-2 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-800 text-[10px] font-bold text-gray-500 uppercase">
                                                     Extracted Action Items
                                                 </div>
-                                                <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                                                <div className="divide-y divide-gray-100 dark:divide-gray-800 max-h-80 overflow-y-auto">
                                                     {item.processedResult.data.extractedTasks.map((t, idx) => (
-                                                        <div key={idx} className="p-3 flex items-start gap-3">
-                                                            <div className="mt-0.5 text-blue-500"><CheckCircle2 className="w-4 h-4" /></div>
-                                                            <div className="flex-1 min-w-0">
-                                                                <div className="text-xs font-medium text-gray-900 dark:text-white truncate">{t.title}</div>
-                                                                <div className="text-[10px] text-gray-400">{t.priority} • {t.assignee || 'Unassigned'}</div>
+                                                        <div key={idx} className="p-3 flex items-start gap-3 hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors group">
+                                                            <div className="mt-1 text-blue-500"><CheckCircle2 className="w-4 h-4" /></div>
+                                                            <div className="flex-1 min-w-0 space-y-2">
+                                                                {/* Task Title Input */}
+                                                                <input 
+                                                                    type="text" 
+                                                                    value={t.title}
+                                                                    onChange={(e) => handleUpdateExtractedTask(item.id, idx, { title: e.target.value })}
+                                                                    className="w-full bg-transparent border-none p-0 text-xs font-medium text-gray-900 dark:text-white focus:ring-0 placeholder-gray-400"
+                                                                    placeholder="Task Title"
+                                                                />
+                                                                
+                                                                {/* Row 2: Priority & Assignee */}
+                                                                <div className="flex items-center gap-2">
+                                                                    <div className="relative">
+                                                                        <select 
+                                                                            value={t.priority} 
+                                                                            onChange={(e) => handleUpdateExtractedTask(item.id, idx, { priority: e.target.value as TaskPriority })}
+                                                                            className={`text-[10px] uppercase font-bold py-0.5 pl-1.5 pr-4 rounded border appearance-none cursor-pointer focus:ring-0 focus:border-transparent ${
+                                                                                t.priority === 'High' ? 'text-red-600 bg-red-50 border-red-100' :
+                                                                                t.priority === 'Medium' ? 'text-orange-600 bg-orange-50 border-orange-100' :
+                                                                                'text-blue-600 bg-blue-50 border-blue-100'
+                                                                            }`}
+                                                                        >
+                                                                            <option value="High">High</option>
+                                                                            <option value="Medium">Medium</option>
+                                                                            <option value="Low">Low</option>
+                                                                        </select>
+                                                                        <Flag className="w-2 h-2 absolute right-1.5 top-1.5 pointer-events-none opacity-50" />
+                                                                    </div>
+                                                                    
+                                                                    <div className="text-[10px] text-gray-400 flex items-center gap-1">
+                                                                        <User className="w-3 h-3" />
+                                                                        <input 
+                                                                            type="text"
+                                                                            value={t.assignee || AgentRole.WRITER}
+                                                                            onChange={(e) => handleUpdateExtractedTask(item.id, idx, { assignee: e.target.value })}
+                                                                            placeholder="Unassigned"
+                                                                            className="bg-transparent border-none p-0 w-24 focus:ring-0 text-gray-600 dark:text-gray-300"
+                                                                        />
+                                                                    </div>
+                                                                </div>
                                                             </div>
+                                                            <button 
+                                                                onClick={() => handleDeleteExtractedTask(item.id, idx)}
+                                                                className="p-1 text-gray-300 hover:text-red-500 rounded opacity-0 group-hover:opacity-100 transition-all"
+                                                                title="Remove Task"
+                                                            >
+                                                                <Trash2 className="w-3.5 h-3.5" />
+                                                            </button>
                                                         </div>
                                                     ))}
                                                 </div>
+                                                <button 
+                                                    onClick={() => {
+                                                        const newTasks = [...(item.processedResult!.data.extractedTasks || []), { title: 'New Task', priority: TaskPriority.MEDIUM, assignee: AgentRole.WRITER }];
+                                                        handleUpdateActionData(item.id, { extractedTasks: newTasks });
+                                                    }}
+                                                    className="w-full py-2 text-[10px] font-bold text-gray-400 hover:text-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors border-t border-gray-100 dark:border-gray-800"
+                                                >
+                                                    + Add Another Task
+                                                </button>
                                             </div>
                                         )}
                                     </div>

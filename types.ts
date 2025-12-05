@@ -106,6 +106,7 @@ export interface InboxItem {
   content: string;
   type: 'text' | 'audio' | 'file';
   fileName?: string;
+  attachments?: Attachment[]; // Added for deep analysis
   status: 'pending' | 'processed';
   createdAt: Date;
   processedResult?: InboxAction; 
@@ -126,6 +127,7 @@ export interface InboxAction {
         description?: string;
         priority: TaskPriority;
         assignee?: string;
+        dueDate?: string;
     }>;
   };
   projectPlan?: ProjectPlan; 

@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Document, Task, TaskPriority, TaskStatus } from '../types';
 import { Wand2, ListChecks, RefreshCw, X, Check, User, Flag, AlignLeft, Tag as TagIcon, Sparkles, Edit3, Eye, SpellCheck, Scissors, Table as TableIcon, Link as LinkIcon, FileText, Maximize2, Minimize2, Heading1, Heading2, List, CheckSquare, Plus, Loader2, Trash2, Cloud } from 'lucide-react';
@@ -29,7 +28,7 @@ const getCaretCoordinates = (element: HTMLTextAreaElement, position: number) => 
     return { left: elementLeft + spanLeft, top: elementTop + spanTop };
 };
 
-// Enhanced Markdown Renderer with Navigation support
+// Enhanced Markdown Renderer with Table support
 const MarkdownRenderer: React.FC<{ 
     text: string; 
     onNavigate?: (type: 'document' | 'task', id: string) => void;
@@ -37,6 +36,7 @@ const MarkdownRenderer: React.FC<{
 }> = ({ text, onNavigate, allDocuments }) => {
     const lines = text.split('\n');
     let inCodeBlock = false;
+    let tableLines: string[] = [];
 
     const handleLinkClick = (title: string) => {
         if (!onNavigate || !allDocuments) return;
@@ -48,9 +48,76 @@ const MarkdownRenderer: React.FC<{
         }
     };
 
+    const renderTable = (rows: string[]) => {
+        if (rows.length < 2) return null;
+        
+        const headerRow = rows[0];
+        // Skip separator row (rows[1]) usually |---|---|
+        const bodyRows = rows.slice(2); 
+
+        const parseRow = (row: string) => {
+            // Split by pipe, filter empty strings from start/end
+            return row.split('|').map(cell => cell.trim()).filter((cell, i, arr) => {
+                // Keep inner cells, ignore start/end empty splits resulting from | at edges
+                if (i === 0 && cell === '') return false;
+                if (i === arr.length - 1 && cell === '') return false;
+                return true;
+            });
+        };
+
+        const headers = parseRow(headerRow);
+
+        return (
+            <div className="overflow-x-auto my-6 border border-gray-200 dark:border-gray-800 rounded-lg shadow-sm">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-800">
+                    <thead className="bg-gray-50 dark:bg-gray-900">
+                        <tr>
+                            {headers.map((h, i) => (
+                                <th key={i} className="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                    {h}
+                                </th>
+                            ))}
+                        </tr>
+                    </thead>
+                    <tbody className="bg-white dark:bg-black divide-y divide-gray-200 dark:divide-gray-800">
+                        {bodyRows.map((row, i) => {
+                            const cells = parseRow(row);
+                            return (
+                                <tr key={i} className="hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors">
+                                    {cells.map((cell, j) => (
+                                        <td key={j} className="px-6 py-4 whitespace-normal text-sm text-gray-700 dark:text-gray-300 leading-snug">
+                                            {cell}
+                                        </td>
+                                    ))}
+                                    {/* Fill empty cells if row matches header count */}
+                                    {Array.from({ length: Math.max(0, headers.length - cells.length) }).map((_, k) => (
+                                        <td key={`empty-${k}`} className="px-6 py-4"></td>
+                                    ))}
+                                </tr>
+                            );
+                        })}
+                    </tbody>
+                </table>
+            </div>
+        );
+    };
+
     return (
         <div className="space-y-4 text-gray-800 dark:text-gray-200 leading-loose">
             {lines.map((line, i) => {
+                // Table Handling
+                if (line.trim().startsWith('|')) {
+                    tableLines.push(line);
+                    // Look ahead to see if table ends
+                    const nextLine = lines[i + 1];
+                    if (!nextLine || !nextLine.trim().startsWith('|')) {
+                        const table = renderTable(tableLines);
+                        tableLines = []; // Reset for next table
+                        return <div key={`table-${i}`}>{table}</div>;
+                    }
+                    return null; // Swallow line until table complete
+                }
+
                 // Code Block handling
                 if (line.startsWith('```')) {
                     inCodeBlock = !inCodeBlock;

@@ -18,19 +18,28 @@ import { CreateProjectModal } from './CreateProjectModal';
 import { ConfirmationModal } from './ConfirmationModal';
 import { ClientsView } from './ClientsView';
 import { CreateClientModal } from './CreateClientModal';
-import { ViewMode, Document, Task, TaskStatus, ProjectPlan, TaskPriority, ChatMessage, Project, InboxItem, InboxAction, AgentRole, Integration, Client } from '../types';
+import { ViewMode, Document, Task, TaskStatus, ProjectPlan, TaskPriority, ChatMessage, Project, InboxItem, InboxAction, AgentRole, Integration, Client, Attachment } from '../types';
 import { Sparkles, Command, Plus, Menu, Cloud, MessageSquare, Home, Inbox, Search, CheckSquare } from 'lucide-react';
 import { geminiService } from '../services/geminiService';
 import { dataService } from '../services/dataService';
 import { supabase } from '../services/supabase';
 
-class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
-  constructor(props: { children: ReactNode }) {
+interface ErrorBoundaryProps {
+  children: ReactNode;
+}
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+}
+
+// Error Boundary Component
+class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = { hasError: false };
   }
 
-  static getDerivedStateFromError(_: Error) {
+  static getDerivedStateFromError(_: Error): ErrorBoundaryState {
     return { hasError: true };
   }
 
@@ -41,16 +50,11 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boole
   render() {
     if (this.state.hasError) {
       return (
-        <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white">
-            <div className="text-center">
-                <h1 className="text-2xl font-bold mb-4">Something went wrong.</h1>
-                <button 
-                    onClick={() => window.location.reload()} 
-                    className="px-4 py-2 bg-black dark:bg-white text-white dark:text-black rounded-lg"
-                >
-                    Reload Application
-                </button>
-            </div>
+        <div className="flex items-center justify-center h-screen bg-gray-50 text-center p-4">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Something went wrong.</h1>
+            <button onClick={() => window.location.reload()} className="text-blue-600 hover:underline">Reload Application</button>
+          </div>
         </div>
       );
     }
@@ -168,10 +172,7 @@ const AppContent: React.FC = () => {
   const [isIntegrationsOpen, setIsIntegrationsOpen] = useState(false);
   const [integrations, setIntegrations] = useState<Integration[]>([
       { id: 'google', name: 'Google Workspace', description: 'Sync Docs, Calendar, and Drive.', icon: Cloud, connected: false, category: 'Cloud' },
-      { id: 'chatgpt', name: 'ChatGPT', description: 'Connect GPT-4o for advanced reasoning.', icon: MessageSquare, connected: false, category: 'AI' },
-      { id: 'claude', name: 'Claude', description: 'Anthropic\'s Claude 3.5 Sonnet model.', icon: MessageSquare, connected: false, category: 'AI' },
-      { id: 'perplexity', name: 'Perplexity', description: 'Real-time web search and sourcing.', icon: MessageSquare, connected: false, category: 'AI' },
-      { id: 'openrouter', name: 'OpenRouter', description: 'Access 100+ LLMs via one API.', icon: MessageSquare, connected: false, category: 'AI' },
+      { id: 'openrouter', name: 'OpenRouter', description: 'Access GPT-4, Claude, Llama & more.', icon: MessageSquare, connected: false, category: 'AI' },
   ]);
   
   const [projects, setProjects] = useState<Project[]>([
@@ -189,7 +190,6 @@ const AppContent: React.FC = () => {
   const [activeDocId, setActiveDocId] = useState<string | null>('d1');
   
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [clients, setClients] = useState<Client[]>([]);
 
   const [inboxItems, setInboxItems] = useState<InboxItem[]>([
       { id: 'i1', content: 'Feedback from CEO: Make the sidebar collapsible on mobile', type: 'text', status: 'pending', createdAt: new Date() }
@@ -198,6 +198,8 @@ const AppContent: React.FC = () => {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
     { id: 'init', role: 'model', text: 'I am Aasani. I can help you organize this project, generate plans, or summarize your documents.', timestamp: new Date() }
   ]);
+
+  const [clients, setClients] = useState<Client[]>([]);
   
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
@@ -375,7 +377,8 @@ const AppContent: React.FC = () => {
       updatedAt: new Date()
     }));
     setTasks(prev => [...prev, ...finalTasks]);
-    finalTasks.forEach(t => dataService.createTask(t));
+    // Use Promise.all to ensure all writes complete
+    Promise.all(finalTasks.map(t => dataService.createTask(t)));
     return finalTasks;
   };
 
@@ -430,7 +433,7 @@ const AppContent: React.FC = () => {
       setCurrentView(ViewMode.DOCUMENTS);
   };
 
-  const handleProjectPlanCreated = (plan: ProjectPlan) => {
+  const handleProjectPlanCreated = async (plan: ProjectPlan) => {
     const newProject: Project = {
         id: crypto.randomUUID(),
         title: plan.projectTitle || 'New AI Project',
@@ -438,7 +441,7 @@ const AppContent: React.FC = () => {
         createdAt: new Date()
     };
     setProjects(prev => [...prev, newProject]);
-    dataService.createProject(newProject);
+    await dataService.createProject(newProject);
     
     const newDoc: Document = {
         id: crypto.randomUUID(),
@@ -449,7 +452,7 @@ const AppContent: React.FC = () => {
         tags: ['Project Plan', 'Proposal']
     };
     setDocuments(prev => [...prev, newDoc]);
-    dataService.createDocument(newDoc);
+    await dataService.createDocument(newDoc);
     
     const newTasks: Task[] = plan.tasks.map(t => ({
         id: crypto.randomUUID(),
@@ -464,8 +467,11 @@ const AppContent: React.FC = () => {
         createdAt: new Date(),
         updatedAt: new Date()
     }));
+    
     setTasks(prev => [...prev, ...newTasks]);
-    newTasks.forEach(t => dataService.createTask(t));
+    
+    // Use Promise.all to prevent race conditions during rapid writes
+    await Promise.all(newTasks.map(t => dataService.createTask(t)));
 
     setActiveProjectId(newProject.id);
     setActiveDocId(newDoc.id);
@@ -503,12 +509,13 @@ const AppContent: React.FC = () => {
       setIsCommandPaletteOpen(false);
   };
 
-  const handleAddInboxItem = (content: string, type: 'text' | 'audio' | 'file', fileName?: string) => {
+  const handleAddInboxItem = (content: string, type: 'text' | 'audio' | 'file', fileName?: string, attachments?: Attachment[]) => {
       const newItem: InboxItem = {
           id: crypto.randomUUID(),
           content,
           type,
           fileName,
+          attachments, 
           status: 'pending',
           createdAt: new Date()
       };
@@ -539,6 +546,7 @@ const AppContent: React.FC = () => {
           targetProjectId = newProject.id;
       }
 
+      // Fallback
       if (!targetProjectId || targetProjectId === 'default') {
           targetProjectId = projects[0]?.id;
       }
@@ -558,7 +566,7 @@ const AppContent: React.FC = () => {
               updatedAt: new Date()
           };
           setTasks(prev => [...prev, newTask]);
-          dataService.createTask(newTask);
+          await dataService.createTask(newTask);
       } else if (action.actionType === 'create_document' || action.actionType === 'mixed') {
            const newDocId = crypto.randomUUID();
            const newDoc: Document = {
@@ -570,23 +578,24 @@ const AppContent: React.FC = () => {
               updatedAt: new Date()
            };
            setDocuments(prev => [...prev, newDoc]);
-           dataService.createDocument(newDoc);
+           await dataService.createDocument(newDoc);
 
            if (action.data.extractedTasks && action.data.extractedTasks.length > 0) {
                const newTasks = action.data.extractedTasks.map(t => ({
                    id: crypto.randomUUID(),
-                   projectId: targetProjectId,
+                   projectId: targetProjectId, 
                    title: t.title,
                    description: t.description || '',
                    status: TaskStatus.TODO,
                    priority: t.priority || TaskPriority.MEDIUM,
                    assignee: t.assignee || 'Unassigned',
-                   linkedDocumentId: newDocId,
+                   linkedDocumentId: newDocId, 
                    createdAt: new Date(),
                    updatedAt: new Date()
                }));
                setTasks(prev => [...prev, ...newTasks]);
-               newTasks.forEach(t => dataService.createTask(t));
+               // Use Promise.all to ensure all writes complete
+               await Promise.all(newTasks.map(t => dataService.createTask(t)));
            }
       }
       setInboxItems(prev => prev.map(item => item.id === itemId ? { ...item, status: 'processed' } : item).filter(i => i.status !== 'processed'));
@@ -596,12 +605,13 @@ const AppContent: React.FC = () => {
       setInboxItems(prev => prev.map(item => item.id === itemId ? { ...item, processedResult: action } : item));
   };
 
+  // CLIENTS MANAGEMENT
   const handleAddClient = async (client: Partial<Client>) => {
       const newClient: Client = {
           id: crypto.randomUUID(),
           name: client.name!,
           company: client.company!,
-          email: client.email || '',
+          email: client.email!,
           status: client.status || 'Lead',
           value: client.value || 0,
           tags: client.tags || [],
@@ -613,9 +623,9 @@ const AppContent: React.FC = () => {
       await dataService.createClient(newClient);
   };
 
-  const handleDeleteClient = async (id: string) => {
-      setClients(prev => prev.filter(c => c.id !== id));
-      await dataService.deleteClient(id);
+  const handleDeleteClient = async (clientId: string) => {
+      setClients(prev => prev.filter(c => c.id !== clientId));
+      await dataService.deleteClient(clientId);
   };
 
   const activeDocument = documents.find(d => d.id === activeDocId);

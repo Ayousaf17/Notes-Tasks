@@ -290,34 +290,34 @@ export const geminiService = {
 
   /**
    * Analyzes an Inbox Item and decides where it goes.
-   * UPDATED: Supports Provider Routing
+   * UPDATED: Supports Provider Routing & Attachments
    */
-  async organizeInboxItem(content: string, projects: Project[], provider?: 'gemini' | 'openrouter', apiKey?: string, model?: string): Promise<InboxAction | null> {
+  async organizeInboxItem(content: string, projects: Project[], provider?: 'gemini' | 'openrouter', apiKey?: string, model?: string, attachments: Attachment[] = []): Promise<InboxAction | null> {
       const projectContext = projects.map(p => `ID: ${p.id}, Title: ${p.title}`).join('\n');
       
-      const prompt = `You are an Expert Technical Project Manager. Analyze the following inbox item and structure it.
+      const prompt = `You are an Expert Technical Project Manager. Analyze the following inbox item (text + attachments) and structure it.
       
-      **Inbox Item**: "${content}"
+      **Inbox Text**: "${content}"
       
       **Decision Logic**:
       1. **create_task**: If it's a short, single actionable item (e.g., "Email John", "Fix bug").
-      2. **create_document**: If it's a file, note, meeting minutes, or detailed brain dump.
-         - *Important*: If you choose this, also look for "extractedTasks" within the text.
+      2. **create_document**: If it's a file, note, meeting minutes, PDF, or detailed brain dump.
+         - **CRITICAL REQUIREMENT**: If creating a document from a file/PDF or long text:
+           - The 'content' field MUST be a **comprehensive, long-form Markdown report**. 
+           - Do NOT summarize heavily. Preserve all details.
+           - Extract ALL charts, timelines, and phases as Markdown tables or lists.
+           - If it's a 10-page PDF, write a detailed breakdown, not a 1-paragraph summary. Aim for 1000+ words if the source supports it.
       3. **create_project**: Only for massive initiatives with no existing project fit.
+
+      **Task Extraction**:
+      - Aggressively look for implied or explicit tasks within the document.
+      - Populate the 'extractedTasks' array with every single actionable step found.
 
       **CRITICAL INSTRUCTION**: Return ONLY a valid JSON object matching the schema below.
       
       **Available Projects**:
       ${projectContext}
       
-      Schema Example (Task):
-      {
-        "actionType": "create_task",
-        "targetProjectId": "p1", // Use "NEW:Name" if creating new
-        "reasoning": "Simple action item.",
-        "data": { "title": "Buy Milk", "priority": "Medium", "description": "Get whole milk" }
-      }
-
       Schema Example (Document + Tasks):
       {
         "actionType": "create_document",
@@ -325,10 +325,10 @@ export const geminiService = {
         "reasoning": "Meeting notes with actions.",
         "data": { 
             "title": "Meeting Notes: Q3 Review", 
-            "content": "# Q3 Review\n...",
+            "content": "# Q3 Review\n## Executive Summary\n...\n## Timelines\n| Phase | Date |\n|---|---|\n| P1 | Oct 1 |\n...",
             "tags": ["Meeting", "Strategy"],
             "extractedTasks": [
-                { "title": "Update Roadmap", "priority": "High", "assignee": "Unassigned" }
+                { "title": "Update Roadmap", "description": "Based on phase 1 feedback", "priority": "High", "assignee": "Unassigned" }
             ]
         }
       }
@@ -339,20 +339,32 @@ export const geminiService = {
 
           // ROUTING LOGIC
           if (provider === 'openrouter' && apiKey) {
+              // OpenRouter typically doesn't support direct file uploads in standard chat completions easily without link hosting.
+              // For this demo, we assume text-only analysis if using OpenRouter, OR we warn the user.
+              // Falling back to text prompt for OpenRouter.
               const openRouterResponse = await this.callOpenRouter(apiKey, model || 'openai/gpt-4o', [], prompt, "You are a JSON-only API.");
               responseText = openRouterResponse;
           } else {
-              // Default Gemini
+              // Default Gemini (Supports Attachments)
               if (!getApiKey()) return null;
+              
+              const contentParts: any[] = [];
+              if (attachments && attachments.length > 0) {
+                  attachments.forEach(att => {
+                      contentParts.push({ inlineData: { mimeType: att.mimeType, data: att.data } });
+                  });
+              }
+              contentParts.push({ text: prompt });
+
               const geminiResponse = await ai.models.generateContent({
                   model: MODEL_NAME,
-                  contents: prompt,
+                  contents: { parts: contentParts },
                   config: { responseMimeType: "application/json" }
               });
               responseText = geminiResponse.text || "{}";
           }
 
-          // Clean up potential markdown wrapping from OpenRouter models
+          // Clean up potential markdown wrapping
           const cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
           
           if (!cleanJson) return null;
@@ -364,9 +376,7 @@ export const geminiService = {
       }
   },
 
-  /**
-   * Generates a full project plan (Doc + Tasks) from a text prompt or file inputs
-   */
+  // ... (Rest of the service methods)
   async generateProjectPlan(prompt: string, attachments: Attachment[] = []): Promise<ProjectPlan | null> {
     if (!apiKey) return null;
 
@@ -434,7 +444,6 @@ export const geminiService = {
     }
   },
 
-  // ... (Rest of the service methods remain unchanged: extractTasks, suggestTasksFromContext, generateDocumentContent, summarizeDocument, suggestTags, improveWriting, fixGrammar, shortenText, continueWriting, expandTaskToContent, generateDailyBriefing, performAgentTask, analyzeStaleTask) ...
   async extractTasks(text: string): Promise<Partial<Task>[]> {
     if (!apiKey) return [];
     try {
