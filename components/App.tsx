@@ -1,4 +1,4 @@
-import React, { useState, useEffect, ErrorInfo, ReactNode, Component } from 'react';
+import React, { useState, useEffect, ErrorInfo, ReactNode } from 'react';
 import { Sidebar } from './Sidebar';
 import { DocumentEditor } from './DocumentEditor';
 import { TaskBoard } from './TaskBoard';
@@ -33,7 +33,7 @@ interface ErrorBoundaryState {
 }
 
 // Error Boundary Component
-class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = { hasError: false };
@@ -689,7 +689,8 @@ const AppContent: React.FC = () => {
              <span className="font-medium text-black dark:text-white inline">
                  {currentView === ViewMode.HOME ? 'Home' : 
                   currentView === ViewMode.SETTINGS ? 'Settings' : 
-                  currentView === ViewMode.CLIENTS ? 'CRM' : viewTitle}
+                  currentView === ViewMode.CLIENTS ? 'CRM' : 
+                  currentView === ViewMode.INBOX ? 'Inbox' : viewTitle}
              </span>
              <span className="text-gray-300 dark:text-gray-700 inline">/</span>
              <span className="text-gray-500 dark:text-gray-400 truncate">
@@ -698,6 +699,7 @@ const AppContent: React.FC = () => {
                   currentView === ViewMode.HOME ? 'Dashboard' :
                   currentView === ViewMode.SETTINGS ? 'Preferences' :
                   currentView === ViewMode.CLIENTS ? 'Pipeline' :
+                  currentView === ViewMode.INBOX ? 'Brain Dump' :
                   currentView.toLowerCase().replace('_', ' ')}
              </span>
           </div>
@@ -837,6 +839,8 @@ const AppContent: React.FC = () => {
             clients={clients}
             teamMembers={teamMembers}
             integrations={integrations}
+            onSaveToInbox={handleAddInboxItem} // New handoff handler
+            onExecuteAction={(id, action) => handleProcessInboxItem(id, action)} // New execution handler
             onAddTask={(task) => {
                 const newTask: Task = {
                     id: crypto.randomUUID(),
