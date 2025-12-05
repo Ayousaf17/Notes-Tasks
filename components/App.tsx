@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, ErrorInfo, ReactNode } from 'react';
 import { Sidebar } from './Sidebar';
 import { DocumentEditor } from './DocumentEditor';
@@ -533,6 +534,11 @@ const AppContent: React.FC = () => {
   const handleProcessInboxItem = async (itemId: string, action: InboxAction) => {
       let targetProjectId = action.targetProjectId;
       
+      // Fallback to active project if AI says 'default' or no ID
+      if (!targetProjectId || targetProjectId === 'default') {
+          targetProjectId = activeProjectId || projects[0]?.id;
+      }
+
       if (targetProjectId && targetProjectId.startsWith('NEW:')) {
           const title = targetProjectId.substring(4);
           const newProject: Project = {
@@ -544,11 +550,6 @@ const AppContent: React.FC = () => {
           await dataService.createProject(newProject);
           setProjects(prev => [...prev, newProject]);
           targetProjectId = newProject.id;
-      }
-
-      // Fallback
-      if (!targetProjectId || targetProjectId === 'default') {
-          targetProjectId = projects[0]?.id;
       }
 
       if (action.actionType === 'create_task') {
@@ -747,6 +748,7 @@ const AppContent: React.FC = () => {
                           onUpdateItem={handleUpdateInboxItem}
                           projects={projects} 
                           integrations={integrations}
+                          activeProjectId={activeProjectId}
                       />
                   ) : currentView === ViewMode.SETTINGS ? (
                       <SettingsView 
@@ -810,6 +812,7 @@ const AppContent: React.FC = () => {
                         tasks={tasksToDisplay} 
                         onSelectTask={setSelectedTaskId} 
                         onUpdateTaskDueDate={handleUpdateTaskDueDate}
+                        projects={projects}
                       />
                   )}
                 </div>

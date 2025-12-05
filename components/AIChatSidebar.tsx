@@ -1,6 +1,7 @@
+
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { ChatMessage, ProjectPlan, Document, Task, Integration, TaskStatus, TaskPriority, Project, Client, ActionProposal, Attachment, AgentRole } from '../types';
-import { Send, X, Bot, Paperclip, Loader2, Sparkles, User, ChevronDown, Lock, Settings, Search, CheckCircle2, Calendar, Briefcase, Flag, Plus, File } from 'lucide-react';
+import { ChatMessage, ProjectPlan, Document, Task, Integration, TaskStatus, TaskPriority, Project, Client, ActionProposal, Attachment, AgentRole, InboxAction, InboxItem } from '../types';
+import { Send, X, Bot, Paperclip, Loader2, Sparkles, User, ChevronDown, Lock, Settings, Search, CheckCircle2, Calendar, Briefcase, Flag, Plus, File, Folder, Layers, ArrowRight } from 'lucide-react';
 import { geminiService } from '../services/geminiService';
 
 interface AIChatSidebarProps {
@@ -16,7 +17,9 @@ interface AIChatSidebarProps {
   clients: Client[];   
   teamMembers: string[]; 
   integrations?: Integration[];
-  onAddTask?: (task: Partial<Task>) => void;
+  onAddTask?: (task: Partial<Task>) => void; // Legacy
+  onSaveToInbox?: (item: InboxItem) => void;
+  onExecuteAction?: (id: string, action: InboxAction) => void;
 }
 
 interface OpenRouterModel {
@@ -25,35 +28,41 @@ interface OpenRouterModel {
     description?: string;
 }
 
-// ... TaskProposalCard (No changes needed here)
-const TaskProposalCard = ({ 
+// Unified Proposal Card for Tasks, Docs, Projects, Clients
+const ProposalCard = ({ 
     proposal, 
-    projects, 
-    clients, 
-    teamMembers, 
     onConfirm, 
+    onSaveToInbox,
     onCancel 
 }: { 
     proposal: ActionProposal, 
-    projects: Project[], 
-    clients: Client[], 
-    teamMembers: string[],
-    onConfirm: (data: Partial<Task>) => void,
+    onConfirm: (action: InboxAction) => void,
+    onSaveToInbox: (action: InboxAction) => void,
     onCancel: () => void
 }) => {
-    const [data, setData] = useState({
-        ...proposal.data,
-        assignee: proposal.data.assignee || AgentRole.WRITER // Default to AI Writer if undefined
-    });
+    const { action } = proposal;
     const [isConfirmed, setIsConfirmed] = useState(proposal.status === 'confirmed');
+    const [isSaved, setIsSaved] = useState(proposal.status === 'saved');
 
     if (isConfirmed) {
         return (
             <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-4 flex items-center gap-3 animate-in fade-in">
                 <div className="bg-green-500 rounded-full p-1 text-white"><CheckCircle2 className="w-4 h-4" /></div>
                 <div>
-                    <div className="text-sm font-bold text-green-800 dark:text-green-300">Task Created</div>
-                    <div className="text-xs text-green-700 dark:text-green-400">{data.title}</div>
+                    <div className="text-sm font-bold text-green-800 dark:text-green-300">Action Completed</div>
+                    <div className="text-xs text-green-700 dark:text-green-400">{action.data.title}</div>
+                </div>
+            </div>
+        );
+    }
+
+    if (isSaved) {
+        return (
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 flex items-center gap-3 animate-in fade-in">
+                <div className="bg-blue-500 rounded-full p-1 text-white"><Folder className="w-4 h-4" /></div>
+                <div>
+                    <div className="text-sm font-bold text-blue-800 dark:text-blue-300">Saved to Inbox</div>
+                    <div className="text-xs text-blue-700 dark:text-blue-400">Review later</div>
                 </div>
             </div>
         );
@@ -71,105 +80,66 @@ const TaskProposalCard = ({
         <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg overflow-hidden my-4 animate-in slide-in-from-bottom-2">
             <div className="bg-purple-50 dark:bg-purple-900/20 p-3 border-b border-purple-100 dark:border-purple-800/50 flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-                <span className="text-xs font-bold text-purple-700 dark:text-purple-300 uppercase tracking-wider">Draft Task</span>
+                <span className="text-xs font-bold text-purple-700 dark:text-purple-300 uppercase tracking-wider">
+                    {action.actionType.replace('create_', '').toUpperCase()} PROPOSAL
+                </span>
             </div>
             
-            <div className="p-4 space-y-4">
-                {/* Title */}
-                <div>
-                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Task Title</label>
-                    <input 
-                        type="text" 
-                        value={data.title}
-                        onChange={(e) => setData({ ...data, title: e.target.value })}
-                        className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded p-2 text-sm font-medium focus:ring-2 focus:ring-purple-500 outline-none text-gray-900 dark:text-white"
-                    />
-                </div>
+            <div className="p-4 space-y-3">
+                <div className="font-bold text-sm text-gray-900 dark:text-white">{action.data.title}</div>
+                
+                {action.data.description && (
+                    <div className="text-xs text-gray-500 dark:text-gray-400 line-clamp-3">{action.data.description}</div>
+                )}
 
-                {/* Project Selector */}
-                <div>
-                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Project</label>
-                    <div className="relative">
-                        <select 
-                            value={data.projectId || ''}
-                            onChange={(e) => setData({ ...data, projectId: e.target.value })}
-                            className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded p-2 pr-8 text-sm appearance-none focus:ring-2 focus:ring-purple-500 outline-none text-gray-900 dark:text-white cursor-pointer"
-                        >
-                            <option value="">Select Project...</option>
-                            {projects.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
-                        </select>
-                        <ChevronDown className="w-4 h-4 text-gray-400 absolute right-2 top-2.5 pointer-events-none" />
+                {/* Sub-Items Preview */}
+                {action.data.extractedTasks && action.data.extractedTasks.length > 0 && (
+                    <div className="bg-gray-50 dark:bg-gray-800 rounded p-2 text-xs text-gray-600 dark:text-gray-300 flex items-center gap-2">
+                        <Layers className="w-3 h-3" />
+                        <span>Includes {action.data.extractedTasks.length} sub-tasks</span>
                     </div>
-                </div>
+                )}
 
-                {/* Assignee & Date Row */}
-                <div className="grid grid-cols-2 gap-3">
-                    <div>
-                        <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Assignee</label>
-                        <div className="relative">
-                            <select 
-                                value={data.assignee || ''}
-                                onChange={(e) => setData({ ...data, assignee: e.target.value })}
-                                className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded p-2 pr-8 text-xs appearance-none focus:ring-2 focus:ring-purple-500 outline-none text-gray-900 dark:text-white cursor-pointer"
-                            >
-                                <option value={AgentRole.WRITER}>AI Writer</option>
-                                <option value={AgentRole.RESEARCHER}>AI Researcher</option>
-                                <option value={AgentRole.PLANNER}>AI Planner</option>
-                                <option value="Unassigned">Unassigned</option>
-                                {teamMembers.map(m => <option key={m} value={m}>{m}</option>)}
-                            </select>
-                            <User className="w-3 h-3 text-gray-400 absolute right-2 top-2.5 pointer-events-none" />
+                {/* Client Details Preview */}
+                {action.actionType === 'create_client' && action.data.clientData && (
+                    <div className="bg-gray-50 dark:bg-gray-800 rounded p-2 text-xs space-y-1">
+                        <div className="flex justify-between">
+                            <span className="text-gray-500">Company:</span>
+                            <span className="font-medium text-gray-800 dark:text-gray-200">{action.data.clientData.company}</span>
+                        </div>
+                        <div className="flex justify-between">
+                            <span className="text-gray-500">Value:</span>
+                            <span className="font-medium text-gray-800 dark:text-gray-200">${action.data.clientData.value}</span>
                         </div>
                     </div>
-                    <div>
-                        <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Due Date</label>
-                        <input 
-                            type="date"
-                            value={data.dueDate ? new Date(data.dueDate).toISOString().split('T')[0] : ''}
-                            onChange={(e) => setData({ ...data, dueDate: e.target.value ? new Date(e.target.value) : undefined })}
-                            className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded p-2 text-xs focus:ring-2 focus:ring-purple-500 outline-none text-gray-900 dark:text-white"
-                        />
-                    </div>
-                </div>
+                )}
 
-                {/* Priority */}
-                <div className="flex gap-2">
-                    {[TaskPriority.LOW, TaskPriority.MEDIUM, TaskPriority.HIGH].map(p => (
-                        <button
-                            key={p}
-                            onClick={() => setData({ ...data, priority: p })}
-                            className={`flex-1 py-1.5 text-[10px] font-bold rounded border uppercase transition-colors ${
-                                data.priority === p 
-                                ? (p === 'High' ? 'bg-red-50 border-red-500 text-red-600' : p === 'Medium' ? 'bg-orange-50 border-orange-500 text-orange-600' : 'bg-blue-50 border-blue-500 text-blue-600')
-                                : 'bg-transparent border-gray-200 dark:border-gray-700 text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
-                            }`}
-                        >
-                            {p}
-                        </button>
-                    ))}
+                <div className="text-[10px] text-gray-400 mt-2 italic">
+                    Reason: {action.reasoning}
                 </div>
             </div>
 
-            <div className="p-3 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-100 dark:border-gray-800 flex justify-end gap-2">
+            <div className="p-3 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-100 dark:border-gray-800 flex justify-between gap-2">
                 <button 
                     onClick={onCancel}
                     className="px-3 py-1.5 text-xs font-medium text-gray-500 hover:text-black dark:hover:text-white transition-colors"
                 >
                     Cancel
                 </button>
-                <button 
-                    onClick={() => {
-                        if (!data.projectId && projects.length > 0) {
-                            alert("Please select a project.");
-                            return;
-                        }
-                        setIsConfirmed(true);
-                        onConfirm(data);
-                    }}
-                    className="px-4 py-1.5 bg-black dark:bg-white text-white dark:text-black rounded text-xs font-bold hover:opacity-90 transition-opacity"
-                >
-                    Confirm & Create
-                </button>
+                <div className="flex gap-2">
+                    <button 
+                        onClick={() => { setIsSaved(true); onSaveToInbox(action); }}
+                        className="px-3 py-1.5 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 rounded text-xs font-bold hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+                    >
+                        Save to Inbox
+                    </button>
+                    <button 
+                        onClick={() => { setIsConfirmed(true); onConfirm(action); }}
+                        className="px-4 py-1.5 bg-black dark:bg-white text-white dark:text-black rounded text-xs font-bold hover:opacity-90 transition-opacity flex items-center gap-1"
+                    >
+                        Create Now <ArrowRight className="w-3 h-3" />
+                    </button>
+                </div>
             </div>
         </div>
     );
@@ -251,9 +221,10 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
     clients,
     teamMembers,
     integrations,
-    onAddTask
+    onAddTask,
+    onSaveToInbox,
+    onExecuteAction
 }) => {
-    // ... (rest of component logic remains the same)
     const [input, setInput] = useState('');
     const [isThinking, setIsThinking] = useState(false);
     const [selectedProvider, setSelectedProvider] = useState<'gemini' | 'openrouter'>('gemini');
@@ -325,27 +296,22 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
         if (match && match[1]) {
             try {
                 const toolJson = JSON.parse(match[1]);
-                if (toolJson.tool === 'create_task') {
+                if (toolJson.tool === 'propose_import') {
                     // Smart Matching Logic: Try to find ID for project/client names if AI sent strings
-                    let matchedProjectId = projects[0]?.id; // Default
-                    if (toolJson.args.project) {
-                        const p = projects.find(p => p.title.toLowerCase().includes(toolJson.args.project.toLowerCase()));
-                        if (p) matchedProjectId = p.id;
+                    let matchedProjectId = toolJson.args.targetProjectId;
+                    if (!matchedProjectId || matchedProjectId === 'default') {
+                        matchedProjectId = projects[0]?.id || 'default';
                     }
 
                     proposal = {
-                        type: 'create_task',
+                        action: {
+                            actionType: toolJson.args.actionType,
+                            targetProjectId: matchedProjectId,
+                            data: toolJson.args.data,
+                            reasoning: toolJson.args.reasoning
+                        },
                         status: 'proposed',
-                        originalToolCall: match[0],
-                        data: {
-                            title: toolJson.args.title || "New Task",
-                            description: toolJson.args.description,
-                            priority: (toolJson.args.priority as TaskPriority) || TaskPriority.MEDIUM,
-                            status: TaskStatus.TODO,
-                            projectId: matchedProjectId,
-                            assignee: toolJson.args.assignee || AgentRole.WRITER, // DEFAULT
-                            dueDate: toolJson.args.dueDate ? new Date(toolJson.args.dueDate) : undefined
-                        }
+                        originalToolCall: match[0]
                     };
                 }
             } catch (e) {
@@ -445,7 +411,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
         }
     };
 
-    const updateProposalStatus = (messageId: string, status: 'confirmed' | 'cancelled') => {
+    const updateProposalStatus = (messageId: string, status: 'confirmed' | 'cancelled' | 'saved') => {
         setMessages(prev => prev.map(m => {
             if (m.id === messageId && m.actionProposal) {
                 return { ...m, actionProposal: { ...m.actionProposal, status } };
@@ -593,14 +559,24 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                                     <FormattedMessage text={msg.text} />
                                     {/* Action Proposal Widget */}
                                     {msg.actionProposal && (
-                                        <TaskProposalCard 
+                                        <ProposalCard 
                                             proposal={msg.actionProposal}
-                                            projects={projects}
-                                            clients={clients}
-                                            teamMembers={teamMembers}
-                                            onConfirm={(taskData) => {
-                                                if(onAddTask) onAddTask(taskData);
+                                            onConfirm={(action) => {
+                                                const dummyId = crypto.randomUUID(); // Temp ID for passing to existing handler logic
+                                                if(onExecuteAction) onExecuteAction(dummyId, action);
                                                 updateProposalStatus(msg.id, 'confirmed');
+                                            }}
+                                            onSaveToInbox={(action) => {
+                                                const newItem: InboxItem = {
+                                                    id: crypto.randomUUID(),
+                                                    content: action.data.title,
+                                                    type: 'text',
+                                                    status: 'pending',
+                                                    createdAt: new Date(),
+                                                    processedResult: action
+                                                };
+                                                if(onSaveToInbox) onSaveToInbox(newItem);
+                                                updateProposalStatus(msg.id, 'saved');
                                             }}
                                             onCancel={() => updateProposalStatus(msg.id, 'cancelled')}
                                         />

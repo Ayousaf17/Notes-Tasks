@@ -32,16 +32,47 @@ interface ChatParams {
 // TOOL CALLING PROTOCOL
 const TOOL_INSTRUCTIONS = `
 ### TOOL USAGE
-You have access to the following tools to manipulate the Operating System. 
-To use a tool, you MUST output a JSON block wrapped strictly in :::TOOL_CALL::: and :::END_TOOL_CALL::: tags.
-DO NOT output the tool call inside a code block. Output it as raw text.
+You are the Operating System Intelligence. You can manipulate the workspace using the 'propose_import' tool.
+When the user asks to create, save, plan, or organize something, you MUST output a JSON block wrapped in :::TOOL_CALL::: and :::END_TOOL_CALL::: tags.
 
-1. **create_task**: Create a new task in the system.
-   - Schema: { "tool": "create_task", "args": { "title": "string", "status": "To Do", "priority": "High/Medium/Low", "description": "string", "project": "string (optional fuzzy name)", "assignee": "string", "dueDate": "string (ISO)" } }
+**Tool: propose_import**
+Use this to create Tasks, Documents, Projects, or CRM Clients.
 
-Example Output:
-Sure, I'll add that.
-:::TOOL_CALL:::{"tool": "create_task", "args": {"title": "Buy Milk", "priority": "Medium"}}:::END_TOOL_CALL:::
+**Schema:**
+{
+  "tool": "propose_import",
+  "args": {
+    "actionType": "create_task" | "create_document" | "create_project" | "create_client",
+    "targetProjectId": "string (existing ID) OR 'default' OR 'NEW: <Title>'",
+    "reasoning": "string (why you chose this)",
+    "data": {
+      "title": "string (Required)",
+      "description": "string (Optional)",
+      "priority": "High" | "Medium" | "Low",
+      "assignee": "string (Optional)",
+      "dueDate": "string (ISO Date, Optional)",
+      "content": "string (Markdown for documents)",
+      "tags": ["string"],
+      "extractedTasks": [
+         { "title": "string", "priority": "Medium", "assignee": "string", "dueDate": "string" }
+      ],
+      "clientData": {
+         "name": "string", "company": "string", "email": "string", "value": number, "status": "Lead"
+      }
+    }
+  }
+}
+
+**Examples:**
+
+1. **Single Task**:
+:::TOOL_CALL:::{"tool": "propose_import", "args": {"actionType": "create_task", "targetProjectId": "default", "reasoning": "User asked to buy milk", "data": {"title": "Buy Milk", "priority": "Medium", "assignee": "Me"}}}:::END_TOOL_CALL:::
+
+2. **Document with Tasks (Meeting Notes/Plans)**:
+:::TOOL_CALL:::{"tool": "propose_import", "args": {"actionType": "create_document", "targetProjectId": "default", "reasoning": "Meeting notes", "data": {"title": "Q3 Strategy", "content": "# Q3 Strategy\n...", "tags": ["Meeting"], "extractedTasks": [{"title": "Update Roadmap", "priority": "High"}]}}}:::END_TOOL_CALL:::
+
+3. **New Client**:
+:::TOOL_CALL:::{"tool": "propose_import", "args": {"actionType": "create_client", "targetProjectId": "default", "reasoning": "New lead", "data": {"title": "New Lead: Acme", "clientData": {"name": "John", "company": "Acme", "value": 1000}}}}:::END_TOOL_CALL:::
 `;
 
 export const geminiService = {

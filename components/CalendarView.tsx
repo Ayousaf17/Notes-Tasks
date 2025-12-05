@@ -1,17 +1,19 @@
+
 import React, { useState, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, Cloud } from 'lucide-react';
-import { Task, TaskPriority, TaskStatus } from '../types';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, Cloud, Folder } from 'lucide-react';
+import { Task, TaskPriority, TaskStatus, Project } from '../types';
 
 interface CalendarViewProps {
   tasks: Task[];
   onSelectTask?: (taskId: string) => void;
   onUpdateTaskDueDate?: (taskId: string, date: Date) => void;
+  projects?: Project[];
 }
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
-export const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onSelectTask, onUpdateTaskDueDate }) => {
+export const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onSelectTask, onUpdateTaskDueDate, projects }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   
   // Drag State
@@ -52,6 +54,11 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onSelectTask,
         case TaskPriority.LOW: return 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-100 dark:border-blue-900/50 hover:border-blue-200';
         default: return 'bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-100 dark:border-gray-700 hover:border-gray-200';
     }
+  };
+
+  const getProjectTitle = (projectId: string) => {
+      const p = projects?.find(p => p.id === projectId);
+      return p ? p.title : '';
   };
 
   // Group tasks by day
@@ -179,24 +186,35 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onSelectTask,
                     </div>
 
                     <div className="flex-1 flex flex-col gap-1 overflow-y-auto no-scrollbar">
-                        {dayTasks.map(task => (
-                            <div 
-                                key={task.id}
-                                draggable={!task.externalType}
-                                onDragStart={(e) => handleDragStart(e, task)}
-                                onDragEnd={handleDragEnd}
-                                onClick={(e) => { e.stopPropagation(); if (!task.externalType) onSelectTask && onSelectTask(task.id); }}
-                                className={`
-                                    cursor-pointer text-left px-2 py-1.5 rounded text-[10px] font-medium border truncate w-full transition-transform hover:scale-[1.02] shadow-sm flex items-center gap-1.5
-                                    ${getPriorityColor(task)} 
-                                    ${task.status === TaskStatus.DONE ? 'opacity-50 line-through grayscale' : ''}
-                                `}
-                                title={task.title}
-                            >
-                                {task.externalType === 'GOOGLE_CALENDAR' && <Cloud className="w-3 h-3 shrink-0" />}
-                                <span className="truncate">{task.title}</span>
-                            </div>
-                        ))}
+                        {dayTasks.map(task => {
+                            const projectTitle = getProjectTitle(task.projectId);
+                            return (
+                                <div 
+                                    key={task.id}
+                                    draggable={!task.externalType}
+                                    onDragStart={(e) => handleDragStart(e, task)}
+                                    onDragEnd={handleDragEnd}
+                                    onClick={(e) => { e.stopPropagation(); if (!task.externalType) onSelectTask && onSelectTask(task.id); }}
+                                    className={`
+                                        cursor-pointer text-left px-2 py-1.5 rounded text-[10px] font-medium border w-full transition-transform hover:scale-[1.02] shadow-sm flex flex-col gap-0.5
+                                        ${getPriorityColor(task)} 
+                                        ${task.status === TaskStatus.DONE ? 'opacity-50 line-through grayscale' : ''}
+                                    `}
+                                    title={task.title}
+                                >
+                                    <div className="flex items-center gap-1.5">
+                                        {task.externalType === 'GOOGLE_CALENDAR' && <Cloud className="w-3 h-3 shrink-0" />}
+                                        <span className="truncate">{task.title}</span>
+                                    </div>
+                                    {projectTitle && !task.externalType && (
+                                        <div className="text-[9px] opacity-70 flex items-center gap-1">
+                                            <Folder className="w-2.5 h-2.5" />
+                                            <span className="truncate">{projectTitle}</span>
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
                     </div>
                 </div>
             );

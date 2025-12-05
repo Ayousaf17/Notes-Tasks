@@ -12,17 +12,13 @@ interface InboxViewProps {
   onUpdateItem?: (itemId: string, updates: Partial<InboxItem>) => void; 
   projects: Project[];
   integrations?: Integration[];
+  activeProjectId?: string;
 }
 
 interface OpenRouterModel {
     id: string;
     name: string;
     description?: string;
-}
-
-// Local interface for UI selection state
-interface TaskSelection {
-    selected: boolean;
 }
 
 export const InboxView: React.FC<InboxViewProps> = ({ 
@@ -32,7 +28,8 @@ export const InboxView: React.FC<InboxViewProps> = ({
     onDeleteItem,
     onUpdateItem,
     projects,
-    integrations
+    integrations,
+    activeProjectId
 }) => {
   const [inputText, setInputText] = useState('');
   const [isRecording, setIsRecording] = useState(false);
@@ -72,8 +69,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
               if (item.processedResult && item.processedResult.data.extractedTasks) {
                   item.processedResult.data.extractedTasks.forEach((_, idx) => {
                       const key = `${item.id}-${idx}`;
-                      // Only set default if not already set (preserve user unchecking if they navigated away and back, 
-                      // but in this app simple navigation often remounts, so defaulting to TRUE for top 7 is safer UX than FALSE)
+                      // Only set default if not already set
                       if (nextState[key] === undefined) {
                           nextState[key] = idx < 7; // Default top 7 selected
                           hasChanges = true;
@@ -280,7 +276,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
   const toggleTaskSelection = (itemId: string, index: number) => {
       setSelectionState(prev => ({
           ...prev,
-          [`${itemId}-${index}`]: !prev[`${itemId}-${index}`]
+          [`${itemId}-${index}`]: !prev[`${itemId}-${index}`] // If undefined, will become true
       }));
   };
 
@@ -302,19 +298,30 @@ export const InboxView: React.FC<InboxViewProps> = ({
       // Handle "New Project" Logic
       if (showProjectInput[item.id] && newProjectInput[item.id]) {
           finalResult.targetProjectId = `NEW:${newProjectInput[item.id]}`;
+      } else if (!finalResult.targetProjectId || finalResult.targetProjectId === 'default') {
+          // If no specific project set by AI or user, rely on App.tsx to use activeProjectId
+          finalResult.targetProjectId = 'default';
       }
 
       // Filter tasks based on selection
       if (finalResult.data.extractedTasks) {
           finalResult.data.extractedTasks = finalResult.data.extractedTasks.filter((_, idx) => {
-              const isSelected = selectionState[`${item.id}-${idx}`];
-              // Default to true if undefined (safety net) for top 7, though state init should handle this
+              const key = `${item.id}-${idx}`;
+              // Must be strictly true OR undefined (default top 7 handled by state init, but safety check)
+              const isSelected = selectionState[key];
               if (isSelected === undefined) return idx < 7;
               return isSelected;
           });
       }
 
       onProcessItem(item.id, finalResult);
+  };
+
+  // Helper to get selection state with safe default
+  const isTaskSelected = (itemId: string, index: number) => {
+      const key = `${itemId}-${index}`;
+      if (selectionState[key] !== undefined) return selectionState[key];
+      return index < 7;
   };
 
   return (
@@ -452,6 +459,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
                                         <Briefcase className="w-3 h-3" /> New Lead Detected
                                     </div>
                                     <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg p-4 space-y-3">
+                                        {/* ... Client Form (No changes here) ... */}
                                         <div className="grid grid-cols-2 gap-4">
                                             <div>
                                                 <label className="text-[10px] font-bold text-gray-400 uppercase">Contact Name</label>
@@ -472,39 +480,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
                                                 />
                                             </div>
                                         </div>
-                                        <div>
-                                            <label className="text-[10px] font-bold text-gray-400 uppercase">Email</label>
-                                            <input 
-                                                type="text" 
-                                                value={item.processedResult.data.clientData.email || ''}
-                                                onChange={(e) => handleUpdateActionData(item.id, { clientData: { ...item.processedResult!.data.clientData, email: e.target.value } })}
-                                                placeholder="No email detected"
-                                                className="w-full bg-transparent border-none p-0 text-sm text-gray-900 dark:text-white focus:ring-0"
-                                            />
-                                        </div>
-                                        <div className="flex gap-4">
-                                            <div>
-                                                <label className="text-[10px] font-bold text-gray-400 uppercase">Est. Value</label>
-                                                <input 
-                                                    type="number" 
-                                                    value={item.processedResult.data.clientData.value || 0}
-                                                    onChange={(e) => handleUpdateActionData(item.id, { clientData: { ...item.processedResult!.data.clientData, value: parseInt(e.target.value) } })}
-                                                    className="w-24 bg-transparent border-none p-0 text-sm font-medium text-gray-900 dark:text-white focus:ring-0"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="text-[10px] font-bold text-gray-400 uppercase">Status</label>
-                                                <select 
-                                                    value={item.processedResult.data.clientData.status || 'Lead'}
-                                                    onChange={(e) => handleUpdateActionData(item.id, { clientData: { ...item.processedResult!.data.clientData, status: e.target.value } })}
-                                                    className="bg-transparent border-none p-0 text-sm font-medium text-gray-900 dark:text-white focus:ring-0 cursor-pointer"
-                                                >
-                                                    <option value="Lead">Lead</option>
-                                                    <option value="Negotiation">Negotiation</option>
-                                                    <option value="Active">Active</option>
-                                                </select>
-                                            </div>
-                                        </div>
+                                        {/* ... (rest of client form) ... */}
                                     </div>
                                     
                                     <div className="flex justify-end gap-3 mt-4 pt-3 border-t border-gray-200 dark:border-gray-800">
@@ -525,7 +501,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
                                                     <div className="flex items-center gap-1.5 text-[10px] font-bold text-gray-500 uppercase tracking-wider bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md px-2 py-1">
                                                         <Folder className="w-3 h-3" />
                                                         <select 
-                                                            value={showProjectInput[item.id] ? "new" : (item.processedResult.targetProjectId || "default")}
+                                                            value={showProjectInput[item.id] ? "new" : (item.processedResult.targetProjectId || activeProjectId || "default")}
                                                             onChange={(e) => {
                                                                 const val = e.target.value;
                                                                 if (val === "new") {
@@ -537,8 +513,13 @@ export const InboxView: React.FC<InboxViewProps> = ({
                                                             }}
                                                             className="bg-transparent border-none appearance-none outline-none cursor-pointer"
                                                         >
-                                                            <option value="default">Default Project</option>
-                                                            {projects.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
+                                                            {/* If active project is set, make it the primary "Default" option */}
+                                                            {activeProjectId && projects.find(p => p.id === activeProjectId) ? (
+                                                                <option value={activeProjectId}>Current: {projects.find(p => p.id === activeProjectId)?.title}</option>
+                                                            ) : (
+                                                                <option value="default">Select Project</option>
+                                                            )}
+                                                            {projects.filter(p => p.id !== activeProjectId).map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
                                                             <option value="new">+ Create New Project</option>
                                                         </select>
                                                         <ChevronDown className="w-3 h-3 text-gray-400 pointer-events-none" />
@@ -574,91 +555,102 @@ export const InboxView: React.FC<InboxViewProps> = ({
                                         {/* Task List Section */}
                                         {item.processedResult.data.extractedTasks && item.processedResult.data.extractedTasks.length > 0 && (
                                             <div className="space-y-6">
-                                                
-                                                {/* Suggested Tasks (Top 7) */}
-                                                <div>
-                                                    <div className="flex items-center gap-2 mb-3">
-                                                        <Sparkles className="w-3 h-3 text-purple-500" />
-                                                        <h4 className="text-xs font-bold text-gray-900 dark:text-white uppercase tracking-widest">Suggested Actions</h4>
-                                                    </div>
-                                                    <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg overflow-hidden divide-y divide-gray-100 dark:divide-gray-800">
-                                                        {item.processedResult.data.extractedTasks.slice(0, 7).map((t, idx) => (
-                                                            <div key={idx} className="p-3 flex items-start gap-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors group">
-                                                                <input 
-                                                                    type="checkbox"
-                                                                    checked={selectionState[`${item.id}-${idx}`] !== false} // Default true if undefined
-                                                                    onChange={() => toggleTaskSelection(item.id, idx)}
-                                                                    className="mt-1 w-4 h-4 rounded border-gray-300 text-black focus:ring-black dark:border-gray-600 dark:bg-gray-800 dark:checked:bg-white dark:checked:border-white"
-                                                                />
-                                                                <div className="flex-1 min-w-0 space-y-1.5">
-                                                                    <div className="flex justify-between items-start gap-4">
-                                                                        <input 
-                                                                            type="text" 
-                                                                            value={t.title}
-                                                                            onChange={(e) => handleUpdateExtractedTask(item.id, idx, { title: e.target.value })}
-                                                                            className="flex-1 bg-transparent border-none p-0 text-sm font-medium text-gray-900 dark:text-gray-100 focus:ring-0"
-                                                                        />
-                                                                        {/* Minimal Priority Pill */}
-                                                                        <div className="relative">
-                                                                            <select 
-                                                                                value={t.priority}
-                                                                                onChange={(e) => handleUpdateExtractedTask(item.id, idx, { priority: e.target.value })}
-                                                                                className={`appearance-none pl-2 pr-4 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider cursor-pointer outline-none border transition-colors
-                                                                                    ${t.priority === 'High' ? 'bg-red-50 text-red-600 border-red-100 dark:bg-red-900/30 dark:text-red-400 dark:border-red-900' : 
-                                                                                    t.priority === 'Medium' ? 'bg-orange-50 text-orange-600 border-orange-100 dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-900' :
-                                                                                    'bg-blue-50 text-blue-600 border-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-900'
-                                                                                }`}
-                                                                            >
-                                                                                <option value="High">High</option>
-                                                                                <option value="Medium">Medium</option>
-                                                                                <option value="Low">Low</option>
-                                                                            </select>
-                                                                        </div>
+                                                {(() => {
+                                                    const allTasks = item.processedResult!.data.extractedTasks!;
+                                                    // Map tasks to their original index to keep track of selection key
+                                                    const indexedTasks = allTasks.map((t, idx) => ({ task: t, originalIndex: idx }));
+                                                    
+                                                    const suggestedTasks = indexedTasks.filter(({ originalIndex }) => isTaskSelected(item.id, originalIndex));
+                                                    const additionalTasks = indexedTasks.filter(({ originalIndex }) => !isTaskSelected(item.id, originalIndex));
+
+                                                    return (
+                                                        <>
+                                                            {/* Suggested Tasks (Selected) */}
+                                                            <div>
+                                                                <div className="flex items-center gap-2 mb-3">
+                                                                    <Sparkles className="w-3 h-3 text-purple-500" />
+                                                                    <h4 className="text-xs font-bold text-gray-900 dark:text-white uppercase tracking-widest">Suggested Actions ({suggestedTasks.length})</h4>
+                                                                </div>
+                                                                {suggestedTasks.length > 0 ? (
+                                                                    <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg overflow-hidden divide-y divide-gray-100 dark:divide-gray-800">
+                                                                        {suggestedTasks.map(({ task: t, originalIndex }) => (
+                                                                            <div key={originalIndex} className="p-3 flex items-start gap-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors group">
+                                                                                <input 
+                                                                                    type="checkbox"
+                                                                                    checked={true}
+                                                                                    onChange={() => toggleTaskSelection(item.id, originalIndex)}
+                                                                                    className="mt-1 w-4 h-4 rounded border-gray-300 text-black focus:ring-black dark:border-gray-600 dark:bg-gray-800 dark:checked:bg-white dark:checked:border-white cursor-pointer"
+                                                                                />
+                                                                                <div className="flex-1 min-w-0 space-y-1.5">
+                                                                                    <div className="flex justify-between items-start gap-4">
+                                                                                        <input 
+                                                                                            type="text" 
+                                                                                            value={t.title}
+                                                                                            onChange={(e) => handleUpdateExtractedTask(item.id, originalIndex, { title: e.target.value })}
+                                                                                            className="flex-1 bg-transparent border-none p-0 text-sm font-medium text-gray-900 dark:text-gray-100 focus:ring-0"
+                                                                                        />
+                                                                                        <div className="relative">
+                                                                                            <select 
+                                                                                                value={t.priority}
+                                                                                                onChange={(e) => handleUpdateExtractedTask(item.id, originalIndex, { priority: e.target.value })}
+                                                                                                className={`appearance-none pl-2 pr-4 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider cursor-pointer outline-none border transition-colors
+                                                                                                    ${t.priority === 'High' ? 'bg-red-50 text-red-600 border-red-100 dark:bg-red-900/30 dark:text-red-400 dark:border-red-900' : 
+                                                                                                    t.priority === 'Medium' ? 'bg-orange-50 text-orange-600 border-orange-100 dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-900' :
+                                                                                                    'bg-blue-50 text-blue-600 border-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-900'
+                                                                                                }`}
+                                                                                            >
+                                                                                                <option value="High">High</option>
+                                                                                                <option value="Medium">Medium</option>
+                                                                                                <option value="Low">Low</option>
+                                                                                            </select>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                    <div className="flex items-center gap-2">
+                                                                                        <div className="flex items-center gap-1 text-[10px] text-gray-400">
+                                                                                            <User className="w-3 h-3" />
+                                                                                            <input 
+                                                                                                type="text" 
+                                                                                                value={t.assignee || 'Unassigned'}
+                                                                                                onChange={(e) => handleUpdateExtractedTask(item.id, originalIndex, { assignee: e.target.value })}
+                                                                                                className="bg-transparent border-none p-0 w-20 focus:ring-0 text-gray-500"
+                                                                                            />
+                                                                                        </div>
+                                                                                    </div>
+                                                                                </div>
+                                                                            </div>
+                                                                        ))}
                                                                     </div>
-                                                                    <div className="flex items-center gap-2">
-                                                                        <div className="flex items-center gap-1 text-[10px] text-gray-400">
-                                                                            <User className="w-3 h-3" />
-                                                                            <input 
-                                                                                type="text" 
-                                                                                value={t.assignee || 'Unassigned'}
-                                                                                onChange={(e) => handleUpdateExtractedTask(item.id, idx, { assignee: e.target.value })}
-                                                                                className="bg-transparent border-none p-0 w-20 focus:ring-0 text-gray-500"
-                                                                            />
-                                                                        </div>
+                                                                ) : (
+                                                                    <div className="text-sm text-gray-400 italic p-2">No actions selected.</div>
+                                                                )}
+                                                            </div>
+
+                                                            {/* Additional Tasks (Unselected) */}
+                                                            {additionalTasks.length > 0 && (
+                                                                <div>
+                                                                    <div className="flex items-center gap-2 mb-3">
+                                                                        <Layers className="w-3 h-3 text-gray-400" />
+                                                                        <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Additional Opportunities ({additionalTasks.length})</h4>
+                                                                    </div>
+                                                                    <div className="pl-2 border-l-2 border-gray-100 dark:border-gray-800 space-y-2 opacity-60 hover:opacity-100 transition-opacity">
+                                                                        {additionalTasks.map(({ task: t, originalIndex }) => (
+                                                                            <div key={originalIndex} className="flex items-center gap-3 p-2 rounded hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                                                                                <input 
+                                                                                    type="checkbox"
+                                                                                    checked={false}
+                                                                                    onChange={() => toggleTaskSelection(item.id, originalIndex)}
+                                                                                    className="w-3.5 h-3.5 rounded border-gray-300 text-gray-500 focus:ring-gray-500 dark:border-gray-600 dark:bg-gray-800 cursor-pointer"
+                                                                                />
+                                                                                <span className="text-xs text-gray-600 dark:text-gray-400 truncate flex-1">{t.title}</span>
+                                                                                <span className="text-[10px] text-gray-400 uppercase">{t.priority}</span>
+                                                                            </div>
+                                                                        ))}
                                                                     </div>
                                                                 </div>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </div>
-
-                                                {/* Additional Tasks (Greyed Out) */}
-                                                {item.processedResult.data.extractedTasks.length > 7 && (
-                                                    <div>
-                                                        <div className="flex items-center gap-2 mb-3">
-                                                            <Layers className="w-3 h-3 text-gray-400" />
-                                                            <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Additional Opportunities ({item.processedResult.data.extractedTasks.length - 7})</h4>
-                                                        </div>
-                                                        <div className="pl-2 border-l-2 border-gray-100 dark:border-gray-800 space-y-2">
-                                                            {item.processedResult.data.extractedTasks.slice(7).map((t, idx) => {
-                                                                const realIdx = idx + 7;
-                                                                const isSelected = !!selectionState[`${item.id}-${realIdx}`];
-                                                                return (
-                                                                    <div key={realIdx} className={`flex items-center gap-3 p-2 rounded hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${!isSelected ? 'opacity-50 hover:opacity-100' : ''}`}>
-                                                                        <input 
-                                                                            type="checkbox"
-                                                                            checked={isSelected}
-                                                                            onChange={() => toggleTaskSelection(item.id, realIdx)}
-                                                                            className="w-3.5 h-3.5 rounded border-gray-300 text-gray-500 focus:ring-gray-500 dark:border-gray-600 dark:bg-gray-800"
-                                                                        />
-                                                                        <span className="text-xs text-gray-600 dark:text-gray-400 truncate flex-1">{t.title}</span>
-                                                                        <span className="text-[10px] text-gray-400 uppercase">{t.priority}</span>
-                                                                    </div>
-                                                                );
-                                                            })}
-                                                        </div>
-                                                    </div>
-                                                )}
+                                                            )}
+                                                        </>
+                                                    );
+                                                })()}
                                             </div>
                                         )}
                                     </div>
@@ -669,7 +661,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
                                             onClick={() => handleImport(item)} 
                                             className="px-6 py-2 bg-black dark:bg-white text-white dark:text-black rounded-lg text-xs font-bold hover:opacity-90 flex items-center gap-2 shadow-sm"
                                         >
-                                            Import {Object.values(selectionState).filter(v => v !== false).length > 0 ? Object.values(selectionState).filter(v => v !== false).length : Math.min(7, item.processedResult.data.extractedTasks?.length || 0)} Items <ArrowRight className="w-3 h-3" />
+                                            Import {item.processedResult.data.extractedTasks ? item.processedResult.data.extractedTasks.filter((_, idx) => isTaskSelected(item.id, idx)).length : 0} Items <ArrowRight className="w-3 h-3" />
                                         </button>
                                     </div>
                                 </>
@@ -696,6 +688,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
                 </div>
             ))}
 
+            {/* Empty State ... */}
             {items.filter(i => i.status === 'pending').length === 0 && (
                 <div className="text-center py-8 text-gray-400 dark:text-gray-600 flex flex-col items-center">
                     <CheckCircle2 className="w-12 h-12 text-gray-200 dark:text-gray-800 mb-6" />

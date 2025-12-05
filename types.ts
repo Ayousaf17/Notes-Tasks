@@ -120,6 +120,8 @@ export interface InboxAction {
     description?: string; 
     content?: string;     
     priority?: TaskPriority;
+    assignee?: string;
+    dueDate?: string;
     // Smart features
     tags?: string[];
     extractedTasks?: Array<{
@@ -148,12 +150,11 @@ export interface Source {
   type: 'document' | 'task';
 }
 
-// NEW: ActionProposal for HITL (Human-in-the-loop) flows
+// Updated ActionProposal for unified flow
 export interface ActionProposal {
-  type: 'create_task';
-  data: Partial<Task>;
-  status: 'proposed' | 'confirmed' | 'cancelled';
-  originalToolCall: string; // To keep track
+  action: InboxAction;
+  status: 'proposed' | 'confirmed' | 'cancelled' | 'saved';
+  originalToolCall: string; 
 }
 
 export interface ChatMessage {
@@ -164,7 +165,7 @@ export interface ChatMessage {
   attachments?: Attachment[];
   sources?: Source[];
   planProposal?: ProjectPlan; 
-  actionProposal?: ActionProposal; // NEW field for UI widgets
+  actionProposal?: ActionProposal; 
 }
 
 export interface Attachment {
