@@ -1,4 +1,4 @@
-import React, { useState, useEffect, ErrorInfo, ReactNode } from 'react';
+import React, { useState, useEffect, ErrorInfo, ReactNode, Component } from 'react';
 import { Sidebar } from './Sidebar';
 import { DocumentEditor } from './DocumentEditor';
 import { TaskBoard } from './TaskBoard';
@@ -33,7 +33,7 @@ interface ErrorBoundaryState {
 }
 
 // Error Boundary Component
-class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = { hasError: false };
@@ -261,6 +261,8 @@ const AppContent: React.FC = () => {
 
   const viewTitle = (currentView === ViewMode.GLOBAL_BOARD || currentView === ViewMode.GLOBAL_CALENDAR)
     ? "Master View"
+    : currentView === ViewMode.INBOX 
+    ? "Inbox"
     : activeProject?.title || 'Loading...';
 
   useEffect(() => {
@@ -522,6 +524,11 @@ const AppContent: React.FC = () => {
       setInboxItems(prev => [newItem, ...prev]);
   };
 
+  // New function to handle InboxItem object directly (for AI Handoff)
+  const handleSaveToInbox = (item: InboxItem) => {
+      setInboxItems(prev => [item, ...prev]);
+  };
+
   const handleDeleteInboxItem = (id: string) => {
       setInboxItems(prev => prev.filter(i => i.id !== id));
   };
@@ -530,7 +537,8 @@ const AppContent: React.FC = () => {
       setInboxItems(prev => prev.map(item => item.id === id ? { ...item, ...updates } : item));
   };
 
-  const handleProcessInboxItem = async (itemId: string, action: InboxAction) => {
+  // Centralized action execution logic
+  const executeInboxAction = async (action: InboxAction) => {
       let targetProjectId = action.targetProjectId;
       
       // Fallback logic: Use activeProjectId if AI returns "default" or no ID
@@ -596,7 +604,6 @@ const AppContent: React.FC = () => {
                    dependencies: []
                }));
                setTasks(prev => [...prev, ...newTasks]);
-               // Use Promise.all to ensure all writes complete
                await Promise.all(newTasks.map(t => dataService.createTask(t)));
            }
       } else if (action.actionType === 'create_client' && action.data.clientData) {
@@ -615,7 +622,10 @@ const AppContent: React.FC = () => {
           setClients(prev => [...prev, newClient]);
           await dataService.createClient(newClient);
       }
+  };
 
+  const handleProcessInboxItem = async (itemId: string, action: InboxAction) => {
+      await executeInboxAction(action);
       setInboxItems(prev => prev.map(item => item.id === itemId ? { ...item, status: 'processed' } : item).filter(i => i.status !== 'processed'));
   };
   
@@ -839,8 +849,8 @@ const AppContent: React.FC = () => {
             clients={clients}
             teamMembers={teamMembers}
             integrations={integrations}
-            onSaveToInbox={handleAddInboxItem} // New handoff handler
-            onExecuteAction={(id, action) => handleProcessInboxItem(id, action)} // New execution handler
+            onSaveToInbox={handleSaveToInbox} // Pass new handler
+            onExecuteAction={async (id, action) => await executeInboxAction(action)} // Pass new handler wrapper
             onAddTask={(task) => {
                 const newTask: Task = {
                     id: crypto.randomUUID(),

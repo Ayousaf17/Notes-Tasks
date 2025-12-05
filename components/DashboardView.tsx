@@ -1,7 +1,8 @@
+
 import React, { useEffect, useState, useMemo } from 'react';
 import { Task, Document, Project, TaskPriority, TaskStatus } from '../types';
 import { geminiService } from '../services/geminiService';
-import { Calendar, Volume2, StopCircle, FileText, Plus, BarChart2, PieChart, Folder, Sparkles } from 'lucide-react';
+import { Calendar, Volume2, StopCircle, FileText, Plus, BarChart2, PieChart, Folder, Sparkles, BookOpen, Quote } from 'lucide-react';
 
 interface DashboardViewProps {
   tasks: Task[];
@@ -14,6 +15,39 @@ interface DashboardViewProps {
   teamMembers?: string[];
 }
 
+// Simple Markdown Renderer for Dashboard Cards
+const SimpleMarkdown: React.FC<{ text: string }> = ({ text }) => {
+    if (!text) return null;
+    const lines = text.split('\n');
+    return (
+        <div className="space-y-1">
+            {lines.map((line, i) => {
+                const cleanLine = line.trim();
+                if (!cleanLine) return null;
+                // Bullets
+                if (cleanLine.startsWith('- ') || cleanLine.startsWith('* ')) {
+                    return (
+                        <div key={i} className="flex items-start gap-2 pl-1">
+                            <div className="w-1.5 h-1.5 mt-2 rounded-full bg-gray-400 dark:bg-gray-600 shrink-0" />
+                            <span className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                                {cleanLine.substring(2).replace(/\*\*(.*?)\*\*/g, (_, bold) => `<strong>${bold}</strong>`).split(/<strong>(.*?)<\/strong>/g).map((part, j) => 
+                                    j % 2 === 1 ? <strong key={j} className="font-semibold text-gray-900 dark:text-white">{part}</strong> : part
+                                )}
+                            </span>
+                        </div>
+                    );
+                }
+                // Headers
+                if (cleanLine.startsWith('#')) {
+                    return <div key={i} className="font-bold text-gray-900 dark:text-white mt-3 mb-1">{cleanLine.replace(/#/g, '').trim()}</div>
+                }
+                // Normal Text
+                return <div key={i} className="text-sm text-gray-600 dark:text-gray-400">{cleanLine}</div>
+            })}
+        </div>
+    );
+};
+
 export const DashboardView: React.FC<DashboardViewProps> = ({ 
     tasks = [], 
     documents = [], 
@@ -25,6 +59,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     teamMembers = ['Me']
 }) => {
   const [briefing, setBriefing] = useState<string | null>(null);
+  const [verseData, setVerseData] = useState<{ verse: string, reference: string, explanation: string } | null>(null);
   const [loadingBriefing, setLoadingBriefing] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
 
@@ -106,12 +141,26 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       if (focusList.length > 0 && !briefing) {
           setLoadingBriefing(true);
           const context = focusList.map(t => `- Task: ${t.title} (Due: ${t.dueDate ? new Date(t.dueDate).toDateString() : 'No Date'}, Priority: ${t.priority})`).join('\n');
+          
+          // Generate Briefing
           geminiService.generateDailyBriefing(userName, context).then(res => {
               setBriefing(res);
               setLoadingBriefing(false);
           });
+
+          // Generate Verse
+          geminiService.generateVerseOfTheDay(context).then(res => {
+              if (res) setVerseData(res);
+          });
+
       } else if (focusList.length === 0 && !briefing) {
            setBriefing(`Good morning. You have a clear schedule today.`);
+           // Generic fallback for empty state
+           setVerseData({
+               verse: "Commit your work to the Lord, and your plans will be established.",
+               reference: "Proverbs 16:3",
+               explanation: "A foundational reminder as you prepare for new work."
+           });
       }
   }, [focusList, userName, briefing]);
 
@@ -141,27 +190,34 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   return (
     <div className="flex-1 h-full bg-white dark:bg-black overflow-y-auto p-4 md:p-8 font-sans animate-in fade-in duration-300">
-      <div className="max-w-5xl mx-auto space-y-12 pb-20">
+      <div className="max-w-5xl mx-auto space-y-8 pb-20">
         
         {/* Header & Briefing */}
-        <div className="space-y-6">
+        <div className="space-y-4">
             <div className="flex items-center justify-between">
-                <div className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
-                    Daily Pulse
+                <div className="flex flex-col">
+                    <h1 className="text-3xl font-serif font-bold text-gray-900 dark:text-white tracking-tight">
+                        Daily Pulse
+                    </h1>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                        {new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
+                    </p>
                 </div>
-                <button onClick={toggleSpeech} className="text-gray-400 hover:text-black dark:hover:text-white transition-colors">
+                <button onClick={toggleSpeech} className="text-gray-400 hover:text-black dark:hover:text-white transition-colors p-2 bg-gray-50 dark:bg-gray-800 rounded-full">
                     {isSpeaking ? <StopCircle className="w-5 h-5 animate-pulse text-red-500" /> : <Volume2 className="w-5 h-5" />}
                 </button>
             </div>
             
-            <div className="relative">
-                <h1 className="text-3xl md:text-5xl font-serif text-gray-900 dark:text-white leading-tight max-w-3xl">
-                    {loadingBriefing ? (
-                        <span className="animate-pulse bg-gray-200 dark:bg-gray-800 rounded text-transparent">Loading briefing...</span>
-                    ) : (
-                        briefing || "Welcome back to your workspace."
-                    )}
-                </h1>
+            {/* Executive Summary Card */}
+            <div className="bg-white dark:bg-zinc-900 border border-gray-100 dark:border-gray-800 rounded-xl p-6 shadow-sm relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-1 h-full bg-black dark:bg-white" />
+                {loadingBriefing ? (
+                    <div className="flex items-center gap-2 text-sm text-gray-500 animate-pulse">
+                        <Sparkles className="w-4 h-4" /> Generating executive summary...
+                    </div>
+                ) : (
+                    <SimpleMarkdown text={briefing || "Welcome back to your workspace."} />
+                )}
             </div>
         </div>
 
@@ -187,35 +243,60 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
             
-            {/* Focus List */}
-            <div className="lg:col-span-2 space-y-6 animate-slide-up delay-200">
-                <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-4">
-                    <h2 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider">Focus</h2>
-                    <span className="text-xs text-gray-400">items: {focusList.length}</span>
-                </div>
-                
-                <div className="space-y-2">
-                    {focusList.length > 0 ? focusList.map(task => (
-                        <div 
-                            key={task.id} 
-                            onClick={() => onNavigate('task', task.id)}
-                            className="group flex items-center p-4 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-600 rounded-xl transition-all cursor-pointer shadow-sm hover:shadow-md"
-                        >
-                            <div className={`w-3 h-3 rounded-full mr-4 shrink-0 ${task.priority === TaskPriority.HIGH ? 'bg-red-500' : 'bg-blue-500'}`} />
-                            <div className="flex-1 min-w-0">
-                                <h3 className="text-sm font-medium text-gray-900 dark:text-white truncate">{task.title}</h3>
-                                {task.dueDate && <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1"><Calendar className="w-3 h-3" /> {new Date(task.dueDate).toLocaleDateString()}</p>}
+            {/* Focus List & Verse */}
+            <div className="lg:col-span-2 space-y-8 animate-slide-up delay-200">
+                {/* Focus List */}
+                <div className="space-y-4">
+                    <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-2">
+                        <h2 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider">Focus Items</h2>
+                        <span className="text-xs text-gray-400">top {focusList.length}</span>
+                    </div>
+                    
+                    <div className="space-y-2">
+                        {focusList.length > 0 ? focusList.map(task => (
+                            <div 
+                                key={task.id} 
+                                onClick={() => onNavigate('task', task.id)}
+                                className="group flex items-center p-4 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-600 rounded-xl transition-all cursor-pointer shadow-sm hover:shadow-md"
+                            >
+                                <div className={`w-3 h-3 rounded-full mr-4 shrink-0 ${task.priority === TaskPriority.HIGH ? 'bg-red-500' : 'bg-blue-500'}`} />
+                                <div className="flex-1 min-w-0">
+                                    <h3 className="text-sm font-medium text-gray-900 dark:text-white truncate">{task.title}</h3>
+                                    {task.dueDate && <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1"><Calendar className="w-3 h-3" /> {new Date(task.dueDate).toLocaleDateString()}</p>}
+                                </div>
+                                <div className="text-xs font-medium text-gray-400 group-hover:text-black dark:group-hover:text-white transition-colors uppercase tracking-wider">
+                                    {task.status}
+                                </div>
                             </div>
-                            <div className="text-xs font-medium text-gray-400 group-hover:text-black dark:group-hover:text-white transition-colors uppercase tracking-wider">
-                                {task.status}
+                        )) : (
+                            <div className="py-8 text-center text-gray-400 text-sm italic border-2 border-dashed border-gray-100 dark:border-gray-800 rounded-xl">
+                                No urgent tasks assigned for today.
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Verse of the Day (Context Aware) */}
+                {verseData && (
+                    <div className="bg-white dark:bg-black rounded-xl border border-gray-200 dark:border-gray-800 p-6 relative overflow-hidden group">
+                        <div className="absolute top-0 right-0 p-4 opacity-10">
+                            <BookOpen className="w-24 h-24 text-gray-900 dark:text-white" />
+                        </div>
+                        <div className="relative z-10">
+                            <div className="flex items-center gap-2 mb-3">
+                                <span className="bg-gray-100 dark:bg-gray-800 text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded text-gray-500">Verse of the Day</span>
+                            </div>
+                            <blockquote className="font-serif text-xl md:text-2xl text-gray-800 dark:text-gray-100 italic leading-relaxed mb-4">
+                                "{verseData.verse}"
+                            </blockquote>
+                            <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4 text-sm">
+                                <cite className="font-bold text-gray-900 dark:text-white not-italic">— {verseData.reference} (ESV)</cite>
+                                <span className="hidden md:inline text-gray-300 dark:text-gray-700">|</span>
+                                <span className="text-gray-500 dark:text-gray-400 text-xs md:text-sm">{verseData.explanation}</span>
                             </div>
                         </div>
-                    )) : (
-                        <div className="py-8 text-center text-gray-400 text-sm italic border-2 border-dashed border-gray-100 dark:border-gray-800 rounded-xl">
-                            No urgent tasks assigned for today.
-                        </div>
-                    )}
-                </div>
+                    </div>
+                )}
             </div>
 
             {/* Right Column */}

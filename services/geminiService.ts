@@ -39,7 +39,7 @@ You ANALYZE, ENRICH, and STRATEGICALLY ORGANIZE information.
 ### CORE BEHAVIORS
 1. **Be Conversational**: If details are missing (e.g., creating a client without a name), ASK the user naturally. Do not output JSON until you have enough info or are confident in the action.
 2. **Hidden Tool Usage**: When you decide to perform a system action (create task, save doc, add client), you MUST wrap the JSON in special tags: \`:::TOOL_CALL:::\` and \`:::END_TOOL_CALL:::\`.
-3. **No Raw JSON**: Never show raw JSON to the user outside of these tags.
+3. **No Raw JSON**: Never show raw JSON to the user outside of these tags. The user should never see a JSON block in the chat bubble.
 
 ### CORE CAPABILITIES
 1. **Enrichment**: Never leave data bare. If a user says "meeting", infer it needs a time, an agenda, and a document.
@@ -597,8 +597,49 @@ export const geminiService = {
   },
 
   async generateDailyBriefing(userName: string, context: string): Promise<string> {
-    if (!apiKey) return `Good morning, ${userName}.`;
-    try { const r = await ai.models.generateContent({ model: MODEL_NAME, contents: `Daily briefing for ${userName} based on: ${context}` }); return r.text || "Ready to start."; } catch (e) { return "Unable to generate."; }
+    if (!apiKey) return `Ready to start.`;
+    try { 
+        const r = await ai.models.generateContent({ 
+            model: MODEL_NAME, 
+            contents: `ROLE: Executive Assistant.
+            TASK: Generate an ultra-concise Executive Summary (Daily Pulse) for ${userName}.
+            INPUT: 
+            ${context}
+            
+            REQUIREMENTS:
+            1. Max 3-5 bullet points total.
+            2. Be direct and punchy. No fluff.
+            3. Highlight critical deadlines or high-priority items only.
+            4. Use Markdown formatting.
+            ` 
+        }); 
+        return r.text || "Your schedule looks clear."; 
+    } catch (e) { return "Unable to generate briefing."; }
+  },
+
+  async generateVerseOfTheDay(context: string): Promise<{ verse: string, reference: string, explanation: string } | null> {
+      if (!apiKey) return null;
+      try {
+          const response = await ai.models.generateContent({
+              model: MODEL_NAME,
+              contents: `ROLE: You are a wise Theologian and Pastor.
+              CONTEXT: The user is working on the following tasks/projects:
+              ${context.substring(0, 1000)}
+              
+              TASK: Select ONE specific Bible verse from the ESV (English Standard Version) that offers wisdom, encouragement, or perspective relevant to this specific workload.
+              
+              OUTPUT: JSON format only.
+              {
+                "verse": "The full text of the verse...",
+                "reference": "Book Chapter:Verse",
+                "explanation": "A 1-sentence connection between this verse and the user's current work context."
+              }`,
+              config: { responseMimeType: "application/json" }
+          });
+          return JSON.parse(response.text || "{}");
+      } catch (e) {
+          return null;
+      }
   },
 
   async performAgentTask(role: AgentRole, taskTitle: string, taskDescription?: string): Promise<AgentResult> {
