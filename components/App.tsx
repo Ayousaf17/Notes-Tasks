@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Component, ErrorInfo, ReactNode } from 'react';
+import React, { useState, useEffect, ErrorInfo, ReactNode } from 'react';
 import { Sidebar } from './Sidebar';
 import { DocumentEditor } from './DocumentEditor';
 import { TaskBoard } from './TaskBoard';
@@ -25,7 +25,7 @@ import { dataService } from '../services/dataService';
 import { supabase } from '../services/supabase';
 
 interface ErrorBoundaryProps {
-  children: ReactNode;
+  children?: ReactNode;
 }
 
 interface ErrorBoundaryState {
@@ -33,7 +33,7 @@ interface ErrorBoundaryState {
 }
 
 // Error Boundary Component
-class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = { hasError: false };
@@ -589,15 +589,33 @@ const AppContent: React.FC = () => {
                    status: TaskStatus.TODO,
                    priority: t.priority || TaskPriority.MEDIUM,
                    assignee: t.assignee || 'Unassigned',
+                   dueDate: t.dueDate ? new Date(t.dueDate) : undefined,
                    linkedDocumentId: newDocId, 
                    createdAt: new Date(),
-                   updatedAt: new Date()
+                   updatedAt: new Date(),
+                   dependencies: []
                }));
                setTasks(prev => [...prev, ...newTasks]);
                // Use Promise.all to ensure all writes complete
                await Promise.all(newTasks.map(t => dataService.createTask(t)));
            }
+      } else if (action.actionType === 'create_client' && action.data.clientData) {
+          const newClient: Client = {
+              id: crypto.randomUUID(),
+              name: action.data.clientData.name,
+              company: action.data.clientData.company,
+              email: action.data.clientData.email || '',
+              status: action.data.clientData.status || 'Lead',
+              value: action.data.clientData.value || 0,
+              tags: ['Inbox'],
+              lastContact: new Date(),
+              activities: [],
+              googleDriveFolder: ''
+          };
+          setClients(prev => [...prev, newClient]);
+          await dataService.createClient(newClient);
       }
+
       setInboxItems(prev => prev.map(item => item.id === itemId ? { ...item, status: 'processed' } : item).filter(i => i.status !== 'processed'));
   };
   

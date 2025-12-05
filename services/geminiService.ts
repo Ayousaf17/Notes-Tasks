@@ -295,7 +295,7 @@ export const geminiService = {
   async organizeInboxItem(content: string, projects: Project[], provider?: 'gemini' | 'openrouter', apiKey?: string, model?: string, attachments: Attachment[] = []): Promise<InboxAction | null> {
       const projectContext = projects.map(p => `ID: ${p.id}, Title: ${p.title}`).join('\n');
       
-      const prompt = `You are an Expert Technical Project Manager. Analyze the following inbox item (text + attachments) and structure it.
+      const prompt = `You are an Expert Technical Project Manager & CRM Specialist. Analyze the following inbox item (text + attachments) and structure it.
       
       **Inbox Text**: "${content}"
       
@@ -308,24 +308,44 @@ export const geminiService = {
            - Extract ALL charts, timelines, and phases as Markdown tables or lists.
            - If it's a 10-page PDF, write a detailed breakdown, not a 1-paragraph summary. Aim for 1000+ words if the source supports it.
       3. **create_project**: Only for massive initiatives with no existing project fit.
+      4. **create_client**: If the content contains contact details for a lead, prospect, or person (e.g. "Meet John Doe from Acme", "Lead: Jane Smith").
+         - Extract 'clientData' object with: name, company, email, value (estimate), status ('Lead' default).
 
-      **Task Extraction**:
-      - Aggressively look for implied or explicit tasks within the document.
-      - Populate the 'extractedTasks' array with every single actionable step found.
+      **Task Extraction Rules**:
+      - Extract actionable steps found in the content.
+      - **CRITICAL**: Sort tasks by IMPORTANCE and URGENCY. Put the most critical tasks first.
+      - Populate the 'extractedTasks' array.
 
-      **CRITICAL INSTRUCTION**: Return ONLY a valid JSON object matching the schema below.
-      
+      **Project Matching**:
+      - Try to match the content to one of the **Available Projects** below.
+      - If it strongly matches an existing project, use its ID.
+      - If it is clearly a NEW initiative, return "NEW: <Suggested Title>" as the targetProjectId.
+      - If uncertain, default to "default" (the user will choose).
+
       **Available Projects**:
       ${projectContext}
+      
+      **CRITICAL INSTRUCTION**: Return ONLY a valid JSON object matching the schema below.
+      
+      Schema Example (Client Lead):
+      {
+        "actionType": "create_client",
+        "targetProjectId": "default",
+        "reasoning": "New lead detected.",
+        "data": { 
+            "title": "New Lead: John Doe", 
+            "clientData": { "name": "John Doe", "company": "Acme Inc", "email": "john@acme.com", "value": 5000, "status": "Lead" }
+        }
+      }
       
       Schema Example (Document + Tasks):
       {
         "actionType": "create_document",
-        "targetProjectId": "p1",
-        "reasoning": "Meeting notes with actions.",
+        "targetProjectId": "p1" OR "NEW: Q3 Marketing",
+        "reasoning": "Meeting notes regarding Q3.",
         "data": { 
             "title": "Meeting Notes: Q3 Review", 
-            "content": "# Q3 Review\n## Executive Summary\n...\n## Timelines\n| Phase | Date |\n|---|---|\n| P1 | Oct 1 |\n...",
+            "content": "# Q3 Review\n## Executive Summary\n...",
             "tags": ["Meeting", "Strategy"],
             "extractedTasks": [
                 { "title": "Update Roadmap", "description": "Based on phase 1 feedback", "priority": "High", "assignee": "Unassigned" }
@@ -339,9 +359,6 @@ export const geminiService = {
 
           // ROUTING LOGIC
           if (provider === 'openrouter' && apiKey) {
-              // OpenRouter typically doesn't support direct file uploads in standard chat completions easily without link hosting.
-              // For this demo, we assume text-only analysis if using OpenRouter, OR we warn the user.
-              // Falling back to text prompt for OpenRouter.
               const openRouterResponse = await this.callOpenRouter(apiKey, model || 'openai/gpt-4o', [], prompt, "You are a JSON-only API.");
               responseText = openRouterResponse;
           } else {

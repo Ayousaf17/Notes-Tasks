@@ -1,6 +1,7 @@
+
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { InboxItem, Project, InboxAction, Integration, TaskPriority, TaskStatus, Task, Attachment, AgentRole } from '../types';
-import { Mic, Sparkles, Archive, Loader2, CheckCircle, FileText, Trash2, StopCircle, Paperclip, X, Check, ArrowRight, ChevronDown, Layers, CheckCircle2, Bot, Search, Lock, Settings, User, Calendar, CheckSquare, File, Tag, Flag } from 'lucide-react';
+import { InboxItem, Project, InboxAction, Integration, TaskPriority, TaskStatus, Task, Attachment, AgentRole, Client } from '../types';
+import { Mic, Sparkles, Archive, Loader2, CheckCircle, FileText, Trash2, StopCircle, Paperclip, X, Check, ArrowRight, ChevronDown, Layers, CheckCircle2, Bot, Search, Lock, Settings, User, Calendar, CheckSquare, File, Tag, Flag, Briefcase, Plus, Folder, UserPlus, Bug, Rocket } from 'lucide-react';
 import { geminiService } from '../services/geminiService';
 
 interface InboxViewProps {
@@ -17,6 +18,11 @@ interface OpenRouterModel {
     id: string;
     name: string;
     description?: string;
+}
+
+// Local interface for UI selection state
+interface TaskSelection {
+    selected: boolean;
 }
 
 export const InboxView: React.FC<InboxViewProps> = ({ 
@@ -43,10 +49,42 @@ export const InboxView: React.FC<InboxViewProps> = ({
   const [isLoadingModels, setIsLoadingModels] = useState(false);
   const [modelSearchQuery, setModelSearchQuery] = useState('');
 
+  // Local state to track task selection for import (Key: ItemID-TaskIndex, Value: boolean)
+  const [selectionState, setSelectionState] = useState<Record<string, boolean>>({});
+  
+  // Local state for "Create Project" input within the card
+  const [newProjectInput, setNewProjectInput] = useState<Record<string, string>>({});
+  const [showProjectInput, setShowProjectInput] = useState<Record<string, boolean>>({});
+
   // Ref for audio & file
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // --- INITIALIZATION ---
+  // Ensure tasks are selected by default when component mounts or items change
+  useEffect(() => {
+      setSelectionState(prev => {
+          const nextState = { ...prev };
+          let hasChanges = false;
+          
+          items.forEach(item => {
+              if (item.processedResult && item.processedResult.data.extractedTasks) {
+                  item.processedResult.data.extractedTasks.forEach((_, idx) => {
+                      const key = `${item.id}-${idx}`;
+                      // Only set default if not already set (preserve user unchecking if they navigated away and back, 
+                      // but in this app simple navigation often remounts, so defaulting to TRUE for top 7 is safer UX than FALSE)
+                      if (nextState[key] === undefined) {
+                          nextState[key] = idx < 7; // Default top 7 selected
+                          hasChanges = true;
+                      }
+                  });
+              }
+          });
+          
+          return hasChanges ? nextState : prev;
+      });
+  }, [items]);
 
   // --- MODEL FETCHING ---
   useEffect(() => {
@@ -189,6 +227,15 @@ export const InboxView: React.FC<InboxViewProps> = ({
                   assignee: t.assignee === 'Unassigned' ? AgentRole.WRITER : t.assignee
               }));
           }
+
+          // Pre-select top 7 tasks immediately
+          const initialSelection: Record<string, boolean> = {};
+          if (result.data.extractedTasks) {
+              result.data.extractedTasks.forEach((_, idx) => {
+                  initialSelection[`${item.id}-${idx}`] = idx < 7;
+              });
+          }
+          setSelectionState(prev => ({ ...prev, ...initialSelection }));
       }
 
       if (result && onUpdateItem) {
@@ -230,22 +277,11 @@ export const InboxView: React.FC<InboxViewProps> = ({
       }
   };
 
-  const handleDeleteExtractedTask = (itemId: string, taskIndex: number) => {
-      if (onUpdateItem) {
-          const item = items.find(i => i.id === itemId);
-          if (item && item.processedResult && item.processedResult.data.extractedTasks) {
-              const newTasks = item.processedResult.data.extractedTasks.filter((_, idx) => idx !== taskIndex);
-              onUpdateItem(itemId, {
-                  processedResult: {
-                      ...item.processedResult,
-                      data: {
-                          ...item.processedResult.data,
-                          extractedTasks: newTasks
-                      }
-                  }
-              });
-          }
-      }
+  const toggleTaskSelection = (itemId: string, index: number) => {
+      setSelectionState(prev => ({
+          ...prev,
+          [`${itemId}-${index}`]: !prev[`${itemId}-${index}`]
+      }));
   };
 
   const getProviderLabel = () => {
@@ -254,6 +290,31 @@ export const InboxView: React.FC<InboxViewProps> = ({
         if (model) return model.name;
         if (isCustomModel) return openRouterModel.split('/')[1] || 'Custom Model';
         return openRouterModel.split('/')[1] || 'OpenRouter';
+  };
+
+  // Helper to handle the "Import All" action with filtering for selected tasks
+  const handleImport = (item: InboxItem) => {
+      if (!item.processedResult) return;
+
+      // DEEP CLONE to prevent mutation of props and ensure clean state handoff
+      const finalResult: InboxAction = JSON.parse(JSON.stringify(item.processedResult));
+      
+      // Handle "New Project" Logic
+      if (showProjectInput[item.id] && newProjectInput[item.id]) {
+          finalResult.targetProjectId = `NEW:${newProjectInput[item.id]}`;
+      }
+
+      // Filter tasks based on selection
+      if (finalResult.data.extractedTasks) {
+          finalResult.data.extractedTasks = finalResult.data.extractedTasks.filter((_, idx) => {
+              const isSelected = selectionState[`${item.id}-${idx}`];
+              // Default to true if undefined (safety net) for top 7, though state init should handle this
+              if (isSelected === undefined) return idx < 7;
+              return isSelected;
+          });
+      }
+
+      onProcessItem(item.id, finalResult);
   };
 
   return (
@@ -384,211 +445,234 @@ export const InboxView: React.FC<InboxViewProps> = ({
                     {item.processedResult ? (
                         <div className="bg-gray-50 dark:bg-gray-950/50 border-t border-gray-100 dark:border-gray-800">
                             
-                            {/* CASE 1: TASK PROPOSAL (Matching Sidebar Style) */}
-                            {item.processedResult.actionType === 'create_task' && (
-                                <div className="p-4">
-                                    <div className="flex items-center gap-2 mb-4 text-xs font-bold text-purple-600 dark:text-purple-400 uppercase tracking-widest">
-                                        <Sparkles className="w-3 h-3" /> Task Proposal
+                            {/* CASE 3: CREATE CLIENT (CRM) */}
+                            {item.processedResult.actionType === 'create_client' && item.processedResult.data.clientData && (
+                                <div className="p-5">
+                                    <div className="flex items-center gap-2 mb-4 text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest">
+                                        <Briefcase className="w-3 h-3" /> New Lead Detected
                                     </div>
-                                    <div className="space-y-4">
-                                        <input 
-                                            type="text" 
-                                            value={item.processedResult.data.title}
-                                            onChange={(e) => handleUpdateActionData(item.id, { title: e.target.value })}
-                                            className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded p-2 text-sm font-medium focus:ring-2 focus:ring-purple-500 outline-none text-gray-900 dark:text-white"
-                                        />
-                                        <div className="grid grid-cols-2 gap-3">
-                                            {/* Project Select */}
-                                            <div className="relative">
-                                                <select 
-                                                    value={item.processedResult.targetProjectId}
-                                                    onChange={(e) => {
-                                                        if (onUpdateItem) onUpdateItem(item.id, { processedResult: { ...item.processedResult!, targetProjectId: e.target.value } });
-                                                    }}
-                                                    className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded p-2 text-xs appearance-none focus:ring-2 focus:ring-purple-500 outline-none text-gray-900 dark:text-white cursor-pointer"
-                                                >
-                                                    {projects.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
-                                                </select>
-                                                <ChevronDown className="w-3 h-3 text-gray-400 absolute right-2 top-2.5 pointer-events-none" />
+                                    <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg p-4 space-y-3">
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="text-[10px] font-bold text-gray-400 uppercase">Contact Name</label>
+                                                <input 
+                                                    type="text" 
+                                                    value={item.processedResult.data.clientData.name}
+                                                    onChange={(e) => handleUpdateActionData(item.id, { clientData: { ...item.processedResult!.data.clientData, name: e.target.value } })}
+                                                    className="w-full bg-transparent border-none p-0 text-sm font-medium text-gray-900 dark:text-white focus:ring-0"
+                                                />
                                             </div>
-                                            {/* Priority Selector (Clean UI) */}
-                                            <div className="flex bg-white dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-800 p-0.5">
-                                                {[TaskPriority.LOW, TaskPriority.MEDIUM, TaskPriority.HIGH].map(p => {
-                                                    const isSelected = item.processedResult!.data.priority === p;
-                                                    let colorClass = 'bg-gray-100 dark:bg-gray-700 text-black dark:text-white';
-                                                    if (isSelected && p === TaskPriority.HIGH) colorClass = 'bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400';
-                                                    if (isSelected && p === TaskPriority.MEDIUM) colorClass = 'bg-orange-50 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400';
-                                                    if (isSelected && p === TaskPriority.LOW) colorClass = 'bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400';
-
-                                                    return (
-                                                        <button 
-                                                            key={p} 
-                                                            onClick={() => handleUpdateActionData(item.id, { priority: p })}
-                                                            className={`flex-1 py-1.5 text-[10px] font-bold uppercase rounded transition-all flex items-center justify-center gap-1.5 ${
-                                                                isSelected ? colorClass : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
-                                                            }`}
-                                                        >
-                                                            {isSelected && <div className={`w-1.5 h-1.5 rounded-full ${p === TaskPriority.HIGH ? 'bg-red-500' : p === TaskPriority.MEDIUM ? 'bg-orange-500' : 'bg-blue-500'}`}></div>}
-                                                            {p}
-                                                        </button>
-                                                    );
-                                                })}
+                                            <div>
+                                                <label className="text-[10px] font-bold text-gray-400 uppercase">Company</label>
+                                                <input 
+                                                    type="text" 
+                                                    value={item.processedResult.data.clientData.company}
+                                                    onChange={(e) => handleUpdateActionData(item.id, { clientData: { ...item.processedResult!.data.clientData, company: e.target.value } })}
+                                                    className="w-full bg-transparent border-none p-0 text-sm font-medium text-gray-900 dark:text-white focus:ring-0"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] font-bold text-gray-400 uppercase">Email</label>
+                                            <input 
+                                                type="text" 
+                                                value={item.processedResult.data.clientData.email || ''}
+                                                onChange={(e) => handleUpdateActionData(item.id, { clientData: { ...item.processedResult!.data.clientData, email: e.target.value } })}
+                                                placeholder="No email detected"
+                                                className="w-full bg-transparent border-none p-0 text-sm text-gray-900 dark:text-white focus:ring-0"
+                                            />
+                                        </div>
+                                        <div className="flex gap-4">
+                                            <div>
+                                                <label className="text-[10px] font-bold text-gray-400 uppercase">Est. Value</label>
+                                                <input 
+                                                    type="number" 
+                                                    value={item.processedResult.data.clientData.value || 0}
+                                                    onChange={(e) => handleUpdateActionData(item.id, { clientData: { ...item.processedResult!.data.clientData, value: parseInt(e.target.value) } })}
+                                                    className="w-24 bg-transparent border-none p-0 text-sm font-medium text-gray-900 dark:text-white focus:ring-0"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="text-[10px] font-bold text-gray-400 uppercase">Status</label>
+                                                <select 
+                                                    value={item.processedResult.data.clientData.status || 'Lead'}
+                                                    onChange={(e) => handleUpdateActionData(item.id, { clientData: { ...item.processedResult!.data.clientData, status: e.target.value } })}
+                                                    className="bg-transparent border-none p-0 text-sm font-medium text-gray-900 dark:text-white focus:ring-0 cursor-pointer"
+                                                >
+                                                    <option value="Lead">Lead</option>
+                                                    <option value="Negotiation">Negotiation</option>
+                                                    <option value="Active">Active</option>
+                                                </select>
                                             </div>
                                         </div>
                                     </div>
-                                    <div className="flex justify-end gap-2 mt-4 pt-3 border-t border-gray-200 dark:border-gray-800">
-                                        <button onClick={() => onDeleteItem(item.id)} className="px-3 py-1.5 text-xs font-medium text-gray-500 hover:text-red-500 transition-colors">Discard</button>
-                                        <button onClick={() => onProcessItem(item.id, item.processedResult!)} className="px-4 py-1.5 bg-black dark:bg-white text-white dark:text-black rounded text-xs font-bold hover:opacity-90">Create Task</button>
+                                    
+                                    <div className="flex justify-end gap-3 mt-4 pt-3 border-t border-gray-200 dark:border-gray-800">
+                                        <button onClick={() => onDeleteItem(item.id)} className="px-3 py-1.5 text-xs font-bold text-gray-500 hover:text-red-500 transition-colors">Discard</button>
+                                        <button onClick={() => onProcessItem(item.id, item.processedResult!)} className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-bold transition-colors">Add to CRM</button>
                                     </div>
                                 </div>
                             )}
 
-                            {/* CASE 2: DOCUMENT + TASKS (Tabbed UI) */}
-                            {(item.processedResult.actionType === 'create_document' || item.processedResult.actionType === 'mixed') && (
-                                <div className="flex flex-col">
-                                    {/* Tabs */}
-                                    <div className="flex border-b border-gray-200 dark:border-gray-800">
-                                        <div className="px-4 py-3 text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest flex items-center gap-2 border-b-2 border-blue-500 bg-blue-50/50 dark:bg-blue-900/10">
-                                            <FileText className="w-3 h-3" /> Page Content
-                                        </div>
-                                        {item.processedResult.data.extractedTasks && item.processedResult.data.extractedTasks.length > 0 && (
-                                            <div className="px-4 py-3 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                                                <CheckSquare className="w-3 h-3" /> {item.processedResult.data.extractedTasks.length} Tasks Found
-                                            </div>
-                                        )}
-                                    </div>
+                            {/* STANDARD CASE: DOC OR TASK */}
+                            {item.processedResult.actionType !== 'create_client' && (
+                                <>
+                                    <div className="p-5">
+                                        {/* Header: Project & Title */}
+                                        <div className="space-y-4 mb-6">
+                                            <div className="flex flex-wrap items-center gap-3">
+                                                <div className="relative">
+                                                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-gray-500 uppercase tracking-wider bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md px-2 py-1">
+                                                        <Folder className="w-3 h-3" />
+                                                        <select 
+                                                            value={showProjectInput[item.id] ? "new" : (item.processedResult.targetProjectId || "default")}
+                                                            onChange={(e) => {
+                                                                const val = e.target.value;
+                                                                if (val === "new") {
+                                                                    setShowProjectInput(prev => ({...prev, [item.id]: true}));
+                                                                } else {
+                                                                    setShowProjectInput(prev => ({...prev, [item.id]: false}));
+                                                                    if (onUpdateItem) onUpdateItem(item.id, { processedResult: { ...item.processedResult!, targetProjectId: val } });
+                                                                }
+                                                            }}
+                                                            className="bg-transparent border-none appearance-none outline-none cursor-pointer"
+                                                        >
+                                                            <option value="default">Default Project</option>
+                                                            {projects.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
+                                                            <option value="new">+ Create New Project</option>
+                                                        </select>
+                                                        <ChevronDown className="w-3 h-3 text-gray-400 pointer-events-none" />
+                                                    </div>
+                                                </div>
+                                                
+                                                {showProjectInput[item.id] && (
+                                                    <input 
+                                                        type="text" 
+                                                        value={newProjectInput[item.id] || ''}
+                                                        onChange={(e) => setNewProjectInput(prev => ({...prev, [item.id]: e.target.value}))}
+                                                        placeholder="New Project Name"
+                                                        className="bg-white dark:bg-gray-800 border border-purple-400 dark:border-purple-600 rounded px-2 py-1 text-xs text-black dark:text-white outline-none w-40"
+                                                        autoFocus
+                                                    />
+                                                )}
 
-                                    <div className="p-5 space-y-5">
-                                        {/* Doc Title */}
-                                        <div>
-                                            <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Page Title</label>
+                                                <div className="flex items-center gap-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md px-2 py-1">
+                                                    {item.processedResult.actionType === 'create_task' ? 'Single Task' : 'Doc + Tasks'}
+                                                </div>
+                                            </div>
+
+                                            {/* Editable Title */}
                                             <input 
                                                 type="text" 
                                                 value={item.processedResult.data.title}
                                                 onChange={(e) => handleUpdateActionData(item.id, { title: e.target.value })}
-                                                className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded p-2 text-sm font-medium focus:ring-2 focus:ring-blue-500 outline-none text-gray-900 dark:text-white"
+                                                className="w-full bg-transparent border-none p-0 text-xl font-semibold text-gray-900 dark:text-white placeholder-gray-400 focus:ring-0"
+                                                placeholder="Title"
                                             />
                                         </div>
 
-                                        {/* Smart Tags */}
-                                        {item.processedResult.data.tags && (
-                                            <div>
-                                                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-2">Smart Tags</label>
-                                                <div className="flex flex-wrap gap-2">
-                                                    {item.processedResult.data.tags.map((tag, idx) => (
-                                                        <span key={idx} className="flex items-center gap-1 px-2 py-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md text-xs text-gray-600 dark:text-gray-300">
-                                                            <Tag className="w-3 h-3" /> #{tag}
-                                                            <button 
-                                                                onClick={() => {
-                                                                    const newTags = item.processedResult!.data.tags!.filter((_, i) => i !== idx);
-                                                                    handleUpdateActionData(item.id, { tags: newTags });
-                                                                }} 
-                                                                className="ml-1 hover:text-red-500"
-                                                            >
-                                                                <X className="w-3 h-3" />
-                                                            </button>
-                                                        </span>
-                                                    ))}
-                                                    <button 
-                                                        onClick={() => {
-                                                            const newTag = prompt("Enter new tag:");
-                                                            if (newTag) {
-                                                                const newTags = [...(item.processedResult!.data.tags || []), newTag];
-                                                                handleUpdateActionData(item.id, { tags: newTags });
-                                                            }
-                                                        }}
-                                                        className="px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded-md text-xs text-gray-500 hover:text-black dark:hover:text-white transition-colors"
-                                                    >
-                                                        + Tag
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {/* Editable Tasks List */}
+                                        {/* Task List Section */}
                                         {item.processedResult.data.extractedTasks && item.processedResult.data.extractedTasks.length > 0 && (
-                                            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg overflow-hidden">
-                                                <div className="px-3 py-2 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-800 text-[10px] font-bold text-gray-500 uppercase">
-                                                    Extracted Action Items
-                                                </div>
-                                                <div className="divide-y divide-gray-100 dark:divide-gray-800 max-h-80 overflow-y-auto">
-                                                    {item.processedResult.data.extractedTasks.map((t, idx) => (
-                                                        <div key={idx} className="p-3 flex items-start gap-3 hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors group">
-                                                            <div className="mt-1 text-blue-500"><CheckCircle2 className="w-4 h-4" /></div>
-                                                            <div className="flex-1 min-w-0 space-y-2">
-                                                                {/* Task Title Input */}
+                                            <div className="space-y-6">
+                                                
+                                                {/* Suggested Tasks (Top 7) */}
+                                                <div>
+                                                    <div className="flex items-center gap-2 mb-3">
+                                                        <Sparkles className="w-3 h-3 text-purple-500" />
+                                                        <h4 className="text-xs font-bold text-gray-900 dark:text-white uppercase tracking-widest">Suggested Actions</h4>
+                                                    </div>
+                                                    <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg overflow-hidden divide-y divide-gray-100 dark:divide-gray-800">
+                                                        {item.processedResult.data.extractedTasks.slice(0, 7).map((t, idx) => (
+                                                            <div key={idx} className="p-3 flex items-start gap-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors group">
                                                                 <input 
-                                                                    type="text" 
-                                                                    value={t.title}
-                                                                    onChange={(e) => handleUpdateExtractedTask(item.id, idx, { title: e.target.value })}
-                                                                    className="w-full bg-transparent border-none p-0 text-xs font-medium text-gray-900 dark:text-white focus:ring-0 placeholder-gray-400"
-                                                                    placeholder="Task Title"
+                                                                    type="checkbox"
+                                                                    checked={selectionState[`${item.id}-${idx}`] !== false} // Default true if undefined
+                                                                    onChange={() => toggleTaskSelection(item.id, idx)}
+                                                                    className="mt-1 w-4 h-4 rounded border-gray-300 text-black focus:ring-black dark:border-gray-600 dark:bg-gray-800 dark:checked:bg-white dark:checked:border-white"
                                                                 />
-                                                                
-                                                                {/* Row 2: Priority & Assignee */}
-                                                                <div className="flex items-center gap-2">
-                                                                    <div className="relative">
-                                                                        <select 
-                                                                            value={t.priority} 
-                                                                            onChange={(e) => handleUpdateExtractedTask(item.id, idx, { priority: e.target.value as TaskPriority })}
-                                                                            className={`text-[10px] uppercase font-bold py-0.5 pl-1.5 pr-4 rounded border appearance-none cursor-pointer focus:ring-0 focus:border-transparent ${
-                                                                                t.priority === 'High' ? 'text-red-600 bg-red-50 border-red-100' :
-                                                                                t.priority === 'Medium' ? 'text-orange-600 bg-orange-50 border-orange-100' :
-                                                                                'text-blue-600 bg-blue-50 border-blue-100'
-                                                                            }`}
-                                                                        >
-                                                                            <option value="High">High</option>
-                                                                            <option value="Medium">Medium</option>
-                                                                            <option value="Low">Low</option>
-                                                                        </select>
-                                                                        <Flag className="w-2 h-2 absolute right-1.5 top-1.5 pointer-events-none opacity-50" />
-                                                                    </div>
-                                                                    
-                                                                    <div className="text-[10px] text-gray-400 flex items-center gap-1">
-                                                                        <User className="w-3 h-3" />
+                                                                <div className="flex-1 min-w-0 space-y-1.5">
+                                                                    <div className="flex justify-between items-start gap-4">
                                                                         <input 
-                                                                            type="text"
-                                                                            value={t.assignee || AgentRole.WRITER}
-                                                                            onChange={(e) => handleUpdateExtractedTask(item.id, idx, { assignee: e.target.value })}
-                                                                            placeholder="Unassigned"
-                                                                            className="bg-transparent border-none p-0 w-24 focus:ring-0 text-gray-600 dark:text-gray-300"
+                                                                            type="text" 
+                                                                            value={t.title}
+                                                                            onChange={(e) => handleUpdateExtractedTask(item.id, idx, { title: e.target.value })}
+                                                                            className="flex-1 bg-transparent border-none p-0 text-sm font-medium text-gray-900 dark:text-gray-100 focus:ring-0"
                                                                         />
+                                                                        {/* Minimal Priority Pill */}
+                                                                        <div className="relative">
+                                                                            <select 
+                                                                                value={t.priority}
+                                                                                onChange={(e) => handleUpdateExtractedTask(item.id, idx, { priority: e.target.value })}
+                                                                                className={`appearance-none pl-2 pr-4 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider cursor-pointer outline-none border transition-colors
+                                                                                    ${t.priority === 'High' ? 'bg-red-50 text-red-600 border-red-100 dark:bg-red-900/30 dark:text-red-400 dark:border-red-900' : 
+                                                                                    t.priority === 'Medium' ? 'bg-orange-50 text-orange-600 border-orange-100 dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-900' :
+                                                                                    'bg-blue-50 text-blue-600 border-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-900'
+                                                                                }`}
+                                                                            >
+                                                                                <option value="High">High</option>
+                                                                                <option value="Medium">Medium</option>
+                                                                                <option value="Low">Low</option>
+                                                                            </select>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="flex items-center gap-2">
+                                                                        <div className="flex items-center gap-1 text-[10px] text-gray-400">
+                                                                            <User className="w-3 h-3" />
+                                                                            <input 
+                                                                                type="text" 
+                                                                                value={t.assignee || 'Unassigned'}
+                                                                                onChange={(e) => handleUpdateExtractedTask(item.id, idx, { assignee: e.target.value })}
+                                                                                className="bg-transparent border-none p-0 w-20 focus:ring-0 text-gray-500"
+                                                                            />
+                                                                        </div>
                                                                     </div>
                                                                 </div>
                                                             </div>
-                                                            <button 
-                                                                onClick={() => handleDeleteExtractedTask(item.id, idx)}
-                                                                className="p-1 text-gray-300 hover:text-red-500 rounded opacity-0 group-hover:opacity-100 transition-all"
-                                                                title="Remove Task"
-                                                            >
-                                                                <Trash2 className="w-3.5 h-3.5" />
-                                                            </button>
-                                                        </div>
-                                                    ))}
+                                                        ))}
+                                                    </div>
                                                 </div>
-                                                <button 
-                                                    onClick={() => {
-                                                        const newTasks = [...(item.processedResult!.data.extractedTasks || []), { title: 'New Task', priority: TaskPriority.MEDIUM, assignee: AgentRole.WRITER }];
-                                                        handleUpdateActionData(item.id, { extractedTasks: newTasks });
-                                                    }}
-                                                    className="w-full py-2 text-[10px] font-bold text-gray-400 hover:text-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors border-t border-gray-100 dark:border-gray-800"
-                                                >
-                                                    + Add Another Task
-                                                </button>
+
+                                                {/* Additional Tasks (Greyed Out) */}
+                                                {item.processedResult.data.extractedTasks.length > 7 && (
+                                                    <div>
+                                                        <div className="flex items-center gap-2 mb-3">
+                                                            <Layers className="w-3 h-3 text-gray-400" />
+                                                            <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Additional Opportunities ({item.processedResult.data.extractedTasks.length - 7})</h4>
+                                                        </div>
+                                                        <div className="pl-2 border-l-2 border-gray-100 dark:border-gray-800 space-y-2">
+                                                            {item.processedResult.data.extractedTasks.slice(7).map((t, idx) => {
+                                                                const realIdx = idx + 7;
+                                                                const isSelected = !!selectionState[`${item.id}-${realIdx}`];
+                                                                return (
+                                                                    <div key={realIdx} className={`flex items-center gap-3 p-2 rounded hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${!isSelected ? 'opacity-50 hover:opacity-100' : ''}`}>
+                                                                        <input 
+                                                                            type="checkbox"
+                                                                            checked={isSelected}
+                                                                            onChange={() => toggleTaskSelection(item.id, realIdx)}
+                                                                            className="w-3.5 h-3.5 rounded border-gray-300 text-gray-500 focus:ring-gray-500 dark:border-gray-600 dark:bg-gray-800"
+                                                                        />
+                                                                        <span className="text-xs text-gray-600 dark:text-gray-400 truncate flex-1">{t.title}</span>
+                                                                        <span className="text-[10px] text-gray-400 uppercase">{t.priority}</span>
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </div>
                                         )}
                                     </div>
 
-                                    <div className="flex justify-end gap-2 p-4 bg-gray-50 dark:bg-gray-900/30 border-t border-gray-200 dark:border-gray-800">
-                                        <button onClick={() => onDeleteItem(item.id)} className="px-3 py-2 text-xs font-medium text-gray-500 hover:text-red-500 transition-colors">Discard</button>
+                                    <div className="flex justify-end gap-3 p-4 bg-gray-50 dark:bg-gray-900/30 border-t border-gray-200 dark:border-gray-800">
+                                        <button onClick={() => onDeleteItem(item.id)} className="px-4 py-2 text-xs font-bold text-gray-500 hover:text-red-500 transition-colors">Discard</button>
                                         <button 
-                                            onClick={() => onProcessItem(item.id, item.processedResult!)} 
-                                            className="px-6 py-2 bg-black dark:bg-white text-white dark:text-black rounded-lg text-xs font-bold hover:opacity-90 flex items-center gap-2"
+                                            onClick={() => handleImport(item)} 
+                                            className="px-6 py-2 bg-black dark:bg-white text-white dark:text-black rounded-lg text-xs font-bold hover:opacity-90 flex items-center gap-2 shadow-sm"
                                         >
-                                            Import All <ArrowRight className="w-3 h-3" />
+                                            Import {Object.values(selectionState).filter(v => v !== false).length > 0 ? Object.values(selectionState).filter(v => v !== false).length : Math.min(7, item.processedResult.data.extractedTasks?.length || 0)} Items <ArrowRight className="w-3 h-3" />
                                         </button>
                                     </div>
-                                </div>
+                                </>
                             )}
                         </div>
                     ) : (
@@ -613,9 +697,41 @@ export const InboxView: React.FC<InboxViewProps> = ({
             ))}
 
             {items.filter(i => i.status === 'pending').length === 0 && (
-                <div className="text-center py-12 text-gray-400 dark:text-gray-600 flex flex-col items-center">
-                    <CheckCircle2 className="w-16 h-16 text-gray-200 dark:text-gray-800 mb-4" />
-                    <p className="text-sm font-medium">Inbox Zero. You're all caught up.</p>
+                <div className="text-center py-8 text-gray-400 dark:text-gray-600 flex flex-col items-center">
+                    <CheckCircle2 className="w-12 h-12 text-gray-200 dark:text-gray-800 mb-6" />
+                    <p className="text-sm font-medium mb-6">Inbox Zero. Start something new.</p>
+                    
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3 max-w-2xl w-full px-4">
+                        <button onClick={() => setInputText("New Lead: [Name]\nCompany: [Company]\nEmail: [Email]\nValue: [1000]")} className="p-4 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 hover:border-blue-400 dark:hover:border-blue-500 transition-all hover:shadow-md text-left group">
+                            <UserPlus className="w-6 h-6 text-blue-500 mb-3 group-hover:scale-110 transition-transform" />
+                            <div className="text-xs font-bold text-gray-900 dark:text-white">New Lead</div>
+                            <div className="text-[10px] text-gray-500 mt-1">Capture prospect details</div>
+                        </button>
+                        
+                        <button onClick={() => setInputText("Project Kickoff: [Project Name]\nGoal: [Main Goal]\n\nKey Milestones:\n- [ ] Phase 1\n- [ ] Phase 2")} className="p-4 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 hover:border-purple-400 dark:hover:border-purple-500 transition-all hover:shadow-md text-left group">
+                            <Rocket className="w-6 h-6 text-purple-500 mb-3 group-hover:scale-110 transition-transform" />
+                            <div className="text-xs font-bold text-gray-900 dark:text-white">Project Kickoff</div>
+                            <div className="text-[10px] text-gray-500 mt-1">Plan new initiative</div>
+                        </button>
+
+                        <button onClick={() => setInputText("Bug Report: [Issue Title]\nSeverity: High\n\nSteps to Reproduce:\n1. ...\n\nExpected Result: ...")} className="p-4 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 hover:border-red-400 dark:hover:border-red-500 transition-all hover:shadow-md text-left group">
+                            <Bug className="w-6 h-6 text-red-500 mb-3 group-hover:scale-110 transition-transform" />
+                            <div className="text-xs font-bold text-gray-900 dark:text-white">Bug Report</div>
+                            <div className="text-[10px] text-gray-500 mt-1">Log issue & assign</div>
+                        </button>
+
+                        <button onClick={() => setInputText("Meeting Notes: [Title]\nAttendees: [Names]\n\nKey Discussion Points:\n- ...\n\nAction Items:\n- ...")} className="p-4 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 hover:border-green-400 dark:hover:border-green-500 transition-all hover:shadow-md text-left group">
+                            <FileText className="w-6 h-6 text-green-500 mb-3 group-hover:scale-110 transition-transform" />
+                            <div className="text-xs font-bold text-gray-900 dark:text-white">Meeting Notes</div>
+                            <div className="text-[10px] text-gray-500 mt-1">Log & extract tasks</div>
+                        </button>
+
+                        <button onClick={() => fileInputRef.current?.click()} className="p-4 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 hover:border-orange-400 dark:hover:border-orange-500 transition-all hover:shadow-md text-left group">
+                            <FileText className="w-6 h-6 text-orange-500 mb-3 group-hover:scale-110 transition-transform" />
+                            <div className="text-xs font-bold text-gray-900 dark:text-white">Contract Review</div>
+                            <div className="text-[10px] text-gray-500 mt-1">Upload PDF to analyze</div>
+                        </button>
+                    </div>
                 </div>
             )}
         </div>

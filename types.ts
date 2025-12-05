@@ -113,7 +113,7 @@ export interface InboxItem {
 }
 
 export interface InboxAction {
-  actionType: 'create_task' | 'create_document' | 'create_project' | 'mixed';
+  actionType: 'create_task' | 'create_document' | 'create_project' | 'create_client' | 'mixed';
   targetProjectId: string;
   data: {
     title: string;
@@ -129,6 +129,14 @@ export interface InboxAction {
         assignee?: string;
         dueDate?: string;
     }>;
+    // CRM Data
+    clientData?: {
+        name: string;
+        company: string;
+        email?: string;
+        value?: number;
+        status?: 'Lead' | 'Negotiation' | 'Active' | 'Churned';
+    };
   };
   projectPlan?: ProjectPlan; 
   reasoning: string;
