@@ -13,75 +13,18 @@ export const dataService = {
 
         const { data: documents, error: docsError } = await supabase.from('documents').select('*');
         if (docsError) console.warn("Supabase Documents Error:", docsError);
-        
-        // Mock Clients Data (since DB might not have table yet)
-        const mockClients: Client[] = [
-            { 
-                id: 'c1', 
-                name: 'Alice Johnson', 
-                company: 'TechFlow Corp', 
-                email: 'alice@techflow.com', 
-                status: 'Active', 
-                value: 45000, 
-                lastContact: new Date(), 
-                tags: ['SaaS', 'Enterprise'],
-                activities: [
-                    { id: 'a1', type: 'call', content: 'Quarterly review call - Positive feedback on V2.', timestamp: new Date(Date.now() - 86400000) },
-                    { id: 'a2', type: 'email', content: 'Sent contract renewal proposal.', timestamp: new Date(Date.now() - 86400000 * 5) }
-                ]
-            },
-            { 
-                id: 'c2', 
-                name: 'Bob Smith', 
-                company: 'Smith Designs', 
-                email: 'bob@smith.com', 
-                status: 'Lead', 
-                value: 5000, 
-                lastContact: new Date(Date.now() - 86400000 * 3), 
-                tags: ['Design', 'Small Biz'],
-                activities: [
-                    { id: 'a3', type: 'note', content: 'Met at conference. Interested in branding package.', timestamp: new Date(Date.now() - 86400000 * 10) }
-                ]
-            },
-            { 
-                id: 'c3', 
-                name: 'Charlie Davis', 
-                company: 'Omega Logistics', 
-                email: 'c.davis@omega.io', 
-                status: 'Negotiation', 
-                value: 120000, 
-                lastContact: new Date(Date.now() - 86400000 * 1), 
-                tags: ['Logistics'],
-                activities: [
-                    { id: 'a4', type: 'meeting', content: 'Demo with CTO went well. Waiting on budget approval.', timestamp: new Date(Date.now() - 86400000 * 2) }
-                ]
-            },
-            { 
-                id: 'c4', 
-                name: 'Diana Prince', 
-                company: 'Global Exports', 
-                email: 'diana@global.com', 
-                status: 'Churned', 
-                value: 0, 
-                lastContact: new Date(Date.now() - 86400000 * 60), 
-                tags: ['Retail'],
-                activities: [
-                    { id: 'a5', type: 'email', content: 'Client cancelled due to budget cuts.', timestamp: new Date(Date.now() - 86400000 * 60) }
-                ]
-            }
-        ];
 
-        // Link projects to clients for demo
-        const mappedProjects = (projects || []).map((p: any, index: number) => ({
+        const { data: clients, error: clientsError } = await supabase.from('clients').select('*');
+        if (clientsError) console.warn("Supabase Clients Error:", clientsError);
+        
+        return {
+          projects: (projects || []).map((p: any) => ({
             id: p.id,
             title: p.title,
             icon: p.icon,
-            clientId: index === 0 ? 'c1' : index === 1 ? 'c3' : undefined, // Assign first project to Alice, second to Omega
+            clientId: p.client_id, 
             createdAt: p.created_at ? new Date(p.created_at) : new Date()
-        })) as Project[];
-
-        return {
-          projects: mappedProjects,
+          })) as Project[],
           
           tasks: (tasks || []).map((t: any) => ({
             id: t.id,
@@ -97,6 +40,7 @@ export const dataService = {
             linkedDocumentId: t.linked_document_id,
             agentStatus: t.agent_status,
             agentResult: t.agent_result,
+            externalType: t.external_type,
             createdAt: t.created_at ? new Date(t.created_at) : new Date(),
             updatedAt: t.updated_at ? new Date(t.updated_at) : new Date()
           })) as Task[],
@@ -110,7 +54,18 @@ export const dataService = {
             updatedAt: d.updated_at ? new Date(d.updated_at) : new Date()
           })) as Document[],
 
-          clients: mockClients
+          clients: (clients || []).map((c: any) => ({
+            id: c.id,
+            name: c.name,
+            company: c.company,
+            email: c.email,
+            status: c.status,
+            value: c.value,
+            lastContact: c.last_contact ? new Date(c.last_contact) : new Date(),
+            tags: c.tags || [],
+            activities: c.activities ? c.activities.map((a: any) => ({...a, timestamp: new Date(a.timestamp)})) : [],
+            googleDriveFolder: c.google_drive_folder
+          })) as Client[]
         };
     } catch (e) {
         console.error("CRITICAL: Failed to fetch data from Supabase. Returning empty state to prevent crash.", e);
@@ -151,6 +106,7 @@ export const dataService = {
             linked_document_id: task.linkedDocumentId,
             agent_status: task.agentStatus,
             agent_result: task.agentResult,
+            external_type: task.externalType,
             created_at: task.createdAt.toISOString(),
             updated_at: task.updatedAt.toISOString()
         });
@@ -212,6 +168,47 @@ export const dataService = {
     } catch (e) { console.error("Delete Document Failed", e); }
   },
 
+  // CLIENTS
+  async createClient(client: Client) {
+      try {
+          await supabase.from('clients').insert({
+              id: client.id,
+              name: client.name,
+              company: client.company,
+              email: client.email,
+              status: client.status,
+              value: client.value,
+              last_contact: client.lastContact.toISOString(),
+              tags: client.tags,
+              activities: client.activities,
+              google_drive_folder: client.googleDriveFolder,
+              created_at: new Date().toISOString()
+          });
+      } catch (e) { console.error("Create Client Failed", e); }
+  },
+
+  async updateClient(clientId: string, updates: Partial<Client>) {
+      try {
+          const dbUpdates: any = {};
+          if (updates.name !== undefined) dbUpdates.name = updates.name;
+          if (updates.company !== undefined) dbUpdates.company = updates.company;
+          if (updates.email !== undefined) dbUpdates.email = updates.email;
+          if (updates.status !== undefined) dbUpdates.status = updates.status;
+          if (updates.value !== undefined) dbUpdates.value = updates.value;
+          if (updates.lastContact !== undefined) dbUpdates.last_contact = updates.lastContact.toISOString();
+          if (updates.tags !== undefined) dbUpdates.tags = updates.tags;
+          if (updates.activities !== undefined) dbUpdates.activities = updates.activities;
+          
+          await supabase.from('clients').update(dbUpdates).eq('id', clientId);
+      } catch (e) { console.error("Update Client Failed", e); }
+  },
+
+  async deleteClient(clientId: string) {
+      try {
+          await supabase.from('clients').delete().eq('id', clientId);
+      } catch (e) { console.error("Delete Client Failed", e); }
+  },
+
   async fetchGoogleEvents(): Promise<Task[]> {
     // Simulation
     const now = new Date();
@@ -238,18 +235,6 @@ export const dataService = {
             status: TaskStatus.TODO, 
             priority: TaskPriority.MEDIUM, 
             dueDate: tomorrow, 
-            assignee: 'Google Calendar', 
-            externalType: 'GOOGLE_CALENDAR',
-            createdAt: now, 
-            updatedAt: now 
-        },
-        { 
-            id: 'g_cal_3', 
-            projectId: '', 
-            title: 'Product Demo', 
-            status: TaskStatus.TODO, 
-            priority: TaskPriority.HIGH, 
-            dueDate: nextWeek, 
             assignee: 'Google Calendar', 
             externalType: 'GOOGLE_CALENDAR',
             createdAt: now, 

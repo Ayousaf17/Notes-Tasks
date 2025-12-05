@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef, ErrorInfo } from 'react';
+
+import React, { useState, useEffect, useRef, ErrorInfo, Component, ReactNode } from 'react';
 import { Sidebar } from './Sidebar';
 import { DocumentEditor } from './DocumentEditor';
 import { TaskBoard } from './TaskBoard';
@@ -26,7 +27,7 @@ import { supabase } from '../services/supabase';
 
 // ERROR BOUNDARY COMPONENT
 interface ErrorBoundaryProps {
-  children?: React.ReactNode;
+  children?: ReactNode;
 }
 
 interface ErrorBoundaryState {
@@ -35,10 +36,13 @@ interface ErrorBoundaryState {
 }
 
 class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  public state: ErrorBoundaryState = {
-    hasError: false,
-    error: null
-  };
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = {
+      hasError: false,
+      error: null
+    };
+  }
 
   static getDerivedStateFromError(error: Error): ErrorBoundaryState {
     return { hasError: true, error };
@@ -107,7 +111,6 @@ const MobileBottomNav = ({ currentView, onChangeView, onOpenMenu, onSearch }: { 
 
 const AppContent: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewMode>(ViewMode.HOME); 
-  // History Stack for Navigation "Back" functionality
   const [viewHistory, setViewHistory] = useState<ViewMode[]>([]);
 
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
@@ -115,14 +118,21 @@ const AppContent: React.FC = () => {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   
-  // Navigation Handler with History
   const navigateToView = (newView: ViewMode) => {
     if (newView === currentView) return;
     setViewHistory(prev => [...prev, currentView]);
     setCurrentView(newView);
   };
 
-  // Optimized Swipe Logic: Using Refs to prevent re-renders on scroll
+  const handleBack = () => {
+    if (viewHistory.length === 0) return false;
+    const prevView = viewHistory[viewHistory.length - 1];
+    setViewHistory(prev => prev.slice(0, -1));
+    setCurrentView(prevView);
+    return true;
+  };
+
+  // Optimized Swipe Logic
   const touchStart = useRef<number | null>(null);
   const touchEnd = useRef<number | null>(null);
   const minSwipeDistance = 50;
@@ -151,12 +161,8 @@ const AppContent: React.FC = () => {
       setIsMobileSidebarOpen(false);
     }
     if (isRightSwipe) {
-      // Left-to-Right Swipe (Back or Open Sidebar)
-      if (viewHistory.length > 0) {
-        const prevView = viewHistory[viewHistory.length - 1];
-        setViewHistory(prev => prev.slice(0, -1));
-        setCurrentView(prevView);
-      } else {
+      const didGoBack = handleBack();
+      if (!didGoBack) {
           setIsMobileSidebarOpen(true);
       }
       setIsChatOpen(false);
@@ -231,27 +237,31 @@ const AppContent: React.FC = () => {
     }
   }, [isDarkMode]);
 
-  // Integrations State
+  // Integrations State - LOAD KEYS FROM LOCAL STORAGE
   const [isIntegrationsOpen, setIsIntegrationsOpen] = useState(false);
-  const [integrations, setIntegrations] = useState<Integration[]>([
-      { id: 'google', name: 'Google Workspace', description: 'Sync Docs, Calendar, and Drive.', icon: Cloud, connected: false, category: 'Cloud' },
-      { id: 'openrouter', name: 'OpenRouter', description: 'Access GPT-4o, Claude 3.5, and Llama 3 via one key.', icon: Network, connected: false, category: 'AI' },
-  ]);
+  const [integrations, setIntegrations] = useState<Integration[]>(() => {
+      const defaultIntegrations: Integration[] = [
+          { id: 'google', name: 'Google Workspace', description: 'Sync Docs, Calendar, and Drive.', icon: Cloud, connected: false, category: 'Cloud' },
+          { id: 'openrouter', name: 'OpenRouter', description: 'Access GPT-4o, Claude 3.5, and Llama 3.', icon: Network, connected: false, category: 'AI' },
+      ];
+      
+      // Attempt to load connected state and keys
+      if (typeof window !== 'undefined') {
+          return defaultIntegrations.map(int => {
+              const storedKey = localStorage.getItem(`integration_${int.id}_key`);
+              if (storedKey) {
+                  return { ...int, connected: true, config: { apiKey: storedKey } };
+              }
+              return int;
+          });
+      }
+      return defaultIntegrations;
+  });
   
-  const [projects, setProjects] = useState<Project[]>([
-      { id: 'p1', title: 'V2 Redesign', createdAt: new Date() },
-      { id: 'p2', title: 'Marketing Launch', createdAt: new Date() },
-      { id: 'p3', title: 'Backend Migration', createdAt: new Date() }
-  ]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [activeProjectId, setActiveProjectId] = useState<string>('p1');
-
-  const [documents, setDocuments] = useState<Document[]>([
-    { id: 'd1', projectId: 'p1', title: 'Design System Specs', content: '# V2 Design System\n\n- Primary Color: #000000\n- Typography: Inter\n\nSee [[Marketing Launch]] for usage guidelines.', updatedAt: new Date(), tags: ['Specs', 'Design'] },
-    { id: 'd2', projectId: 'p2', title: 'Q3 Campaign', content: '# Q3 Campaign Strategy\n\nFocus on "Zero Friction" messaging.\n\nTasks:\n- [ ] nexus://task/t2', updatedAt: new Date(), tags: ['Strategy'] }
-  ]);
-  
-  const [activeDocId, setActiveDocId] = useState<string | null>('d1');
-  
+  const [documents, setDocuments] = useState<Document[]>([]);
+  const [activeDocId, setActiveDocId] = useState<string | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
 
@@ -348,7 +358,7 @@ const AppContent: React.FC = () => {
       await dataService.createProject(newProject);
   };
 
-  const handleCreateClient = (clientData: Partial<Client>) => {
+  const handleCreateClient = async (clientData: Partial<Client>) => {
       const newClient: Client = {
           id: crypto.randomUUID(),
           name: clientData.name!,
@@ -362,6 +372,12 @@ const AppContent: React.FC = () => {
           googleDriveFolder: `https://drive.google.com/drive/folders/simulated_${crypto.randomUUID()}` 
       };
       setClients(prev => [...prev, newClient]);
+      await dataService.createClient(newClient);
+  };
+
+  const handleDeleteClient = async (clientId: string) => {
+      setClients(prev => prev.filter(c => c.id !== clientId));
+      await dataService.deleteClient(clientId);
   };
 
   const handleSelectProject = (projectId: string) => {
@@ -770,6 +786,7 @@ const AppContent: React.FC = () => {
                         clients={clients} 
                         projects={projects} 
                         onAddClient={() => setIsCreateClientModalOpen(true)}
+                        onDeleteClient={handleDeleteClient}
                       />
                   ) : currentView === ViewMode.REVIEW ? (
                       <ReviewWizard inboxItems={inboxItems} tasks={tasks} projects={projects} onProcessInboxItem={handleProcessInboxItem} onDeleteInboxItem={handleDeleteInboxItem} onDeleteTask={handleDeleteTask} onUpdateTaskStatus={handleUpdateTaskStatus} onUpdateTaskAssignee={handleUpdateTaskAssignee} onClose={() => navigateToView(ViewMode.HOME)} />

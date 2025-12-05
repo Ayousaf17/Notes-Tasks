@@ -1,6 +1,6 @@
 
-import React, { useState } from 'react';
-import { User, Trash2, Plus, Moon, Sun, Database, ShieldAlert, Folder, Cloud, MessageSquare, Check, Loader2, Lock, AlertCircle, Plug, ShieldCheck, Globe, Key } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { User, Trash2, Plus, Moon, Sun, Database, ShieldAlert, Folder, Cloud, MessageSquare, Check, Loader2, Lock, AlertCircle, Plug, ShieldCheck, Globe, Key, Save } from 'lucide-react';
 import { Project, Integration } from '../types';
 
 interface SettingsViewProps {
@@ -33,6 +33,19 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [connectingId, setConnectingId] = useState<string | null>(null);
   const [apiKeyInput, setApiKeyInput] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Database Connection State
+  const [dbUrl, setDbUrl] = useState('');
+  const [dbKey, setDbKey] = useState('');
+  const [isSavingDb, setIsSavingDb] = useState(false);
+
+  useEffect(() => {
+      // Load existing DB configs
+      const storedUrl = localStorage.getItem('aasani_supabase_url');
+      const storedKey = localStorage.getItem('aasani_supabase_key');
+      if (storedUrl) setDbUrl(storedUrl);
+      if (storedKey) setDbKey(storedKey);
+  }, []);
 
   const handleAddMember = () => {
       if (newMember.trim() && !(teamMembers || []).includes(newMember.trim())) {
@@ -72,6 +85,19 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       setIsSubmitting(false);
       setConnectingId(null);
       setApiKeyInput('');
+  };
+
+  const handleSaveDatabase = () => {
+      if (!dbUrl.trim() || !dbKey.trim()) return;
+      setIsSavingDb(true);
+      localStorage.setItem('aasani_supabase_url', dbUrl.trim());
+      localStorage.setItem('aasani_supabase_key', dbKey.trim());
+      
+      // Simulate delay then reload to apply new client
+      setTimeout(() => {
+          setIsSavingDb(false);
+          window.location.reload();
+      }, 1000);
   };
 
   const tabs = [
@@ -260,6 +286,53 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             {/* DATA TAB */}
             {activeTab === 'data' && (
                 <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
+                    
+                    {/* SUPABASE CONNECTION FORM */}
+                    <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 p-6">
+                        <div className="mb-4">
+                            <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                                <Database className="w-5 h-5 text-green-600" /> Database Connection
+                            </h2>
+                            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Connect your own Supabase project to persist data.</p>
+                        </div>
+                        
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase mb-1">Project URL</label>
+                                <input 
+                                    type="text" 
+                                    value={dbUrl}
+                                    onChange={(e) => setDbUrl(e.target.value)}
+                                    placeholder="https://your-project.supabase.co"
+                                    className="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-sm focus:ring-2 focus:ring-black dark:focus:ring-white outline-none dark:text-white"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase mb-1">Anon Key</label>
+                                <input 
+                                    type="password" 
+                                    value={dbKey}
+                                    onChange={(e) => setDbKey(e.target.value)}
+                                    placeholder="eyJh..."
+                                    className="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-sm focus:ring-2 focus:ring-black dark:focus:ring-white outline-none dark:text-white"
+                                />
+                            </div>
+                            <div className="pt-2">
+                                <button 
+                                    onClick={handleSaveDatabase}
+                                    disabled={isSavingDb}
+                                    className="w-full px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-bold transition-colors flex items-center justify-center gap-2"
+                                >
+                                    {isSavingDb ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                                    Save & Connect
+                                </button>
+                                <p className="text-[10px] text-gray-400 mt-2 text-center">
+                                    Credentials are saved to your browser's local storage. Page will reload on save.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
                     <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 p-6">
                         <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                             <Folder className="w-5 h-5" /> Manage Projects

@@ -1,17 +1,19 @@
 
 import React, { useState } from 'react';
 import { Client, Project, ClientActivity } from '../types';
-import { Mail, Briefcase, DollarSign, Clock, Users, Search, Plus, Filter, MoreHorizontal, LayoutGrid, List, Phone, Calendar, CheckCircle2, MessageSquare, Send, X, FileText, ChevronRight, Folder } from 'lucide-react';
+import { Mail, Briefcase, DollarSign, Clock, Users, Search, Plus, Filter, MoreHorizontal, LayoutGrid, List, Phone, Calendar, CheckCircle2, MessageSquare, Send, X, FileText, ChevronRight, Folder, Trash2 } from 'lucide-react';
+import { dataService } from '../services/dataService';
 
 interface ClientsViewProps {
   clients: Client[];
   projects: Project[];
   onAddClient: () => void;
+  onDeleteClient: (id: string) => void;
 }
 
 const STAGES = ['Lead', 'Negotiation', 'Active', 'Churned'];
 
-export const ClientsView: React.FC<ClientsViewProps> = ({ clients, projects, onAddClient }) => {
+export const ClientsView: React.FC<ClientsViewProps> = ({ clients, projects, onAddClient, onDeleteClient }) => {
   const [viewMode, setViewMode] = useState<'list' | 'pipeline'>('list');
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [activityInput, setActivityInput] = useState('');
@@ -19,7 +21,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({ clients, projects, onA
   // Calculate Total Pipeline Value
   const totalValue = clients.reduce((acc, curr) => acc + curr.value, 0);
 
-  const handleAddActivity = () => {
+  const handleAddActivity = async () => {
       if (!activityInput.trim() || !selectedClient) return;
       
       const newActivity: ClientActivity = {
@@ -29,9 +31,22 @@ export const ClientsView: React.FC<ClientsViewProps> = ({ clients, projects, onA
           timestamp: new Date()
       };
 
-      // In a real app, this would update the DB. For now, we mutate local state for the UI effect
-      selectedClient.activities = [newActivity, ...(selectedClient.activities || [])];
+      const updatedActivities = [newActivity, ...(selectedClient.activities || [])];
+      
+      // Update local state immediately for UX
+      setSelectedClient({ ...selectedClient, activities: updatedActivities });
       setActivityInput('');
+
+      // Persist to DB
+      await dataService.updateClient(selectedClient.id, { activities: updatedActivities });
+  };
+
+  const handleDelete = () => {
+      if (!selectedClient) return;
+      if (window.confirm(`Are you sure you want to delete ${selectedClient.company}?`)) {
+          onDeleteClient(selectedClient.id);
+          setSelectedClient(null);
+      }
   };
 
   return (
@@ -251,8 +266,8 @@ export const ClientsView: React.FC<ClientsViewProps> = ({ clients, projects, onA
                       <button className="flex-1 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-bold text-gray-700 dark:text-gray-300 flex items-center justify-center gap-2 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                           <Phone className="w-3.5 h-3.5" /> Call
                       </button>
-                      <button className="flex-1 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-bold text-gray-700 dark:text-gray-300 flex items-center justify-center gap-2 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                          <Calendar className="w-3.5 h-3.5" /> Schedule
+                      <button onClick={handleDelete} className="flex-1 py-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-xs font-bold text-red-600 dark:text-red-400 flex items-center justify-center gap-2 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors">
+                          <Trash2 className="w-3.5 h-3.5" /> Delete
                       </button>
                   </div>
               </div>
