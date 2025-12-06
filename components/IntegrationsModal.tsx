@@ -1,6 +1,6 @@
 
-import React, { useState, useEffect } from 'react';
-import { X, Cloud, MessageSquare, Check, Loader2, Key, ExternalLink, AlertCircle, Cpu, RefreshCw } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, Cloud, MessageSquare, Check, Loader2, Key, ExternalLink, AlertCircle, Cpu, RefreshCw, Search, ChevronDown } from 'lucide-react';
 import { Integration } from '../types';
 import { geminiService } from '../services/geminiService';
 
@@ -24,6 +24,11 @@ export const IntegrationsModal: React.FC<IntegrationsModalProps> = ({
   // Model Selection State
   const [availableModels, setAvailableModels] = useState<{id: string, name: string}[]>([]);
   const [isLoadingModels, setIsLoadingModels] = useState(false);
+  
+  // Custom Dropdown State
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [modelSearch, setModelSearch] = useState('');
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Auto-fetch models if OpenRouter is present (connected or connecting)
   useEffect(() => {
@@ -39,13 +44,23 @@ export const IntegrationsModal: React.FC<IntegrationsModalProps> = ({
       }
   }, [isOpen, connectingId, integrations]);
 
+  useEffect(() => {
+      // Click outside listener for dropdown
+      const handleClickOutside = (event: MouseEvent) => {
+          if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+              setIsDropdownOpen(false);
+          }
+      };
+      if (isDropdownOpen) document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isDropdownOpen]);
+
   if (!isOpen) return null;
 
   const categories = ['Cloud', 'AI'];
 
   const handleConnectClick = (integration: Integration) => {
       if (integration.connected) {
-          // Disconnect
           onToggleIntegration(integration.id, 'disconnect');
           return;
       }
@@ -54,7 +69,6 @@ export const IntegrationsModal: React.FC<IntegrationsModalProps> = ({
           setConnectingId(integration.id);
           setApiKeyInput('');
       } else {
-          // Simulate Cloud OAuth
           setIsSubmitting(true);
           setTimeout(() => {
               onToggleIntegration(integration.id, 'connect');
@@ -66,14 +80,9 @@ export const IntegrationsModal: React.FC<IntegrationsModalProps> = ({
   const handleSaveKey = async (id: string) => {
       const trimmedKey = apiKeyInput.trim();
       if (!trimmedKey) return;
-      
       setIsSubmitting(true);
       await new Promise(resolve => setTimeout(resolve, 800));
-      
-      // Default model if none selected yet
-      const config = { apiKey: trimmedKey };
-      await onToggleIntegration(id, 'connect', config);
-      
+      await onToggleIntegration(id, 'connect', { apiKey: trimmedKey });
       setIsSubmitting(false);
       setConnectingId(null);
       setApiKeyInput('');
@@ -81,16 +90,21 @@ export const IntegrationsModal: React.FC<IntegrationsModalProps> = ({
 
   const handleModelChange = async (id: string, modelId: string) => {
       await onToggleIntegration(id, 'update', { model: modelId });
+      setIsDropdownOpen(false);
+      setModelSearch('');
   };
+
+  const filteredModels = availableModels.filter(m => 
+      m.name.toLowerCase().includes(modelSearch.toLowerCase()) || 
+      m.id.toLowerCase().includes(modelSearch.toLowerCase())
+  );
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose}></div>
       
-      {/* Main Modal */}
       <div className="relative bg-white dark:bg-gray-900 w-full max-w-4xl rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-800 flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-200 font-sans overflow-hidden">
         
-        {/* Header */}
         <div className="flex items-center justify-between px-8 py-6 border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 z-10">
           <div>
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
@@ -104,7 +118,6 @@ export const IntegrationsModal: React.FC<IntegrationsModalProps> = ({
           </button>
         </div>
 
-        {/* Content */}
         <div className="flex-1 overflow-y-auto p-8 bg-gray-50/50 dark:bg-gray-950/50">
           <div className="grid grid-cols-1 gap-y-12">
             {categories.map(category => (
@@ -133,24 +146,61 @@ export const IntegrationsModal: React.FC<IntegrationsModalProps> = ({
                                                 </div>
                                                 <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 leading-relaxed">{integration.description}</p>
                                                 
-                                                {/* Connected State: Show Model Picker for OpenRouter */}
+                                                {/* Connected State: Show Searchable Model Picker for OpenRouter */}
                                                 {integration.connected && integration.id === 'openrouter' && (
-                                                    <div className="mt-3">
-                                                        <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Active Model</label>
-                                                        <div className="relative">
-                                                            <Cpu className="absolute left-2 top-2 w-3 h-3 text-gray-400" />
-                                                            <select 
-                                                                value={integration.config?.model || ''} 
-                                                                onChange={(e) => handleModelChange(integration.id, e.target.value)}
-                                                                className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded text-xs py-1.5 pl-7 pr-4 focus:ring-1 focus:ring-black dark:focus:ring-white outline-none appearance-none cursor-pointer text-gray-700 dark:text-gray-200"
-                                                            >
-                                                                <option value="">Default (GPT-4o)</option>
-                                                                {availableModels.map(m => (
-                                                                    <option key={m.id} value={m.id}>{m.name}</option>
-                                                                ))}
-                                                            </select>
-                                                            {isLoadingModels && <div className="absolute right-2 top-2"><Loader2 className="w-3 h-3 animate-spin text-gray-400"/></div>}
-                                                        </div>
+                                                    <div className="mt-3 relative" ref={dropdownRef}>
+                                                        <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Active Global Model</label>
+                                                        
+                                                        <button 
+                                                            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                                                            className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded text-xs py-2 px-3 text-left flex items-center justify-between hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                                                        >
+                                                            <div className="flex items-center gap-2 truncate">
+                                                                <Cpu className="w-3 h-3 text-gray-400 shrink-0" />
+                                                                <span className="text-gray-700 dark:text-gray-200 truncate">
+                                                                    {availableModels.find(m => m.id === integration.config?.model)?.name || integration.config?.model || 'Default (GPT-4o)'}
+                                                                </span>
+                                                            </div>
+                                                            {isLoadingModels ? <Loader2 className="w-3 h-3 animate-spin text-gray-400"/> : <ChevronDown className="w-3 h-3 text-gray-400"/>}
+                                                        </button>
+
+                                                        {isDropdownOpen && (
+                                                            <div className="absolute top-full left-0 w-full mt-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl z-20 max-h-60 flex flex-col overflow-hidden">
+                                                                <div className="p-2 border-b border-gray-100 dark:border-gray-800">
+                                                                    <div className="flex items-center gap-2 bg-gray-50 dark:bg-gray-800 px-2 py-1.5 rounded">
+                                                                        <Search className="w-3 h-3 text-gray-400" />
+                                                                        <input 
+                                                                            type="text" 
+                                                                            autoFocus
+                                                                            placeholder="Search..." 
+                                                                            value={modelSearch}
+                                                                            onChange={(e) => setModelSearch(e.target.value)}
+                                                                            className="w-full bg-transparent text-xs outline-none dark:text-white"
+                                                                        />
+                                                                    </div>
+                                                                </div>
+                                                                <div className="overflow-y-auto flex-1">
+                                                                    <button 
+                                                                        onClick={() => handleModelChange(integration.id, '')}
+                                                                        className="w-full text-left px-3 py-2 text-xs text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-800"
+                                                                    >
+                                                                        Reset to Default
+                                                                    </button>
+                                                                    {filteredModels.map(m => (
+                                                                        <button 
+                                                                            key={m.id}
+                                                                            onClick={() => handleModelChange(integration.id, m.id)}
+                                                                            className={`w-full text-left px-3 py-2 text-xs hover:bg-purple-50 dark:hover:bg-purple-900/20 truncate ${integration.config?.model === m.id ? 'text-purple-600 font-bold bg-purple-50 dark:bg-purple-900/10' : 'text-gray-700 dark:text-gray-300'}`}
+                                                                        >
+                                                                            {m.name}
+                                                                        </button>
+                                                                    ))}
+                                                                    {filteredModels.length === 0 && (
+                                                                        <div className="p-3 text-center text-xs text-gray-400">No matching models.</div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 )}
                                             </div>

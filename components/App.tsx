@@ -1,4 +1,5 @@
-import React, { useState, useEffect, ErrorInfo, ReactNode, createContext, useContext } from 'react';
+
+import React, { useState, useEffect, Component, ErrorInfo, ReactNode, createContext, useContext } from 'react';
 import { Sidebar } from './Sidebar';
 import { DocumentEditor } from './DocumentEditor';
 import { TaskBoard } from './TaskBoard';
@@ -50,7 +51,7 @@ interface ErrorBoundaryState {
   hasError: boolean;
 }
 
-class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = { hasError: false };

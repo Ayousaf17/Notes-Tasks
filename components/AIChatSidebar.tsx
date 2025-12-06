@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { ChatMessage, ProjectPlan, Document, Task, Integration, TaskStatus, TaskPriority, Project, Client, ActionProposal, Attachment, AgentRole, InboxAction, InboxItem, FocusItem } from '../types';
-import { Send, X, Bot, Paperclip, Loader2, Sparkles, User, ChevronDown, Lock, Settings, Search, CheckCircle2, Calendar, Briefcase, Flag, Plus, File, Folder, Layers, ArrowRight, Eye, Target, MessageSquare, Cpu } from 'lucide-react';
+import { Send, X, Bot, Paperclip, Loader2, Sparkles, User, ChevronDown, Lock, Settings, Search, CheckCircle2, Calendar, Briefcase, Flag, Plus, File, Folder, Layers, ArrowRight, Eye, Target, MessageSquare, Cpu, Globe } from 'lucide-react';
 import { geminiService } from '../services/geminiService';
 import { analyticsService } from '../services/analyticsService';
 
@@ -82,10 +82,12 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
     
     // Model Selection Local State
     const [showModelList, setShowModelList] = useState(false);
+    const [modelSearch, setModelSearch] = useState('');
     const [availableModels, setAvailableModels] = useState<{id: string, name: string}[]>([]);
     
     const [attachments, setAttachments] = useState<Attachment[]>([]);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const searchInputRef = useRef<HTMLInputElement>(null);
 
     // Derive active provider/model from props
     const openRouterInt = integrations?.find(i => i.id === 'openrouter');
@@ -102,6 +104,12 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
             geminiService.fetchOpenRouterModels().then(setAvailableModels);
         }
     }, [isOpen, messages, isUsingOpenRouter]);
+
+    useEffect(() => {
+        if (showModelList && searchInputRef.current) {
+            searchInputRef.current.focus();
+        }
+    }, [showModelList]);
 
     // Initial Message on Focus Change
     useEffect(() => {
@@ -207,7 +215,14 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
             onUpdateIntegration('openrouter', 'update', { model: modelId });
         }
         setShowModelList(false);
+        setModelSearch('');
     };
+
+    const filteredModels = useMemo(() => {
+        if (!modelSearch) return availableModels;
+        const lower = modelSearch.toLowerCase();
+        return availableModels.filter(m => m.name.toLowerCase().includes(lower) || m.id.toLowerCase().includes(lower));
+    }, [availableModels, modelSearch]);
 
     return (
         <>
@@ -215,7 +230,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
             <div className={`fixed right-0 top-0 bottom-0 w-full md:w-[450px] bg-white dark:bg-black border-l border-gray-100 dark:border-gray-800 shadow-2xl z-40 transform transition-transform duration-300 flex flex-col ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}>
                 
                 {/* Header */}
-                <div className="p-4 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-white dark:bg-black">
+                <div className="p-4 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-white dark:bg-black relative z-50">
                     <div className="flex flex-col">
                         <div className="flex items-center gap-2">
                             <Sparkles className="w-4 h-4 text-purple-600" />
@@ -228,27 +243,44 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                                 className={`text-[10px] flex items-center gap-1 px-1.5 py-0.5 rounded transition-colors ${isUsingOpenRouter ? 'hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer text-gray-500 dark:text-gray-400' : 'text-gray-400 cursor-default'}`}
                             >
                                 <Cpu className="w-3 h-3" />
-                                <span className="truncate max-w-[150px]">{currentModelName}</span>
+                                <span className="truncate max-w-[200px]">{currentModelName}</span>
                                 {isUsingOpenRouter && <ChevronDown className="w-3 h-3" />}
                             </button>
                             
-                            {/* Model Dropdown */}
+                            {/* Model Dropdown with Search */}
                             {showModelList && (
-                                <div className="absolute top-full left-0 mt-2 w-64 max-h-64 overflow-y-auto bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl z-50 animate-in fade-in zoom-in-95">
-                                    <div className="p-2 sticky top-0 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800">
-                                        <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Select Model</div>
+                                <div className="absolute top-full left-0 mt-2 w-72 max-h-80 overflow-hidden bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-2xl z-50 animate-in fade-in zoom-in-95 flex flex-col">
+                                    <div className="p-2 border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900">
+                                        <div className="flex items-center gap-1 bg-white dark:bg-gray-800 px-2 py-1.5 rounded-md border border-gray-200 dark:border-gray-700">
+                                            <Search className="w-3 h-3 text-gray-400" />
+                                            <input 
+                                                ref={searchInputRef}
+                                                type="text" 
+                                                placeholder="Search models..." 
+                                                value={modelSearch}
+                                                onChange={(e) => setModelSearch(e.target.value)}
+                                                className="w-full bg-transparent text-xs outline-none text-gray-700 dark:text-gray-200 placeholder-gray-400"
+                                            />
+                                        </div>
+                                        <div className="text-[9px] text-gray-400 mt-1 pl-1 flex items-center gap-1">
+                                            <Globe className="w-3 h-3" /> Global Model Selection
+                                        </div>
                                     </div>
-                                    {availableModels.length > 0 ? availableModels.map(m => (
-                                        <button 
-                                            key={m.id} 
-                                            onClick={() => handleModelSelect(m.id)}
-                                            className="w-full text-left px-3 py-2 text-xs text-gray-700 dark:text-gray-300 hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:text-purple-700 dark:hover:text-purple-300 truncate"
-                                        >
-                                            {m.name}
-                                        </button>
-                                    )) : (
-                                        <div className="p-4 text-center text-xs text-gray-400">Loading models...</div>
-                                    )}
+                                    <div className="overflow-y-auto flex-1">
+                                        {filteredModels.length > 0 ? filteredModels.map(m => (
+                                            <button 
+                                                key={m.id} 
+                                                onClick={() => handleModelSelect(m.id)}
+                                                className="w-full text-left px-3 py-2 text-xs text-gray-700 dark:text-gray-300 hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:text-purple-700 dark:hover:text-purple-300 truncate border-b border-gray-50 dark:border-gray-800 last:border-0"
+                                            >
+                                                {m.name}
+                                            </button>
+                                        )) : (
+                                            <div className="p-4 text-center text-xs text-gray-400">
+                                                {availableModels.length === 0 ? "Loading models..." : "No matching models."}
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             )}
                         </div>
@@ -277,4 +309,33 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                                         proposal={msg.actionProposal}
                                         onConfirm={(action: any) => { if(onExecuteAction) onExecuteAction('new', action); }}
                                         onSaveToInbox={(action: any) => { if(onSaveToInbox) onSaveToInbox(action); }}
-                                        
+                                        onCancel={() => {}}
+                                    />
+                                )}
+                            </div>
+                        </div>
+                    ))}
+                    {isThinking && <div className="text-xs text-gray-400 p-2">Thinking...</div>}
+                    <div ref={messagesEndRef} />
+                </div>
+
+                {/* Input Area */}
+                <div className="p-4 border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-black">
+                    <div className="relative flex items-center gap-2">
+                        <input
+                            type="text"
+                            value={input}
+                            onChange={(e) => setInput(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                            placeholder="Type a message..."
+                            className="flex-1 bg-gray-100 dark:bg-gray-800 border-none rounded-full px-4 py-2 text-sm focus:ring-2 focus:ring-purple-500 dark:text-white"
+                        />
+                        <button onClick={handleSendMessage} className="p-2 bg-black dark:bg-white text-white dark:text-black rounded-full">
+                            <Send className="w-4 h-4" />
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </>
+    );
+};
