@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, ErrorInfo, ReactNode, createContext, useContext } from 'react';
+import React, { useState, useEffect, ErrorInfo, ReactNode, createContext, useContext, Component } from 'react';
 import { Sidebar } from './Sidebar';
 import { DocumentEditor } from './DocumentEditor';
 import { TaskBoard } from './TaskBoard';
@@ -19,11 +19,12 @@ import { CreateProjectModal } from './CreateProjectModal';
 import { ConfirmationModal } from './ConfirmationModal';
 import { ClientsView } from './ClientsView';
 import { CreateClientModal } from './CreateClientModal';
-import { ViewMode, Document, Task, TaskStatus, ProjectPlan, TaskPriority, ChatMessage, Project, InboxItem, InboxAction, AgentRole, Integration, Client, Attachment } from '../types';
+import { ViewMode, Document, Task, TaskStatus, ProjectPlan, TaskPriority, ChatMessage, Project, InboxItem, InboxAction, AgentRole, Integration, Client, Attachment, FocusItem } from '../types';
 import { Sparkles, Command, Plus, Menu, Cloud, MessageSquare, Home, Inbox, Search, CheckSquare, X, CheckCircle, AlertTriangle, Info } from 'lucide-react';
 import { geminiService } from '../services/geminiService';
 import { dataService } from '../services/dataService';
 import { supabase } from '../services/supabase';
+import { analyticsService } from '../services/analyticsService';
 
 // --- Toast System ---
 type ToastType = 'success' | 'error' | 'info' | 'warning';
@@ -50,8 +51,11 @@ interface ErrorBoundaryState {
   hasError: boolean;
 }
 
-class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  state: ErrorBoundaryState = { hasError: false };
+class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false };
+  }
 
   static getDerivedStateFromError(_: Error): ErrorBoundaryState {
     return { hasError: true };
@@ -178,21 +182,25 @@ const AppContent: React.FC = () => {
       });
   };
 
-  // Dark Mode State
+  // Dark Mode State - Fixed Initialization
   const [isDarkMode, setIsDarkMode] = useState(() => {
     if (typeof window !== 'undefined') {
-        return localStorage.getItem('theme') === 'dark' || 
-               (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        const stored = localStorage.getItem('theme');
+        if (stored === 'dark') return true;
+        if (stored === 'light') return false;
+        return window.matchMedia('(prefers-color-scheme: dark)').matches;
     }
     return false;
   });
 
+  // Ensure class is applied on mount/change
   useEffect(() => {
+    const root = document.documentElement;
     if (isDarkMode) {
-        document.documentElement.classList.add('dark');
+        root.classList.add('dark');
         localStorage.setItem('theme', 'dark');
     } else {
-        document.documentElement.classList.remove('dark');
+        root.classList.remove('dark');
         localStorage.setItem('theme', 'light');
     }
   }, [isDarkMode]);
@@ -238,6 +246,7 @@ const AppContent: React.FC = () => {
 
   // NEW: State for connecting Inbox to Chat
   const [activeInboxItemId, setActiveInboxItemId] = useState<string | null>(null);
+  const [activeFocusItem, setActiveFocusItem] = useState<FocusItem | null>(null);
 
   // Load Data from Supabase on Mount & Setup Realtime Subscription
   useEffect(() => {
@@ -284,6 +293,37 @@ const AppContent: React.FC = () => {
       return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  // --- SELF ENRICHMENT SYSTEM ---
+  // Suggestions for incomplete data
+  const [enrichmentCandidates, setEnrichmentCandidates] = useState<Task[]>([]);
+  
+  useEffect(() => {
+      const candidates = tasks.filter(t => 
+          (t.status === TaskStatus.TODO) && 
+          (!t.description || t.description.length < 10) &&
+          !t.agentStatus // Don't re-enrich active agent tasks
+      ).slice(0, 3); // Top 3 candidates
+      setEnrichmentCandidates(candidates);
+  }, [tasks]);
+
+  const handleAutoEnrichAll = async () => {
+      addToast(`Enriching ${enrichmentCandidates.length} tasks...`, 'info');
+      for (const task of enrichmentCandidates) {
+          try {
+              const enriched = await geminiService.enrichTask(task.title, task.description || '');
+              updateTask(task.id, { 
+                  title: enriched.title, 
+                  description: enriched.description, 
+                  updatedAt: new Date() 
+              });
+          } catch (e) {
+              console.error("Enrichment failed for", task.title);
+          }
+      }
+      addToast("Tasks enriched by System", 'success');
+      setEnrichmentCandidates([]);
+  };
+
   const activeProject = projects.find(p => p.id === activeProjectId) || projects[0];
   const projectDocs = documents.filter(d => d.projectId === activeProjectId);
   const projectTasks = tasks.filter(t => t.projectId === activeProjectId);
@@ -323,7 +363,7 @@ const AppContent: React.FC = () => {
           setProjects(prev => [...prev, newProject]);
           setActiveProjectId(newProject.id);
           setActiveDocId(null);
-          setCurrentView(ViewMode.DOCUMENTS);
+          setCurrentView(ViewMode.PROJECT_OVERVIEW); // Go to overview
           await dataService.createProject(newProject);
           addToast(`Project "${title}" created`, 'success');
       } catch (error) {
@@ -335,7 +375,6 @@ const AppContent: React.FC = () => {
   const handleSelectProject = (projectId: string) => {
       setActiveProjectId(projectId);
       setActiveDocId(null);
-      // Switch to Project Overview instead of auto-opening documents
       setCurrentView(ViewMode.PROJECT_OVERVIEW); 
   };
 
@@ -472,6 +511,12 @@ const AppContent: React.FC = () => {
       } else {
           updateTask(id, { agentStatus: 'idle' });
       }
+  };
+
+  // Helper: "Rolodex" Implicit Linking
+  const detectClientLink = (text: string): string | undefined => {
+      const match = clients.find(c => text.toLowerCase().includes(c.name.toLowerCase()) || text.toLowerCase().includes(c.company.toLowerCase()));
+      return match ? match.id : undefined;
   };
 
   const handleUpdateTaskDueDate = (id: string, date: Date) => updateTask(id, { dueDate: date });
@@ -615,8 +660,6 @@ const AppContent: React.FC = () => {
   };
 
   // New function to handle InboxItem object directly (for AI Handoff)
-  // FIX: This now correctly handles updating an EXISTING item or CREATING a new one if ID provided or just creates a new one.
-  // BUT the chat sends `InboxAction` not `InboxItem`. We need to adapt.
   const handleSaveToInbox = (action: InboxAction) => {
       // If we are currently focusing on an item, update THAT item.
       if (activeInboxItemId) {
@@ -650,6 +693,21 @@ const AppContent: React.FC = () => {
       setInboxItems(prev => prev.map(item => item.id === id ? { ...item, ...updates } : item));
   };
 
+  // Universal Update Handler (For Chat Tool Calls)
+  const handleUpdateEntity = (type: 'task'|'document'|'client'|'project', id: string, updates: any) => {
+      if (type === 'task') {
+          setTasks(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
+          dataService.updateTask(id, updates);
+      } else if (type === 'document') {
+          setDocuments(prev => prev.map(d => d.id === id ? { ...d, ...updates } : d));
+          dataService.updateDocument(id, updates);
+      } else if (type === 'client') {
+          setClients(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
+          dataService.updateClient(id, updates);
+      }
+      addToast(`${type} updated`, 'success');
+  };
+
   // Centralized action execution logic
   const executeInboxAction = async (action: InboxAction) => {
       try {
@@ -675,6 +733,7 @@ const AppContent: React.FC = () => {
           }
 
           if (action.actionType === 'create_task') {
+              const relatedClientId = detectClientLink(action.data.title + " " + (action.data.description || ""));
               const newTask: Task = {
                   id: crypto.randomUUID(),
                   projectId: targetProjectId,
@@ -685,6 +744,7 @@ const AppContent: React.FC = () => {
                   assignee: 'Unassigned',
                   dueDate: action.data.dueDate ? new Date(action.data.dueDate) : undefined,
                   dependencies: [],
+                  relatedClientId,
                   createdAt: new Date(),
                   updatedAt: new Date()
               };
@@ -800,12 +860,16 @@ const AppContent: React.FC = () => {
   // New: Handoff from Inbox to Chat
   const handleDiscussInboxItem = (item: InboxItem) => {
       setActiveInboxItemId(item.id);
+      setActiveFocusItem({ type: 'inbox', data: item }); // Set Focus for chat
+      setIsChatOpen(true);
+  };
+
+  const handleDiscussTask = (task: Task) => {
+      setActiveFocusItem({ type: 'task', data: task });
       setIsChatOpen(true);
   };
 
   const activeDocument = documents.find(d => d.id === activeDocId);
-  
-  // Find the focused item for chat context
   const activeInboxItem = activeInboxItemId ? inboxItems.find(i => i.id === activeInboxItemId) : null;
 
   // CONTEXT STRING GENERATION
@@ -851,6 +915,19 @@ const AppContent: React.FC = () => {
                 </div>
             ))}
         </div>
+
+        {/* Enrichment Banner */}
+        {enrichmentCandidates.length > 0 && (
+            <div className="fixed bottom-24 right-6 z-[190] md:bottom-6 md:right-20 pointer-events-auto animate-in slide-in-from-bottom-6 fade-in duration-500">
+                <button 
+                    onClick={handleAutoEnrichAll}
+                    className="flex items-center gap-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-3 rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all"
+                >
+                    <Sparkles className="w-5 h-5 animate-pulse" />
+                    <span className="text-sm font-bold">Enrich {enrichmentCandidates.length} Tasks</span>
+                </button>
+            </div>
+        )}
 
         <Sidebar
             currentView={currentView}
@@ -992,6 +1069,7 @@ const AppContent: React.FC = () => {
                             onPromoteTask={handlePromoteTask} 
                             onNavigate={handleNavigate} 
                             onSelectTask={setSelectedTaskId}
+                            onDiscussTask={handleDiscussTask} // Connect Discuss
                             users={teamMembers}
                             projects={projects}
                             isGlobalView={currentView === ViewMode.GLOBAL_BOARD}
@@ -1023,8 +1101,8 @@ const AppContent: React.FC = () => {
                 onClose={() => setIsChatOpen(false)}
                 // Pass the dynamic context string for the HUD
                 contextData={getContextData()}
-                // Pass the Active Inbox Item Object so Chat knows what it's focusing on
-                activeInboxItem={activeInboxItem}
+                // Pass the Active Focus Item (Inbox, Task, etc)
+                focusItem={activeFocusItem}
                 onProjectPlanCreated={handleProjectPlanCreated}
                 messages={chatMessages}
                 setMessages={setChatMessages}
@@ -1036,6 +1114,7 @@ const AppContent: React.FC = () => {
                 integrations={integrations}
                 onSaveToInbox={handleSaveToInbox} // Pass new handler
                 onExecuteAction={async (id, action) => await executeInboxAction(action)} // Pass new handler wrapper
+                onUpdateEntity={handleUpdateEntity} // Chat can update entities
                 onAddTask={(task) => {
                     const newTask: Task = {
                         id: crypto.randomUUID(),

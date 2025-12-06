@@ -91,6 +91,7 @@ export interface Task {
   priority?: TaskPriority;
   dependencies?: string[]; 
   linkedDocumentId?: string;
+  relatedClientId?: string; // CRM Link
   
   createdAt: Date;
   updatedAt: Date;
@@ -106,7 +107,7 @@ export interface InboxItem {
   content: string;
   type: 'text' | 'audio' | 'file';
   fileName?: string;
-  attachments?: Attachment[]; // Added for deep analysis
+  attachments?: Attachment[]; 
   status: 'pending' | 'processed';
   createdAt: Date;
   processedResult?: InboxAction; 
@@ -142,6 +143,7 @@ export interface InboxAction {
   };
   projectPlan?: ProjectPlan; 
   reasoning: string;
+  warning?: string; // Reality Check Warning
 }
 
 export interface Source {
@@ -206,3 +208,11 @@ export interface Integration {
   };
   status?: 'idle' | 'connecting' | 'connected';
 }
+
+// Universal Focus Item for Chat
+export type FocusItem = 
+  | { type: 'inbox'; data: InboxItem }
+  | { type: 'task'; data: Task }
+  | { type: 'document'; data: Document }
+  | { type: 'client'; data: Client }
+  | { type: 'project'; data: Project };
