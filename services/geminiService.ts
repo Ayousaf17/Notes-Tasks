@@ -292,6 +292,7 @@ export const geminiService = {
 
   /**
    * Analyzes an Inbox Item and decides where it goes.
+   * NOW WITH DEEP REASONING
    */
   async organizeInboxItem(content: string, projects: Project[], provider?: 'gemini' | 'openrouter', apiKey?: string, model?: string, attachments: Attachment[] = []): Promise<InboxAction | null> {
       const projectContext = projects.map(p => `ID: ${p.id}, Title: ${p.title}`).join('\n');
@@ -300,7 +301,7 @@ export const geminiService = {
       
       const prompt = `
       ROLE: You are Aasani, Chief of Staff.
-      OBJECTIVE: Analyze this raw input and structure it for the workspace.
+      TASK: Perform a deep analysis of this inbox item and structure it.
       
       CONTEXT:
       - Current Time: ${currentDate} (${currentDay})
@@ -309,14 +310,14 @@ export const geminiService = {
       
       INPUT: "${content}"
       
-      INSTRUCTIONS:
-      1. **Analyze Intent**: Task, Meeting, Project Idea, or CRM Lead?
-      2. **Enrich**: 
-         - Infer deadlines (e.g., "next friday").
-         - Suggest priorities based on urgency keywords.
-      3. **Structure**: 
-         - If multiple steps, use 'extractedTasks'.
-         - If a client is mentioned, suggest 'create_client'.
+      THINKING PROCESS (Chain of Thought):
+      1. **Intent Analysis**: Is this a quick task, a reference document, a meeting note, or a new client lead?
+      2. **Entity Extraction**: Identify explicit dates ("next Friday"), implied deadlines ("urgent"), people (assignees/clients), and dollar values.
+      3. **Gap Detection**: What is missing? (e.g., if it's a meeting, where are the action items?). 
+      4. **Structuring**:
+         - If it's complex, break it into \`extractedTasks\`.
+         - If it's a lead, format as \`create_client\`.
+         - If it's vague, default to a Task but add a clarification in the description.
       
       OUTPUT FORMAT: JSON ONLY.
       
@@ -324,13 +325,13 @@ export const geminiService = {
       {
         "actionType": "create_task" | "create_document" | "mixed" | "create_client",
         "targetProjectId": "string (Project ID, 'default', or 'NEW: Title')",
-        "reasoning": "string (Executive summary of why you chose this)",
+        "reasoning": "string (Explain your thinking: 'Detected meeting notes, extracting 3 action items...')",
         "data": {
-          "title": "string (Professional Title)",
-          "description": "string (Enriched details)",
+          "title": "string (Refined, professional title)",
+          "description": "string (Enriched details, parsed from input)",
           "priority": "High" | "Medium" | "Low",
           "dueDate": "ISO String (if date inferred)",
-          "content": "Markdown content (for docs)",
+          "content": "Markdown content (for docs, formatted nicely)",
           "extractedTasks": [
              { "title": "string", "priority": "Medium", "dueDate": "string" }
           ],

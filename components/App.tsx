@@ -1,4 +1,5 @@
-import React, { useState, useEffect, ErrorInfo, ReactNode, createContext, useContext, Component } from 'react';
+
+import React, { useState, useEffect, ErrorInfo, ReactNode, createContext, useContext } from 'react';
 import { Sidebar } from './Sidebar';
 import { DocumentEditor } from './DocumentEditor';
 import { TaskBoard } from './TaskBoard';
@@ -49,7 +50,7 @@ interface ErrorBoundaryState {
   hasError: boolean;
 }
 
-class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
   state: ErrorBoundaryState = { hasError: false };
 
   static getDerivedStateFromError(_: Error): ErrorBoundaryState {
@@ -614,9 +615,30 @@ const AppContent: React.FC = () => {
   };
 
   // New function to handle InboxItem object directly (for AI Handoff)
-  const handleSaveToInbox = (item: InboxItem) => {
-      setInboxItems(prev => [item, ...prev]);
-      addToast("AI Suggestion saved to Inbox", 'success');
+  // FIX: This now correctly handles updating an EXISTING item or CREATING a new one if ID provided or just creates a new one.
+  // BUT the chat sends `InboxAction` not `InboxItem`. We need to adapt.
+  const handleSaveToInbox = (action: InboxAction) => {
+      // If we are currently focusing on an item, update THAT item.
+      if (activeInboxItemId) {
+          setInboxItems(prev => prev.map(item => 
+              item.id === activeInboxItemId 
+              ? { ...item, processedResult: action, status: 'pending' } // Keep pending so user can still see it in Inbox list to finalize import
+              : item
+          ));
+          addToast("Inbox item updated with new plan", 'success');
+      } else {
+          // Otherwise create new
+          const newItem: InboxItem = {
+              id: crypto.randomUUID(),
+              content: action.data.title,
+              type: 'text',
+              status: 'pending',
+              createdAt: new Date(),
+              processedResult: action
+          };
+          setInboxItems(prev => [newItem, ...prev]);
+          addToast("AI Suggestion saved to Inbox", 'success');
+      }
   };
 
   const handleDeleteInboxItem = (id: string) => {
@@ -1001,6 +1023,8 @@ const AppContent: React.FC = () => {
                 onClose={() => setIsChatOpen(false)}
                 // Pass the dynamic context string for the HUD
                 contextData={getContextData()}
+                // Pass the Active Inbox Item Object so Chat knows what it's focusing on
+                activeInboxItem={activeInboxItem}
                 onProjectPlanCreated={handleProjectPlanCreated}
                 messages={chatMessages}
                 setMessages={setChatMessages}

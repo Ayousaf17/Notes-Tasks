@@ -8,6 +8,7 @@ interface AIChatSidebarProps {
   isOpen: boolean;
   onClose: () => void;
   contextData?: string;
+  activeInboxItem?: InboxItem | null; // Added to know what item is focused
   onProjectPlanCreated: (plan: ProjectPlan) => void;
   messages: ChatMessage[];
   setMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>;
@@ -18,7 +19,7 @@ interface AIChatSidebarProps {
   teamMembers: string[]; 
   integrations?: Integration[];
   onAddTask?: (task: Partial<Task>) => void; // Legacy
-  onSaveToInbox?: (item: InboxItem) => void;
+  onSaveToInbox?: (action: InboxAction) => void; // Fixed signature
   onExecuteAction?: (id: string, action: InboxAction) => void;
 }
 
@@ -212,6 +213,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
     isOpen,
     onClose,
     contextData,
+    activeInboxItem,
     onProjectPlanCreated,
     messages,
     setMessages,
@@ -248,6 +250,29 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
             messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
         }
     }, [isOpen, messages]);
+
+    // **KEY FIX**: Re-hydrate proposal widget when opening focus mode on an inbox item
+    useEffect(() => {
+        if (isOpen && activeInboxItem && activeInboxItem.processedResult) {
+            // Check if we already have this specific proposal message to avoid duplicates
+            const hasProposal = messages.some(m => m.actionProposal?.action.data.title === activeInboxItem.processedResult?.data.title);
+            
+            if (!hasProposal) {
+                const systemMessage: ChatMessage = {
+                    id: Date.now().toString(),
+                    role: 'model',
+                    text: `I've analyzed your inbox item: "${activeInboxItem.content}". Here is the current plan based on my analysis. You can ask me to modify it.`,
+                    timestamp: new Date(),
+                    actionProposal: {
+                        action: activeInboxItem.processedResult,
+                        status: 'proposed',
+                        originalToolCall: '' // Mock tool call
+                    }
+                };
+                setMessages(prev => [...prev, systemMessage]);
+            }
+        }
+    }, [isOpen, activeInboxItem]); // removed 'messages' dep to prevent loops
 
     // Fetch OpenRouter Models
     useEffect(() => {
@@ -378,6 +403,12 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
             let systemContext = `Current Date: ${new Date().toDateString()}\n\nAVAILABLE PROJECTS:\n${projects.map(p => `- ${p.title} (ID: ${p.id})`).join('\n')}\n\nAVAILABLE CLIENTS:\n${clients.map(c => `- ${c.company} (ID: ${c.id})`).join('\n')}\n\nTEAM:\n${teamMembers.join(', ')}\n\n`;
             
             if (contextData) systemContext += `Current Context:\n${contextData}\n\n`;
+            
+            // If active item has processed result, inject it so AI knows current state
+            if (activeInboxItem && activeInboxItem.processedResult) {
+                systemContext += `CURRENT ITEM PROPOSAL STATE (JSON): \n${JSON.stringify(activeInboxItem.processedResult)}\n\n`;
+            }
+
             if (input.length > 10) {
                  const relevant = await geminiService.findRelevantContext(input, allDocuments, allTasks);
                  if (relevant.text) systemContext += `Relevant Workspace Information:\n${relevant.text}\n\n`;
@@ -580,20 +611,13 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                                         <ProposalCard 
                                             proposal={msg.actionProposal}
                                             onConfirm={(action) => {
-                                                const dummyId = crypto.randomUUID(); // Temp ID for passing to existing handler logic
+                                                const dummyId = crypto.randomUUID(); 
                                                 if(onExecuteAction) onExecuteAction(dummyId, action);
                                                 updateProposalStatus(msg.id, 'confirmed');
                                             }}
                                             onSaveToInbox={(action) => {
-                                                const newItem: InboxItem = {
-                                                    id: crypto.randomUUID(),
-                                                    content: action.data.title,
-                                                    type: 'text',
-                                                    status: 'pending',
-                                                    createdAt: new Date(),
-                                                    processedResult: action
-                                                };
-                                                if(onSaveToInbox) onSaveToInbox(newItem);
+                                                // Fixed: Pass the structured action
+                                                if(onSaveToInbox) onSaveToInbox(action);
                                                 updateProposalStatus(msg.id, 'saved');
                                             }}
                                             onCancel={() => updateProposalStatus(msg.id, 'cancelled')}
