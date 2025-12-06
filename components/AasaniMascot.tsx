@@ -1,14 +1,15 @@
 
 import React, { useEffect, useState } from 'react';
 import { useMascot } from '../contexts/MascotContext';
-import { X } from 'lucide-react';
+import { X, MessageSquare } from 'lucide-react';
 
 interface AasaniMascotProps {
   className?: string;
   fixed?: boolean;
+  onClick?: () => void;
 }
 
-export const AasaniMascot: React.FC<AasaniMascotProps> = ({ className = '', fixed = false }) => {
+export const AasaniMascot: React.FC<AasaniMascotProps> = ({ className = '', fixed = false, onClick }) => {
   const { mood, message, setMessage } = useMascot();
   const [isHovered, setIsHovered] = useState(false);
   const [blink, setBlink] = useState(false);
@@ -69,30 +70,36 @@ export const AasaniMascot: React.FC<AasaniMascotProps> = ({ className = '', fixe
 
   return (
     <div 
-      className={`transition-all duration-500 ease-in-out z-[150] pointer-events-none ${fixed ? 'fixed bottom-8 right-8' : 'relative'} ${className}`}
+      className={`transition-all duration-500 ease-in-out z-[150] pointer-events-none 
+      ${fixed ? 'fixed bottom-[5.5rem] right-4 md:bottom-8 md:right-8' : 'relative'} 
+      ${className}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <div className="relative group pointer-events-auto cursor-pointer">
+      {/* Container wraps interaction events */}
+      <div 
+        className="relative group pointer-events-auto cursor-pointer transform transition-transform md:hover:scale-110 active:scale-95 origin-bottom-right"
+        onClick={onClick}
+      >
         
-        {/* Speech Bubble */}
+        {/* Speech Bubble - Optimized positioning */}
         {message && (
-          <div className="absolute bottom-full right-0 mb-3 w-48 bg-white dark:bg-zinc-800 text-black dark:text-white p-3 rounded-2xl rounded-br-none shadow-xl border border-gray-100 dark:border-gray-700 text-xs font-medium animate-in slide-in-from-bottom-2 fade-in">
+          <div className="absolute bottom-full right-0 mb-2 w-48 md:w-56 bg-white dark:bg-zinc-800 text-black dark:text-white p-3 rounded-2xl rounded-br-none shadow-xl border border-gray-100 dark:border-gray-700 text-xs font-medium animate-in slide-in-from-bottom-2 fade-in z-20">
             {message}
             <button 
               onClick={(e) => { e.stopPropagation(); setMessage(null); }}
-              className="absolute -top-2 -right-2 bg-gray-200 dark:bg-gray-600 rounded-full p-0.5 hover:bg-red-500 hover:text-white transition-colors"
+              className="absolute -top-2 -right-2 bg-gray-200 dark:bg-gray-600 rounded-full p-1 hover:bg-red-500 hover:text-white transition-colors"
             >
               <X className="w-3 h-3" />
             </button>
           </div>
         )}
 
-        {/* The Sticker Container */}
-        <div className={`relative w-16 h-16 transition-transform duration-300 ${mood === 'thinking' ? 'animate-bounce-slow' : 'hover:-translate-y-2'}`}>
+        {/* The Sticker Container - Scaled down slightly on mobile */}
+        <div className={`relative w-14 h-14 md:w-20 md:h-20 transition-transform duration-300 ${mood === 'thinking' ? 'animate-bounce-slow' : 'hover:-translate-y-2'}`}>
             
             {/* White Sticker Border/Stroke Layer */}
-            <svg viewBox="0 0 48 48" className="absolute inset-0 w-full h-full drop-shadow-md">
+            <svg viewBox="0 0 48 48" className="absolute inset-0 w-full h-full drop-shadow-lg filter hover:drop-shadow-xl transition-all">
                 <defs>
                     <filter id="sticker-border">
                         <feMorphology in="SourceAlpha" result="DILATED" operator="dilate" radius="2.5" />
@@ -130,6 +137,11 @@ export const AasaniMascot: React.FC<AasaniMascotProps> = ({ className = '', fixe
                     {mood === 'idle' && <path d="M20 29 Q24 31 28 29" fill="none" stroke="black" strokeWidth="2" strokeLinecap="round" opacity="0.5" />}
                 </g>
             </svg>
+            
+            {/* Call to Action Indicator (small badge) */}
+            <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-purple-600 rounded-full border-2 border-white dark:border-zinc-900 flex items-center justify-center animate-pulse md:hidden">
+               <MessageSquare className="w-2.5 h-2.5 text-white" />
+            </div>
         </div>
       </div>
     </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, ErrorInfo, ReactNode, createContext, useContext } from 'react';
+import React, { useState, useEffect, ErrorInfo, ReactNode, createContext, useContext, Component } from 'react';
 import { Sidebar } from './Sidebar';
 import { DocumentEditor } from './DocumentEditor';
 import { TaskBoard } from './TaskBoard';
@@ -52,7 +52,7 @@ interface ErrorBoundaryState {
   hasError: boolean;
 }
 
-class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   state: ErrorBoundaryState = { hasError: false };
 
   static getDerivedStateFromError(_: Error): ErrorBoundaryState {
@@ -117,6 +117,25 @@ const MobileBottomNav = ({ currentView, onChangeView, onOpenMenu, onSearch }: { 
     </div>
   </div>
 );
+
+// Wrapper to inject Mascot Context features into AppContent logic
+const AppContentWithMascotFeatures: React.FC<{
+    projects: Project[];
+    tasks: Task[];
+    setProjects: React.Dispatch<React.SetStateAction<Project[]>>;
+    setTasks: React.Dispatch<React.SetStateAction<Task[]>>;
+    documents: Document[];
+    setDocuments: React.Dispatch<React.SetStateAction<Document[]>>;
+    clients: Client[];
+    setClients: React.Dispatch<React.SetStateAction<Client[]>>;
+    loadData: () => Promise<void>;
+}> = ({ projects, tasks, setProjects, setTasks, documents, setDocuments, clients, setClients, loadData }) => {
+    // This is essentially main logic but separated to allow useMascot hook access if needed higher up, 
+    // but for simplicity we'll keep main logic in AppContent and just use mascot here.
+    // Actually, refactoring the entire large component is risky. 
+    // Instead, we will wrap the Mascot call at the end of the return statement of AppContent.
+    return null; 
+};
 
 const AppContent: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewMode>(ViewMode.HOME); 
@@ -247,6 +266,9 @@ const AppContent: React.FC = () => {
   const [activeInboxItemId, setActiveInboxItemId] = useState<string | null>(null);
   const [activeFocusItem, setActiveFocusItem] = useState<FocusItem | null>(null);
 
+  // Mascot Context to trigger whisper
+  const { say } = useMascot();
+
   useEffect(() => {
     const loadData = async () => {
         try {
@@ -258,6 +280,11 @@ const AppContent: React.FC = () => {
                 setDocuments(dbDocs);
                 setClients(dbClients);
                 setActiveProjectId(prev => dbProjects.find(p => p.id === prev) ? prev : dbProjects[0].id);
+                
+                // TRIGGER MASCOT WHISPER ON LOAD
+                geminiService.generateMascotWhisper(dbTasks, dbProjects).then(whisper => {
+                    setTimeout(() => say(whisper, 8000, 'thinking'), 2000);
+                });
             }
         } catch (e) {
             console.error("Failed to load data from Supabase", e);
@@ -656,14 +683,14 @@ const AppContent: React.FC = () => {
 
   return (
     <ToastContext.Provider value={{ addToast }}>
-        <div className="flex h-screen w-full bg-background overflow-hidden font-sans text-foreground transition-colors duration-200">
+        <div className="flex h-screen w-full bg-white dark:bg-black overflow-hidden font-sans text-gray-900 dark:text-gray-100 transition-colors duration-200">
         
         {/* TOAST CONTAINER */}
         <div className="fixed bottom-20 md:bottom-6 right-6 z-[200] flex flex-col gap-2 pointer-events-none">
             {toasts.map(toast => (
                 <div key={toast.id} className={`pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-lg shadow-xl border animate-in slide-in-from-bottom-5 fade-in duration-300 max-w-sm ${
-                    toast.type === 'success' ? 'bg-card border-primary text-primary' :
-                    'bg-card border-border text-foreground'
+                    toast.type === 'success' ? 'bg-white dark:bg-zinc-900 border-green-500/50 text-green-700 dark:text-green-400' :
+                    'bg-white dark:bg-zinc-900 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200'
                 }`}>
                     {toast.type === 'info' && <Info className="w-5 h-5" />}
                     <span className="text-sm font-medium">{toast.message}</span>
@@ -672,8 +699,8 @@ const AppContent: React.FC = () => {
             ))}
         </div>
 
-        {/* Global Sticker Mascot */}
-        <AasaniMascot fixed />
+        {/* Global Sticker Mascot - Updated with Chat Toggle */}
+        <AasaniMascot fixed onClick={() => setIsChatOpen(true)} />
 
         <Sidebar
             currentView={currentView}
@@ -698,21 +725,21 @@ const AppContent: React.FC = () => {
             globalModelLabel={activeModelName}
         />
 
-        <main className={`flex-1 flex flex-col h-full relative w-full bg-background transition-all duration-300 ease-in-out pb-20 md:pb-0 ${isSidebarExpanded ? 'md:pl-64' : 'md:pl-16'}`}>
-            <header className="h-14 border-b border-border flex items-center justify-between px-6 bg-background shrink-0 z-20">
+        <main className={`flex-1 flex flex-col h-full relative w-full bg-white dark:bg-black transition-all duration-300 ease-in-out pb-20 md:pb-0 ${isSidebarExpanded ? 'md:pl-64' : 'md:pl-16'}`}>
+            <header className="h-14 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between px-6 bg-white dark:bg-black shrink-0 z-20">
             <div className="flex items-center space-x-3 text-sm">
-                <span className="font-medium text-foreground inline">{currentView}</span>
+                <span className="font-medium text-black dark:text-white inline">{currentView}</span>
             </div>
             <div className="flex items-center space-x-3">
                 {/* Voice Command Button */}
-                <button onClick={() => setIsVoiceCommandOpen(true)} className="p-2 rounded-full bg-muted hover:bg-accent transition-colors group" title="Voice Command">
-                    <Mic className="w-4 h-4 text-muted-foreground group-hover:text-primary" />
+                <button onClick={() => setIsVoiceCommandOpen(true)} className="p-2 rounded-full bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors group" title="Voice Command">
+                    <Mic className="w-4 h-4 text-gray-600 dark:text-gray-300 group-hover:text-purple-500" />
                 </button>
                 
-                <button onClick={() => setIsCommandPaletteOpen(true)} className="text-muted-foreground hover:text-foreground transition-colors">
+                <button onClick={() => setIsCommandPaletteOpen(true)} className="text-gray-400 hover:text-black dark:hover:text-white transition-colors">
                     <Command className="w-4 h-4" />
                 </button>
-                <button onClick={() => setIsChatOpen(!isChatOpen)} className={`transition-colors ${isChatOpen ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}>
+                <button onClick={() => setIsChatOpen(!isChatOpen)} className={`transition-colors ${isChatOpen ? 'text-purple-600 dark:text-purple-400' : 'text-gray-400 hover:text-black dark:hover:text-white'}`}>
                     <Sparkles className="w-4 h-4" />
                 </button>
             </div>
@@ -780,9 +807,9 @@ const AppContent: React.FC = () => {
                             onDelete={() => handleDeleteDocument(activeDocument.id)}
                         />
                     ) : currentView === ViewMode.DOCUMENTS && !activeDocument ? (
-                        <button onClick={handleCreateDocument} className="flex flex-col items-center justify-center h-full w-full text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
-                            <div className="w-20 h-20 rounded-full bg-muted border-2 border-dashed border-border flex items-center justify-center mb-6 shadow-sm group hover:border-foreground/20 hover:bg-card transition-all">
-                                <Plus className="w-10 h-10 text-muted-foreground group-hover:text-foreground transition-colors" />
+                        <button onClick={handleCreateDocument} className="flex flex-col items-center justify-center h-full w-full text-gray-400 dark:text-gray-600 hover:text-gray-600 dark:hover:text-gray-300 transition-colors cursor-pointer">
+                            <div className="w-20 h-20 rounded-full bg-gray-50 dark:bg-gray-900 border-2 border-dashed border-gray-200 dark:border-gray-800 flex items-center justify-center mb-6 shadow-sm group hover:border-gray-300 dark:hover:border-gray-600 hover:bg-white dark:hover:bg-gray-800 transition-all">
+                                <Plus className="w-10 h-10 text-gray-300 dark:text-gray-700 group-hover:text-black dark:group-hover:text-white transition-colors" />
                             </div>
                             <p className="text-base font-medium">Create a new page</p>
                         </button>
@@ -821,7 +848,7 @@ const AppContent: React.FC = () => {
                 </div>
                 
                 {currentView === ViewMode.DOCUMENTS && activeDocument && (
-                    <div className="hidden lg:block h-full border-l border-border">
+                    <div className="hidden lg:block h-full border-l border-gray-100 dark:border-gray-800">
                         <ContextSidebar currentDoc={activeDocument} allDocs={documents} allTasks={tasks} onNavigate={handleNavigate} />
                     </div>
                 )}

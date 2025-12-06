@@ -35,13 +35,20 @@ export interface VoiceIntent {
     feedback: string;
 }
 
-export interface DashboardInsight {
-    id: string;
-    type: 'warning' | 'opportunity' | 'success' | 'tip';
-    title: string;
-    message: string;
-    actionLabel?: string;
-    actionLink?: string; // e.g. "task:123" or "view:crm"
+// REDEFINED: Daily Briefing Structure
+export interface DailyBriefing {
+    greeting: string;
+    narrative: string; // "You have a heavy meeting day..."
+    focusTask: {
+        id: string;
+        title: string;
+        reason: string;
+    } | null;
+    vibe: 'Deep Work' | 'Meeting Heavy' | 'Admin & Cleanup' | 'Light';
+    stats: {
+        urgentCount: number;
+        completedYesterday: number;
+    }
 }
 
 // UNIVERSAL PROTOCOL FOR GLOBAL LLMS
@@ -288,37 +295,35 @@ export const geminiService = {
   },
 
   /**
-   * GENERATE DASHBOARD INSIGHTS (PROACTIVE INTELLIGENCE)
+   * GENERATE DASHBOARD INSIGHTS (PROACTIVE INTELLIGENCE) - REFACTORED FOR DAILY BRIEFING
    */
-  async generateDashboardInsights(tasks: Task[], clients: Client[]): Promise<DashboardInsight[]> {
-      if (!apiKey) return [];
+  async generateDailyBriefing(tasks: Task[], projects: Project[]): Promise<DailyBriefing | null> {
+      if (!apiKey) return null;
       
-      // Filter for interesting data points to save tokens
-      const highPriority = tasks.filter(t => t.priority === TaskPriority.HIGH && t.status !== TaskStatus.DONE).length;
-      const overdue = tasks.filter(t => t.dueDate && new Date(t.dueDate) < new Date() && t.status !== TaskStatus.DONE).length;
-      const staleClients = clients.filter(c => {
-          const last = new Date(c.lastContact);
-          const diff = (new Date().getTime() - last.getTime()) / (1000 * 3600 * 24);
-          return diff > 14 && c.status !== 'Churned';
-      }).map(c => c.company).join(', ');
-
+      const urgentTasks = tasks.filter(t => t.priority === TaskPriority.HIGH && t.status !== TaskStatus.DONE);
+      const todayTasks = tasks.filter(t => t.dueDate && new Date(t.dueDate).toDateString() === new Date().toDateString());
+      
       const context = `
-      High Priority Tasks: ${highPriority}
-      Overdue Tasks: ${overdue}
-      Stale Clients (>14 days no contact): ${staleClients || 'None'}
-      Current Time: ${new Date().getHours()}:00
+      Current Time: ${new Date().toLocaleTimeString()}
+      Total Tasks: ${tasks.length}
+      High Priority Pending: ${urgentTasks.length}
+      Tasks Due Today: ${todayTasks.length}
+      Sample Urgent Tasks: ${urgentTasks.slice(0,3).map(t => t.title).join(', ')}
+      Projects: ${projects.map(p => p.title).join(', ')}
       `;
 
       const prompt = `
-      Analyze this workspace context and generate 3 short, punchy "Insight Cards" for the dashboard.
-      Types: 'warning' (urgent), 'opportunity' (sales/growth), 'tip' (productivity).
+      You are Aasani, a high-end Chief of Staff. Generate a "Daily Briefing".
       
-      Context: ${context}
+      Context:
+      ${context}
       
-      Return JSON Array:
-      [
-        { "id": "1", "type": "warning", "title": "...", "message": "...", "actionLabel": "...", "actionLink": "..." }
-      ]
+      Instructions:
+      1. Narrative: A 2-sentence summary of the day's "vibe" (e.g., "Heavy administrative load today," or "Clear skies for deep work."). Be creative but professional.
+      2. Focus Task: Pick ONE task that is the most critical "Keystone" to complete today. If none, suggest "Review Plan".
+      3. Vibe: Categorize the day into one of: 'Deep Work', 'Meeting Heavy', 'Admin & Cleanup', 'Light'.
+      
+      Return JSON conforming to the DailyBriefing interface.
       `;
 
       try {
@@ -327,9 +332,38 @@ export const geminiService = {
               contents: prompt,
               config: { responseMimeType: "application/json" }
           });
-          return JSON.parse(response.text || "[]");
+          return JSON.parse(response.text || "null");
       } catch (e) {
-          return [];
+          return null;
+      }
+  },
+
+  /**
+   * GENERATE MASCOT WHISPER (Context-Aware Suggestion)
+   */
+  async generateMascotWhisper(tasks: Task[], projects: Project[]): Promise<string> {
+      if (!apiKey) return "I'm ready to help!";
+      
+      const context = `
+      Open Projects: ${projects.length}
+      Pending Tasks: ${tasks.filter(t => t.status !== TaskStatus.DONE).length}
+      Overdue: ${tasks.filter(t => t.dueDate && new Date(t.dueDate) < new Date()).length}
+      `;
+
+      const prompt = `
+      Generate a short, snappy 1-sentence "whisper" from a helpful mascot.
+      It should suggest a specific action based on the context (e.g. "You have 3 overdue tasks, want to tackle them?" or "Inbox looks clear, good job!").
+      Context: ${context}
+      `;
+
+      try {
+          const response = await ai.models.generateContent({
+              model: MODEL_NAME,
+              contents: prompt,
+          });
+          return response.text?.trim() || "How can I help you today?";
+      } catch (e) {
+          return "How can I help?";
       }
   },
 
@@ -523,17 +557,6 @@ export const geminiService = {
   async simpleGen(prompt: string): Promise<string> {
       if(!apiKey) return "";
       try { const r = await ai.models.generateContent({ model: MODEL_NAME, contents: prompt }); return r.text || ""; } catch(e) { return ""; }
-  },
-
-  async generateDailyBriefing(userName: string, context: string): Promise<string> {
-    if (!apiKey) return `Ready.`;
-    try { 
-        const r = await ai.models.generateContent({ 
-            model: MODEL_NAME, 
-            contents: `Role: EA. Task: Daily Pulse for ${userName}. Input: ${context}. Max 3 bullets. Direct. Markdown.` 
-        }); 
-        return r.text || "Schedule clear."; 
-    } catch (e) { return "Error generating briefing."; }
   },
 
   async generateVerseOfTheDay(context: string): Promise<{ verse: string, reference: string, explanation: string } | null> {
