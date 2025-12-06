@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Document, Task, TaskPriority, TaskStatus } from '../types';
-import { Wand2, ListChecks, RefreshCw, X, Check, User, Flag, AlignLeft, Tag as TagIcon, Sparkles, Edit3, Eye, SpellCheck, Scissors, Table as TableIcon, Link as LinkIcon, FileText, Maximize2, Minimize2, Heading1, Heading2, List, CheckSquare, Plus, Loader2, Trash2, Cloud } from 'lucide-react';
+import { Wand2, ListChecks, RefreshCw, X, Check, User, Flag, AlignLeft, Tag as TagIcon, Sparkles, Edit3, Eye, SpellCheck, Scissors, Table as TableIcon, Link as LinkIcon, FileText, Maximize2, Minimize2, Heading1, Heading2, List, CheckSquare, Plus, Loader2, Trash2, Cloud, Info } from 'lucide-react';
 import { geminiService } from '../services/geminiService';
 
 interface DocumentEditorProps {
@@ -12,6 +12,7 @@ interface DocumentEditorProps {
   onExtractTasks: (tasks: Partial<Task>[]) => Task[];
   onNavigate?: (type: 'document' | 'task', id: string) => void;
   onDelete: () => void;
+  onToggleContext?: () => void;
 }
 
 const getCaretCoordinates = (element: HTMLTextAreaElement, position: number) => {
@@ -211,7 +212,8 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
     onUpdate, 
     onExtractTasks,
     onNavigate,
-    onDelete
+    onDelete,
+    onToggleContext
 }) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [summary, setSummary] = useState<string | null>(null);
@@ -383,6 +385,11 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
               <button onClick={handleSummarize} className="text-gray-400 hover:text-black dark:hover:text-white transition-colors" title="Summarize">
                 {isSummarizing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <AlignLeft className="w-4 h-4" />}
               </button>
+              {onToggleContext && (
+                  <button onClick={onToggleContext} className="text-gray-400 hover:text-black dark:hover:text-white transition-colors lg:hidden" title="Context Info">
+                      <Info className="w-4 h-4" />
+                  </button>
+              )}
               <button onClick={() => setIsZenMode(!isZenMode)} className="text-gray-400 hover:text-black dark:hover:text-white transition-colors" title={isZenMode ? "Exit Zen Mode (ESC)" : "Enter Zen Mode"}>
                 {isZenMode ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
               </button>

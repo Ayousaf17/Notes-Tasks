@@ -1,5 +1,4 @@
-
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useMascot } from '../contexts/MascotContext';
 import { X, MessageSquare } from 'lucide-react';
 
@@ -13,6 +12,13 @@ export const AasaniMascot: React.FC<AasaniMascotProps> = ({ className = '', fixe
   const { mood, message, setMessage } = useMascot();
   const [isHovered, setIsHovered] = useState(false);
   const [blink, setBlink] = useState(false);
+  const [isSmall, setIsSmall] = useState(false);
+  
+  // Dragging State
+  const [position, setPosition] = useState({ x: 0, y: 0 }); // Relative to initial bottom-right
+  const isDragging = useRef(false);
+  const startPos = useRef({ x: 0, y: 0 });
+  const offset = useRef({ x: 0, y: 0 });
 
   // Auto-blink logic
   useEffect(() => {
@@ -22,6 +28,39 @@ export const AasaniMascot: React.FC<AasaniMascotProps> = ({ className = '', fixe
     }, 4000);
     return () => clearInterval(interval);
   }, []);
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+      isDragging.current = false;
+      startPos.current = { x: e.clientX, y: e.clientY };
+      const currentTarget = e.currentTarget as HTMLElement;
+      currentTarget.setPointerCapture(e.pointerId);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+      if (e.buttons === 1) { // Left click or touch
+          const dx = e.clientX - startPos.current.x;
+          const dy = e.clientY - startPos.current.y;
+          if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+              isDragging.current = true;
+              setPosition(prev => ({ x: prev.x + e.movementX, y: prev.y + e.movementY }));
+          }
+      }
+  };
+
+  const handlePointerUp = (e: React.PointerEvent) => {
+      const currentTarget = e.currentTarget as HTMLElement;
+      currentTarget.releasePointerCapture(e.pointerId);
+      
+      if (!isDragging.current && onClick) {
+          onClick();
+      }
+      isDragging.current = false;
+  };
+
+  const handleDoubleClick = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      setIsSmall(prev => !prev);
+  };
 
   // Eye Styles based on mood
   const getEyeShape = () => {
@@ -70,21 +109,25 @@ export const AasaniMascot: React.FC<AasaniMascotProps> = ({ className = '', fixe
 
   return (
     <div 
-      className={`transition-all duration-500 ease-in-out z-[150] pointer-events-none 
-      ${fixed ? 'fixed bottom-[5.5rem] right-4 md:bottom-8 md:right-8' : 'relative'} 
-      ${className}`}
+      className={`fixed z-[150] touch-none select-none ${className}`}
+      style={{ 
+          transform: `translate(${position.x}px, ${position.y}px)`, 
+          bottom: '2rem', 
+          right: '2rem' 
+      }}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onDoubleClick={handleDoubleClick}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {/* Container wraps interaction events */}
-      <div 
-        className="relative group pointer-events-auto cursor-pointer transform transition-transform md:hover:scale-110 active:scale-95 origin-bottom-right"
-        onClick={onClick}
-      >
+      {/* Container */}
+      <div className={`relative group cursor-grab active:cursor-grabbing transform transition-transform md:hover:scale-110 active:scale-95 origin-bottom-right ${isSmall ? 'scale-50' : 'scale-100'}`}>
         
         {/* Speech Bubble - Optimized positioning */}
-        {message && (
-          <div className="absolute bottom-full right-0 mb-2 w-48 md:w-56 bg-white dark:bg-zinc-800 text-black dark:text-white p-3 rounded-2xl rounded-br-none shadow-xl border border-gray-100 dark:border-gray-700 text-xs font-medium animate-in slide-in-from-bottom-2 fade-in z-20">
+        {message && !isSmall && (
+          <div className="absolute bottom-full right-0 mb-2 w-48 md:w-56 bg-white dark:bg-zinc-800 text-black dark:text-white p-3 rounded-2xl rounded-br-none shadow-xl border border-gray-100 dark:border-gray-700 text-xs font-medium animate-in slide-in-from-bottom-2 fade-in z-20 pointer-events-auto">
             {message}
             <button 
               onClick={(e) => { e.stopPropagation(); setMessage(null); }}
@@ -95,11 +138,11 @@ export const AasaniMascot: React.FC<AasaniMascotProps> = ({ className = '', fixe
           </div>
         )}
 
-        {/* The Sticker Container - Scaled down slightly on mobile */}
+        {/* The Sticker Container */}
         <div className={`relative w-14 h-14 md:w-20 md:h-20 transition-transform duration-300 ${mood === 'thinking' ? 'animate-bounce-slow' : 'hover:-translate-y-2'}`}>
             
             {/* White Sticker Border/Stroke Layer */}
-            <svg viewBox="0 0 48 48" className="absolute inset-0 w-full h-full drop-shadow-lg filter hover:drop-shadow-xl transition-all">
+            <svg viewBox="0 0 48 48" className="absolute inset-0 w-full h-full drop-shadow-lg filter hover:drop-shadow-xl transition-all pointer-events-none">
                 <defs>
                     <filter id="sticker-border">
                         <feMorphology in="SourceAlpha" result="DILATED" operator="dilate" radius="2.5" />
@@ -138,8 +181,8 @@ export const AasaniMascot: React.FC<AasaniMascotProps> = ({ className = '', fixe
                 </g>
             </svg>
             
-            {/* Call to Action Indicator (small badge) */}
-            <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-purple-600 rounded-full border-2 border-white dark:border-zinc-900 flex items-center justify-center animate-pulse md:hidden">
+            {/* Call to Action Indicator (Hidden on mobile to reduce distraction) */}
+            <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-purple-600 rounded-full border-2 border-white dark:border-zinc-900 flex items-center justify-center animate-pulse hidden md:flex pointer-events-none">
                <MessageSquare className="w-2.5 h-2.5 text-white" />
             </div>
         </div>

@@ -1,6 +1,5 @@
-
 import React from 'react';
-import { FileText, Layout, Calendar, Settings, Plus, Inbox, Network, Home, X, Globe, Layers, User, Moon, Sun, Loader2, Folder, Trash2, CheckSquare, Users, Sparkles } from 'lucide-react';
+import { FileText, Layout, Calendar, Settings, Plus, Inbox, Network, Home, X, Globe, Layers, User, Moon, Sun, Loader2, Folder, Trash2, CheckSquare, Users, Sparkles, LogOut } from 'lucide-react';
 import { ViewMode, Document, Project } from '../types';
 
 interface SidebarProps {
@@ -25,16 +24,6 @@ interface SidebarProps {
   onHover: (expanded: boolean) => void;
   globalModelLabel?: string; 
 }
-
-const MascotIcon = ({ className }: { className?: string }) => (
-    <svg viewBox="0 0 48 48" className={className} fill="none">
-        <path d="M24 4 C10 4, 4 14, 4 26 C4 38, 14 44, 24 44 C34 44, 44 38, 44 26 C44 14, 38 4, 24 4 Z" fill="currentColor" className="text-black dark:text-white transition-colors"/>
-        <path d="M24 8 C14 8, 8 16, 8 26 C8 36, 16 40, 24 40 C32 40, 40 36, 40 26 C40 16, 36 8, 24 8 Z" fill="currentColor" className="text-white dark:text-zinc-800 transition-colors"/>
-        <circle cx="16" cy="18" r="3.5" fill="currentColor" className="text-black dark:text-white" />
-        <circle cx="32" cy="18" r="3.5" fill="currentColor" className="text-black dark:text-white" />
-        <path d="M20 29 Q24 31 28 29" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="text-black dark:text-white" />
-    </svg>
-);
 
 export const Sidebar: React.FC<SidebarProps> = ({
   currentView,
@@ -187,34 +176,30 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <div key={project.id} className="group/project-item relative flex items-center mb-0.5">
                       <button
                           onClick={() => { onSelectProject(project.id); onMobileClose(); }}
-                          className={`w-full flex items-center px-3 py-2 rounded-md text-sm transition-colors text-left ${activeProjectId === project.id ? 'text-sidebar-foreground font-bold bg-sidebar-accent' : 'text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50'}`}
+                          className={`flex-1 flex items-center px-3 py-2 rounded-md text-sm transition-colors text-left ${activeProjectId === project.id ? 'text-sidebar-foreground font-bold bg-sidebar-accent' : 'text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50'}`}
                       >
                           <Folder className="w-4 h-4 mr-3 opacity-70" />
                           <span className={`truncate transition-all ${isExpanded ? 'opacity-100' : 'opacity-0 w-0'}`}>{project.title}</span>
                       </button>
+                      
+                      {/* Delete Project Button - Visible on Hover in Expanded Mode */}
+                      {isExpanded && (
+                          <button
+                              onClick={(e) => { e.stopPropagation(); if(confirm('Delete project?')) onDeleteProject(project.id); }}
+                              className="absolute right-2 p-1.5 text-sidebar-foreground/30 hover:text-red-500 hover:bg-sidebar-accent rounded opacity-0 group-hover/project-item:opacity-100 transition-opacity"
+                              title="Delete Project"
+                          >
+                              <Trash2 className="w-3 h-3" />
+                          </button>
+                      )}
                   </div>
               ))}
           </div>
         </div>
 
-        {/* FOOTER - Settings & Profile */}
+        {/* FOOTER - Cleaned up */}
         <div className="p-3 mt-auto border-t border-sidebar-border bg-sidebar-accent/10 overflow-hidden shrink-0 pb-safe">
-          {/* Active Model Indicator */}
-          {globalModelLabel && (
-              <div className={`mb-3 px-2 flex items-center gap-2 text-[10px] text-sidebar-foreground/50 transition-all duration-300 ${!isExpanded ? 'justify-center' : ''}`}>
-                  <Sparkles className="w-3 h-3 text-sidebar-primary" />
-                  <span className={`truncate ${isExpanded ? 'opacity-100 w-auto' : 'opacity-0 w-0 hidden'}`}>
-                      Powered by <span className="font-bold text-sidebar-foreground">{globalModelLabel}</span>
-                  </span>
-              </div>
-          )}
-
-          {/* Mascot Icon in Footer */}
-          <div className={`mb-2 flex items-center justify-center transition-all ${!isExpanded ? 'justify-center' : 'justify-start px-2'}`}>
-             <MascotIcon className="w-6 h-6 hover:scale-110 transition-transform cursor-pointer" />
-             <span className={`ml-3 text-xs font-bold text-sidebar-foreground transition-all duration-300 ${isExpanded ? 'opacity-100 w-auto' : 'opacity-0 w-0 hidden'}`}>Aasani</span>
-          </div>
-
+          
           <button 
             onClick={() => { onChangeView(ViewMode.SETTINGS); onMobileClose(); }}
             className={`w-full flex items-center space-x-3 px-2 py-2 mb-1 text-xs rounded transition-colors ${currentView === ViewMode.SETTINGS ? 'bg-sidebar-accent text-sidebar-accent-foreground shadow-sm' : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/50'}`}

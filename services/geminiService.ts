@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { Task, TaskStatus, TaskPriority, ProjectPlan, Attachment, Project, InboxAction, AgentRole, AgentResult, Document, Source, Client } from "../types";
 
@@ -18,6 +17,21 @@ const apiKey = getApiKey();
 const ai = new GoogleGenAI({ apiKey: apiKey || 'dummy_key' });
 
 const MODEL_NAME = "gemini-2.5-flash";
+
+// --- AUSTIN WEALTH WEEKLY STYLE GUIDE ---
+export const DOCUMENT_STYLE_GUIDE = `
+### DOCUMENT FORMATTING STANDARD (AUSTIN WEALTH STYLE)
+All generated document content MUST strictly follow this structure:
+
+1.  **Title**: Start with a bold H1 Header (e.g., \`# The Strategic Pivot\`).
+2.  **Meta Line**: Immediately below the title, add a bold & italic metadata line (e.g., \`***Strategic Brief | October 12, 2025***\`).
+3.  **The Hook**: The first paragraph must be *italicized* and serve as a "hook" or executive summary that sets the context.
+4.  **Structured Body**: Use **Numbered H2 Headers** for all main sections (e.g., \`## 1. Current Landscape\`, \`## 2. The Opportunity\`).
+5.  **Visual Data**: Include at least one **Markdown Table** to compare data, options, pros/cons, or timelines.
+6.  **Action Plan**: Conclude with a clear, bulleted list of next steps or key takeaways.
+
+Tone: Professional, insightful, and authoritative.
+`;
 
 interface ChatParams {
     provider: 'gemini' | 'openrouter';
@@ -93,6 +107,7 @@ Use this to create Tasks, Documents, Projects, or CRM Clients.
 
 **Tool: update_entity** (For EXISTING items)
 Use this when the user wants to change the focused item (Task, Doc, etc).
+**IMPORTANT:** For Documents, use 'appendContent' to add text to the end (e.g. adding an outline).
 
 **Schema:**
 {
@@ -105,7 +120,8 @@ Use this when the user wants to change the focused item (Task, Doc, etc).
        "status": "string",
        "priority": "string",
        "description": "string",
-       "content": "string"
+       "content": "string (REPLACES content)",
+       "appendContent": "string (APPENDS to content)"
     },
     "reasoning": "string"
   }
@@ -396,6 +412,8 @@ export const geminiService = {
       
       INPUT: "${content}"
       
+      ${DOCUMENT_STYLE_GUIDE}
+      
       THINKING PROCESS (DEEP REASONING):
       1. **Intent**: Task, Doc, or Lead?
       2. **Enrichment**: Calculate precise ISO dates from relative terms ("next friday"). Associate vague project names to IDs.
@@ -404,7 +422,7 @@ export const geminiService = {
          - If the date already has > 2 existing tasks/meetings, populate "warning" with: "⚠️ Conflict on [Date]: [Count] existing items. Suggest moving to [Alternative Date]."
          - If no specific date is mentioned but user implies urgency ("ASAP"), check today/tomorrow load.
       4. **Role Assignment**: If the task involves research, analysis, or data gathering, assign to 'AI_RESEARCHER'. If it involves writing, drafting, or editing, assign to 'AI_WRITER'. If it involves planning, scheduling, or strategy, assign to 'AI_PLANNER'. Otherwise, leave assignee undefined (or 'Unassigned').
-      5. **Structure**: Build the JSON.
+      5. **Structure**: Build the JSON. If actionType is 'create_document', ensure the 'content' field follows the AUSTIN WEALTH STYLE GUIDE.
       
       OUTPUT FORMAT: JSON ONLY.
       
@@ -420,7 +438,7 @@ export const geminiService = {
           "priority": "High" | "Medium" | "Low",
           "assignee": "AI_RESEARCHER" | "AI_WRITER" | "AI_PLANNER" | "Unassigned",
           "dueDate": "ISO String",
-          "content": "Markdown",
+          "content": "Markdown (MUST follow Austin Wealth Style if creating a doc)",
           "extractedTasks": [{ "title": "string", "priority": "Medium", "dueDate": "string", "assignee": "string" }],
           "clientData": { "name": "string", "company": "string", "email": "string", "value": number, "status": "Lead" }
         }
@@ -564,15 +582,9 @@ export const geminiService = {
       Expand the task "${taskTitle}" into a professional, article-style document.
       Description Context: "${taskDescription || ''}"
       
-      Format Requirements (Markdown):
-      1. **Title**: Bold, clear header.
-      2. **Subtitle/Meta**: Include a hypothetical issue number or date line (e.g., "Strategic Brief | October 2025").
-      3. **Hook**: An italicized introductory paragraph setting the context.
-      4. **Body**: Use numbered sections with bold headers (e.g., "1. The Context").
-      5. **Tables**: If data comparison is relevant, include a Markdown table.
-      6. **Action Plan**: A bulleted list of next steps.
+      ${DOCUMENT_STYLE_GUIDE}
       
-      Make it professional, insightful, and well-structured.
+      Make it professional, insightful, and well-structured following the above guide.
       `;
       return this.simpleGen(prompt) || `# ${taskTitle}`; 
   },

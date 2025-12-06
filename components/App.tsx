@@ -64,10 +64,7 @@ interface ErrorBoundaryState {
 }
 
 class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  constructor(props: ErrorBoundaryProps) {
-    super(props);
-    this.state = { hasError: false };
-  }
+  state: ErrorBoundaryState = { hasError: false };
 
   static getDerivedStateFromError(_: Error): ErrorBoundaryState {
     return { hasError: true };
@@ -132,29 +129,11 @@ const MobileBottomNav = ({ currentView, onChangeView, onOpenMenu, onSearch }: { 
   </div>
 );
 
-// Wrapper to inject Mascot Context features into AppContent logic
-const AppContentWithMascotFeatures: React.FC<{
-    projects: Project[];
-    tasks: Task[];
-    setProjects: React.Dispatch<React.SetStateAction<Project[]>>;
-    setTasks: React.Dispatch<React.SetStateAction<Task[]>>;
-    documents: Document[];
-    setDocuments: React.Dispatch<React.SetStateAction<Document[]>>;
-    clients: Client[];
-    setClients: React.Dispatch<React.SetStateAction<Client[]>>;
-    loadData: () => Promise<void>;
-}> = ({ projects, tasks, setProjects, setTasks, documents, setDocuments, clients, setClients, loadData }) => {
-    // This is essentially main logic but separated to allow useMascot hook access if needed higher up, 
-    // but for simplicity we'll keep main logic in AppContent and just use mascot here.
-    // Actually, refactoring the entire large component is risky. 
-    // Instead, we will wrap the Mascot call at the end of the return statement of AppContent.
-    return null; 
-};
-
 const AppContent: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewMode>(ViewMode.HOME); 
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(false); 
+  const [isContextSidebarOpen, setIsContextSidebarOpen] = useState(false); // Mobile Context Sidebar State
   
   // Toast State
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -294,11 +273,6 @@ const AppContent: React.FC = () => {
                 setDocuments(dbDocs);
                 setClients(dbClients);
                 setActiveProjectId(prev => dbProjects.find(p => p.id === prev) ? prev : dbProjects[0].id);
-                
-                // TRIGGER MASCOT WHISPER ON LOAD
-                geminiService.generateMascotWhisper(dbTasks, dbProjects).then(whisper => {
-                    setTimeout(() => say(whisper, 8000, 'thinking'), 2000);
-                });
             }
         } catch (e) {
             console.error("Failed to load data from Supabase", e);
@@ -416,13 +390,35 @@ const AppContent: React.FC = () => {
   };
 
   const handleCreateProjectConfirm = async (title: string) => { await createNewProject(title); addToast(`Project "${title}" created`, 'success'); };
-  const handleDeleteProject = (id: string) => { 
-      setProjects(prev => prev.filter(p => p.id !== id));
-      setTasks(prev => prev.filter(t => t.projectId !== id));
-      setDocuments(prev => prev.filter(d => d.projectId !== id));
-      dataService.deleteProject(id);
-      addToast('Project deleted', 'info');
+  
+  // Updated Project Deletion Logic
+  const handleDeleteProject = (id: string) => {
+      setConfirmationModal({
+          isOpen: true,
+          title: 'Delete Project',
+          message: 'Are you sure you want to delete this project? All tasks and documents will be removed.',
+          isDanger: true,
+          confirmText: 'Delete',
+          onConfirm: () => {
+              const remainingProjects = projects.filter(p => p.id !== id);
+              setProjects(remainingProjects);
+              setTasks(prev => prev.filter(t => t.projectId !== id));
+              setDocuments(prev => prev.filter(d => d.projectId !== id));
+              dataService.deleteProject(id);
+              
+              if (activeProjectId === id) {
+                  if (remainingProjects.length > 0) {
+                      setActiveProjectId(remainingProjects[0].id);
+                      setCurrentView(ViewMode.PROJECT_OVERVIEW);
+                  } else {
+                      setCurrentView(ViewMode.HOME);
+                  }
+              }
+              addToast('Project deleted', 'info');
+          }
+      });
   }; 
+
   const handleCreateDocument = async () => {
     const newDoc: Document = {
       id: crypto.randomUUID(),
@@ -838,6 +834,7 @@ const AppContent: React.FC = () => {
                             onExtractTasks={handleExtractTasks} 
                             onNavigate={handleNavigate} 
                             onDelete={() => handleDeleteDocument(activeDocument.id)}
+                            onToggleContext={() => setIsContextSidebarOpen(prev => !prev)}
                         />
                     ) : currentView === ViewMode.DOCUMENTS && !activeDocument ? (
                         <button onClick={handleCreateDocument} className="flex flex-col items-center justify-center h-full w-full text-gray-400 dark:text-gray-600 hover:text-gray-600 dark:hover:text-gray-300 transition-colors cursor-pointer">
@@ -881,9 +878,35 @@ const AppContent: React.FC = () => {
                 </div>
                 
                 {currentView === ViewMode.DOCUMENTS && activeDocument && (
-                    <div className="hidden lg:block h-full border-l border-gray-100 dark:border-gray-800">
-                        <ContextSidebar currentDoc={activeDocument} allDocs={documents} allTasks={tasks} onNavigate={handleNavigate} />
-                    </div>
+                    <>
+                        {/* Desktop View: Always Visible (managed inside ContextSidebar for resizing) */}
+                        <div className="hidden lg:block h-full">
+                            <ContextSidebar 
+                                currentDoc={activeDocument} 
+                                allDocs={documents} 
+                                allTasks={tasks} 
+                                onNavigate={handleNavigate} 
+                                onUpdateDocument={handleUpdateDocument} 
+                            />
+                        </div>
+                        {/* Mobile View: Slide Over */}
+                        {isContextSidebarOpen && (
+                            <div className="lg:hidden fixed inset-0 z-[100] flex justify-end">
+                                <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setIsContextSidebarOpen(false)} />
+                                <div className="relative w-[85vw] h-full bg-white dark:bg-black shadow-2xl animate-in slide-in-from-right duration-300">
+                                    <ContextSidebar 
+                                        currentDoc={activeDocument} 
+                                        allDocs={documents} 
+                                        allTasks={tasks} 
+                                        onNavigate={(type, id) => { handleNavigate(type, id); setIsContextSidebarOpen(false); }} 
+                                        onUpdateDocument={handleUpdateDocument} 
+                                        isMobile
+                                        onClose={() => setIsContextSidebarOpen(false)}
+                                    />
+                                </div>
+                            </div>
+                        )}
+                    </>
                 )}
             </div>
 

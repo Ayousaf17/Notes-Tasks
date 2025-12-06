@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { ChatMessage, ProjectPlan, Document, Task, Integration, TaskStatus, TaskPriority, Project, Client, ActionProposal, Attachment, AgentRole, InboxAction, InboxItem, FocusItem } from '../types';
-import { Send, X, Bot, Paperclip, Loader2, Sparkles, User, ChevronDown, Lock, Settings, Search, CheckCircle2, Calendar, Briefcase, Flag, Plus, File, Folder, Layers, ArrowRight, Eye, Target, MessageSquare, Cpu, Globe } from 'lucide-react';
+import { Send, X, Bot, Paperclip, Loader2, Sparkles, User, ChevronDown, Lock, Settings, Search, CheckCircle2, Calendar, Briefcase, Flag, Plus, File, Folder, Layers, ArrowRight, Eye, Target, MessageSquare, Cpu, Globe, RefreshCw } from 'lucide-react';
 import { geminiService } from '../services/geminiService';
 import { analyticsService } from '../services/analyticsService';
 
@@ -34,14 +34,12 @@ const MascotIcon = ({ className }: { className?: string }) => (
     </svg>
 );
 
-// ... (ProposalCard and FormattedMessage Components remain mostly the same, elided for brevity but fully included in implementation) ...
 const ProposalCard = ({ proposal, onConfirm, onSaveToInbox, onCancel }: any) => {
-    // ... (Same logic as previous, ensuring buttons work)
     const { action } = proposal;
     const [isConfirmed, setIsConfirmed] = useState(proposal.status === 'confirmed');
-    // ...
+
     if (isConfirmed) return <div className="bg-green-50 text-green-800 p-4 rounded-xl flex gap-2"><CheckCircle2 className="w-4 h-4"/><span>Action Completed</span></div>;
-    // ...
+
     return (
         <div className="bg-card border border-border rounded-xl shadow-lg overflow-hidden my-4">
             <div className="bg-primary/10 p-3 border-b border-primary/20 flex items-center gap-2">
@@ -62,8 +60,31 @@ const ProposalCard = ({ proposal, onConfirm, onSaveToInbox, onCancel }: any) => 
     );
 };
 
+// New Component for Update Proposals (e.g. appending text to doc)
+const UpdateProposalCard = ({ updateData, onConfirm }: any) => {
+    const [isApplied, setIsApplied] = useState(false);
+    
+    if (isApplied) return <div className="bg-green-50 text-green-800 p-3 rounded-lg flex items-center gap-2 text-xs"><CheckCircle2 className="w-3 h-3"/><span>Update Applied</span></div>;
+
+    return (
+        <div className="bg-purple-50 dark:bg-purple-900/10 border border-purple-100 dark:border-purple-800 rounded-lg p-3 my-2">
+            <div className="flex items-center gap-2 text-xs font-bold text-purple-700 dark:text-purple-300 mb-2">
+                <RefreshCw className="w-3 h-3" /> Update Proposed
+            </div>
+            <div className="text-xs text-foreground mb-3 opacity-80">
+                {updateData.updates.appendContent ? `Append content to document?` : `Update ${updateData.entityType}?`}
+            </div>
+            <button 
+                onClick={() => { onConfirm(); setIsApplied(true); }}
+                className="w-full py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded text-xs font-bold transition-colors"
+            >
+                Apply Changes
+            </button>
+        </div>
+    );
+}
+
 const FormattedMessage: React.FC<{ text: string }> = ({ text }) => {
-    // ... (Same renderer logic)
     const cleanText = text.replace(/:::TOOL_CALL:::[\s\S]*?:::END_TOOL_CALL:::/g, '').trim();
     if (!cleanText) return null;
     return <div className="whitespace-pre-wrap">{cleanText}</div>;
@@ -176,20 +197,32 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
             const toolRegex = /:::TOOL_CALL:::([\s\S]*?):::END_TOOL_CALL:::/;
             const match = responseText.match(toolRegex);
             let proposal: ActionProposal | undefined = undefined;
+            let updateProposal: any = undefined;
 
             if (match && match[1]) {
                 const toolJson = JSON.parse(match[1]);
-                if (toolJson.tool === 'update_entity' && onUpdateEntity) {
-                    onUpdateEntity(toolJson.args.entityType, toolJson.args.id, toolJson.args.updates);
-                    setMessages(prev => [...prev, {
-                        id: Date.now().toString(),
-                        role: 'model',
-                        text: `✅ Updated ${toolJson.args.entityType}: ${JSON.stringify(toolJson.args.updates)}`,
-                        timestamp: new Date()
-                    }]);
-                    setIsThinking(false);
-                    return; 
+                
+                // Direct Update Tool
+                if (toolJson.tool === 'update_entity') {
+                    // Check if it's an append operation or simple update
+                    if (toolJson.args.updates.appendContent && onUpdateEntity) {
+                        // For append content, we might want user confirmation in the UI
+                        updateProposal = toolJson.args;
+                    } else if (onUpdateEntity) {
+                        onUpdateEntity(toolJson.args.entityType, toolJson.args.id, toolJson.args.updates);
+                        // Auto-applied feedback
+                        setMessages(prev => [...prev, {
+                            id: Date.now().toString(),
+                            role: 'model',
+                            text: `✅ Updated ${toolJson.args.entityType}.`,
+                            timestamp: new Date()
+                        }]);
+                        setIsThinking(false);
+                        return; 
+                    }
                 }
+                
+                // Import Proposal Tool
                 if (toolJson.tool === 'propose_import') {
                     proposal = {
                         action: {
@@ -205,13 +238,24 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                 }
             }
 
-            setMessages(prev => [...prev, {
+            // If we have an update proposal (e.g. append content), we render a special card inside the message
+            // or just render the text and the card below it.
+            
+            const newMessage: any = {
                 id: Date.now().toString(),
                 role: 'model',
                 text: responseText, 
                 actionProposal: proposal,
                 timestamp: new Date()
-            }]);
+            };
+            
+            // Hacky way to store update proposal in message structure if needed, or just handle immediate
+            // For Append, we want UI confirmation.
+            if (updateProposal) {
+                newMessage.updateProposal = updateProposal;
+            }
+
+            setMessages(prev => [...prev, newMessage]);
 
         } catch (error) {
             setMessages(prev => [...prev, { id: Date.now().toString(), role: 'model', text: "Error processing request.", timestamp: new Date() }]);
@@ -320,6 +364,15 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                                         onConfirm={(action: any) => { if(onExecuteAction) onExecuteAction('new', action); }}
                                         onSaveToInbox={(action: any) => { if(onSaveToInbox) onSaveToInbox(action); }}
                                         onCancel={() => {}}
+                                    />
+                                )}
+                                {(msg as any).updateProposal && onUpdateEntity && (
+                                    <UpdateProposalCard 
+                                        updateData={(msg as any).updateProposal}
+                                        onConfirm={() => {
+                                            const prop = (msg as any).updateProposal;
+                                            onUpdateEntity(prop.entityType, prop.id, prop.updates);
+                                        }}
                                     />
                                 )}
                             </div>
