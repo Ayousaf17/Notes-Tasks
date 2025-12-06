@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, ErrorInfo, ReactNode, createContext, useContext } from 'react';
 import { Sidebar } from './Sidebar';
 import { DocumentEditor } from './DocumentEditor';
@@ -26,6 +25,8 @@ import { geminiService } from '../services/geminiService';
 import { dataService } from '../services/dataService';
 import { supabase } from '../services/supabase';
 import { analyticsService } from '../services/analyticsService';
+import { MascotProvider, useMascot } from '../contexts/MascotContext';
+import { AasaniMascot } from './AasaniMascot';
 
 type ToastType = 'success' | 'error' | 'info' | 'warning';
 interface Toast {
@@ -65,11 +66,11 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
   render() {
     if (this.state.hasError) {
       return (
-        <div className="flex items-center justify-center h-screen bg-gray-50 text-center p-4">
+        <div className="flex items-center justify-center h-screen bg-background text-center p-4 text-foreground">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Something went wrong.</h1>
-            <p className="text-gray-600 mb-4">The application encountered a critical error.</p>
-            <button onClick={() => window.location.reload()} className="text-blue-600 hover:underline">Reload Application</button>
+            <h1 className="text-2xl font-bold mb-2">Something went wrong.</h1>
+            <p className="text-muted-foreground mb-4">The application encountered a critical error.</p>
+            <button onClick={() => window.location.reload()} className="text-primary hover:underline">Reload Application</button>
           </div>
         </div>
       );
@@ -80,14 +81,14 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
 }
 
 const MobileBottomNav = ({ currentView, onChangeView, onOpenMenu, onSearch }: { currentView: ViewMode, onChangeView: (v: ViewMode) => void, onOpenMenu: () => void, onSearch: () => void }) => (
-  <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-black/90 backdrop-blur-xl border-t border-gray-100 dark:border-gray-800 z-50 px-6 py-2 safe-area-bottom flex items-center justify-between transition-transform duration-300 shadow-2xl">
+  <div className="md:hidden fixed bottom-0 left-0 right-0 bg-background/90 backdrop-blur-xl border-t border-border z-50 px-6 py-2 safe-area-bottom flex items-center justify-between transition-transform duration-300 shadow-2xl">
     {/* Left Group */}
     <div className="flex items-center gap-8">
-      <button onClick={() => onChangeView(ViewMode.HOME)} className={`flex flex-col items-center gap-1 transition-colors ${currentView === ViewMode.HOME ? 'text-black dark:text-white' : 'text-gray-400 dark:text-gray-500'}`}>
+      <button onClick={() => onChangeView(ViewMode.HOME)} className={`flex flex-col items-center gap-1 transition-colors ${currentView === ViewMode.HOME ? 'text-foreground' : 'text-muted-foreground'}`}>
          <Home className="w-6 h-6" />
          <span className="text-[9px] font-medium">Home</span>
       </button>
-      <button onClick={onSearch} className="flex flex-col items-center gap-1 text-gray-400 dark:text-gray-500 active:text-black dark:active:text-white transition-colors">
+      <button onClick={onSearch} className="flex flex-col items-center gap-1 text-muted-foreground active:text-foreground transition-colors">
          <Search className="w-6 h-6" />
          <span className="text-[9px] font-medium">Search</span>
       </button>
@@ -97,7 +98,7 @@ const MobileBottomNav = ({ currentView, onChangeView, onOpenMenu, onSearch }: { 
     <div className="relative -top-6 group">
       <button
           onClick={() => onChangeView(ViewMode.GLOBAL_BOARD)}
-          className={`flex items-center justify-center w-14 h-14 rounded-full shadow-xl shadow-black/20 dark:shadow-white/10 border-4 border-gray-50 dark:border-black transition-all duration-300 active:scale-95 group-hover:-translate-y-1 ${currentView === ViewMode.GLOBAL_BOARD ? 'bg-black dark:bg-white text-white dark:text-black' : 'bg-black dark:bg-white text-white dark:text-black'}`}
+          className={`flex items-center justify-center w-14 h-14 rounded-full shadow-xl border-4 border-background transition-all duration-300 active:scale-95 group-hover:-translate-y-1 ${currentView === ViewMode.GLOBAL_BOARD ? 'bg-primary text-primary-foreground' : 'bg-primary text-primary-foreground'}`}
       >
          <CheckSquare className="w-6 h-6" />
       </button>
@@ -105,11 +106,11 @@ const MobileBottomNav = ({ currentView, onChangeView, onOpenMenu, onSearch }: { 
 
     {/* Right Group */}
     <div className="flex items-center gap-8">
-      <button onClick={() => onChangeView(ViewMode.INBOX)} className={`flex flex-col items-center gap-1 transition-colors ${currentView === ViewMode.INBOX ? 'text-black dark:text-white' : 'text-gray-400 dark:text-gray-500'}`}>
+      <button onClick={() => onChangeView(ViewMode.INBOX)} className={`flex flex-col items-center gap-1 transition-colors ${currentView === ViewMode.INBOX ? 'text-foreground' : 'text-muted-foreground'}`}>
          <Inbox className="w-6 h-6" />
          <span className="text-[9px] font-medium">Inbox</span>
       </button>
-      <button onClick={onOpenMenu} className="flex flex-col items-center gap-1 text-gray-400 dark:text-gray-500 active:text-black dark:active:text-white transition-colors">
+      <button onClick={onOpenMenu} className="flex flex-col items-center gap-1 text-muted-foreground active:text-foreground transition-colors">
          <Menu className="w-6 h-6" />
          <span className="text-[9px] font-medium">Menu</span>
       </button>
@@ -511,7 +512,23 @@ const AppContent: React.FC = () => {
   };
   const handleStoreInboxSuggestion = (id: string, action: InboxAction) => setInboxItems(prev => prev.map(i => i.id === id ? { ...i, processedResult: action } : i));
   const handleAnalyzeInboxItem = async (id: string, content: string, attachments: Attachment[]) => { 
-      const action = await geminiService.organizeInboxItem(content, projects, '', openRouterInt?.connected ? 'openrouter' : 'gemini', openRouterInt?.config?.apiKey, openRouterInt?.config?.model, attachments);
+      // Construct schedule context for deep reasoning about conflicts
+      const now = new Date();
+      const upcoming = tasks
+          .filter(t => t.dueDate && new Date(t.dueDate) > now)
+          .slice(0, 10)
+          .map(t => `${t.title} (Due: ${new Date(t.dueDate!).toLocaleDateString()})`)
+          .join('\n');
+
+      const action = await geminiService.organizeInboxItem(
+          content, 
+          projects, 
+          upcoming, 
+          openRouterInt?.connected ? 'openrouter' : 'gemini', 
+          openRouterInt?.config?.apiKey, 
+          openRouterInt?.config?.model, 
+          attachments
+      );
       if(action) handleStoreInboxSuggestion(id, action);
   };
   const handleAddClient = async (c: Partial<Client>) => { 
@@ -639,14 +656,14 @@ const AppContent: React.FC = () => {
 
   return (
     <ToastContext.Provider value={{ addToast }}>
-        <div className="flex h-screen w-full bg-white dark:bg-black overflow-hidden font-sans text-gray-900 dark:text-gray-100 transition-colors duration-200">
+        <div className="flex h-screen w-full bg-background overflow-hidden font-sans text-foreground transition-colors duration-200">
         
         {/* TOAST CONTAINER */}
         <div className="fixed bottom-20 md:bottom-6 right-6 z-[200] flex flex-col gap-2 pointer-events-none">
             {toasts.map(toast => (
                 <div key={toast.id} className={`pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-lg shadow-xl border animate-in slide-in-from-bottom-5 fade-in duration-300 max-w-sm ${
-                    toast.type === 'success' ? 'bg-white dark:bg-zinc-900 border-green-500/50 text-green-700 dark:text-green-400' :
-                    'bg-white dark:bg-zinc-900 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200'
+                    toast.type === 'success' ? 'bg-card border-primary text-primary' :
+                    'bg-card border-border text-foreground'
                 }`}>
                     {toast.type === 'info' && <Info className="w-5 h-5" />}
                     <span className="text-sm font-medium">{toast.message}</span>
@@ -654,6 +671,9 @@ const AppContent: React.FC = () => {
                 </div>
             ))}
         </div>
+
+        {/* Global Sticker Mascot */}
+        <AasaniMascot fixed />
 
         <Sidebar
             currentView={currentView}
@@ -678,21 +698,21 @@ const AppContent: React.FC = () => {
             globalModelLabel={activeModelName}
         />
 
-        <main className={`flex-1 flex flex-col h-full relative w-full bg-white dark:bg-black transition-all duration-300 ease-in-out pb-20 md:pb-0 ${isSidebarExpanded ? 'md:pl-64' : 'md:pl-16'}`}>
-            <header className="h-14 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between px-6 bg-white dark:bg-black shrink-0 z-20">
+        <main className={`flex-1 flex flex-col h-full relative w-full bg-background transition-all duration-300 ease-in-out pb-20 md:pb-0 ${isSidebarExpanded ? 'md:pl-64' : 'md:pl-16'}`}>
+            <header className="h-14 border-b border-border flex items-center justify-between px-6 bg-background shrink-0 z-20">
             <div className="flex items-center space-x-3 text-sm">
-                <span className="font-medium text-black dark:text-white inline">{currentView}</span>
+                <span className="font-medium text-foreground inline">{currentView}</span>
             </div>
             <div className="flex items-center space-x-3">
                 {/* Voice Command Button */}
-                <button onClick={() => setIsVoiceCommandOpen(true)} className="p-2 rounded-full bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors group" title="Voice Command">
-                    <Mic className="w-4 h-4 text-gray-600 dark:text-gray-300 group-hover:text-purple-500" />
+                <button onClick={() => setIsVoiceCommandOpen(true)} className="p-2 rounded-full bg-muted hover:bg-accent transition-colors group" title="Voice Command">
+                    <Mic className="w-4 h-4 text-muted-foreground group-hover:text-primary" />
                 </button>
                 
-                <button onClick={() => setIsCommandPaletteOpen(true)} className="text-gray-400 hover:text-black dark:hover:text-white transition-colors">
+                <button onClick={() => setIsCommandPaletteOpen(true)} className="text-muted-foreground hover:text-foreground transition-colors">
                     <Command className="w-4 h-4" />
                 </button>
-                <button onClick={() => setIsChatOpen(!isChatOpen)} className={`transition-colors ${isChatOpen ? 'text-purple-600 dark:text-purple-400' : 'text-gray-400 hover:text-black dark:hover:text-white'}`}>
+                <button onClick={() => setIsChatOpen(!isChatOpen)} className={`transition-colors ${isChatOpen ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}>
                     <Sparkles className="w-4 h-4" />
                 </button>
             </div>
@@ -760,9 +780,9 @@ const AppContent: React.FC = () => {
                             onDelete={() => handleDeleteDocument(activeDocument.id)}
                         />
                     ) : currentView === ViewMode.DOCUMENTS && !activeDocument ? (
-                        <button onClick={handleCreateDocument} className="flex flex-col items-center justify-center h-full w-full text-gray-400 dark:text-gray-600 hover:text-gray-600 dark:hover:text-gray-300 transition-colors cursor-pointer">
-                            <div className="w-20 h-20 rounded-full bg-gray-50 dark:bg-gray-900 border-2 border-dashed border-gray-200 dark:border-gray-800 flex items-center justify-center mb-6 shadow-sm group hover:border-gray-300 dark:hover:border-gray-600 hover:bg-white dark:hover:bg-gray-800 transition-all">
-                                <Plus className="w-10 h-10 text-gray-300 dark:text-gray-700 group-hover:text-black dark:group-hover:text-white transition-colors" />
+                        <button onClick={handleCreateDocument} className="flex flex-col items-center justify-center h-full w-full text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
+                            <div className="w-20 h-20 rounded-full bg-muted border-2 border-dashed border-border flex items-center justify-center mb-6 shadow-sm group hover:border-foreground/20 hover:bg-card transition-all">
+                                <Plus className="w-10 h-10 text-muted-foreground group-hover:text-foreground transition-colors" />
                             </div>
                             <p className="text-base font-medium">Create a new page</p>
                         </button>
@@ -801,7 +821,7 @@ const AppContent: React.FC = () => {
                 </div>
                 
                 {currentView === ViewMode.DOCUMENTS && activeDocument && (
-                    <div className="hidden lg:block h-full border-l border-gray-100 dark:border-gray-800">
+                    <div className="hidden lg:block h-full border-l border-border">
                         <ContextSidebar currentDoc={activeDocument} allDocs={documents} allTasks={tasks} onNavigate={handleNavigate} />
                     </div>
                 )}
@@ -853,7 +873,9 @@ const AppContent: React.FC = () => {
 const App: React.FC = () => {
   return (
     <ErrorBoundary>
-      <AppContent />
+      <MascotProvider>
+        <AppContent />
+      </MascotProvider>
     </ErrorBoundary>
   );
 };

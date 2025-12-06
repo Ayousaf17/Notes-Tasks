@@ -56,6 +56,12 @@ You do not just "chat"; you **orchestrate**. You analyze raw input, structure it
 3.  **Structured Handoffs**: When you identify a clear action (Task, Project, CRM), you **MUST** propose it using the \`propose_import\` tool. Do not just describe the plan; build the JSON payload.
 4.  **Universal Management**: If the user is discussing an existing Task, Document, or Client, use \`update_entity\` or \`delete_entity\` to modify it based on their request.
 
+### DEEP REASONING
+When analyzing input, engage in a silent "thought process" to:
+- Identify implicit deadlines (e.g. "next Friday" -> Calculate ISO Date).
+- Match fuzzy project names to the specific Project ID provided in context.
+- Detect dependencies based on logical order of operations.
+
 ### TOOL USAGE
 Use \`:::TOOL_CALL:::\` and \`:::END_TOOL_CALL:::\` to execute actions.
 `;
@@ -174,7 +180,7 @@ export const geminiService = {
   },
 
   /**
-   * Original Gemini Chat interaction
+   * Original Gemini Chat interaction with Thinking enabled
    */
   async chat(history: { role: string; parts: { text?: string; inlineData?: any }[] }[], message: string, attachments: Attachment[] = [], systemContext?: string): Promise<string> {
     if (!apiKey) return "Error: No API Key configured for Gemini. Please check your environment.";
@@ -183,7 +189,10 @@ export const geminiService = {
       const chat = ai.chats.create({
         model: MODEL_NAME,
         history: history.map(h => ({ role: h.role, parts: h.parts })),
-        config: { systemInstruction: systemContext || EXECUTIVE_ASSISTANT_PROTOCOL }
+        config: { 
+            systemInstruction: systemContext || EXECUTIVE_ASSISTANT_PROTOCOL,
+            thinkingConfig: { thinkingBudget: 2048 } 
+        }
       });
 
       const contentParts: any[] = [];
@@ -325,7 +334,7 @@ export const geminiService = {
   },
 
   /**
-   * UPDATED: organizeInboxItem with Reality Check support
+   * UPDATED: organizeInboxItem with Reality Check support & Deep Reasoning
    */
   async organizeInboxItem(
       content: string, 
@@ -353,10 +362,11 @@ export const geminiService = {
       
       INPUT: "${content}"
       
-      THINKING PROCESS:
+      THINKING PROCESS (DEEP REASONING):
       1. **Intent**: Task, Doc, or Lead?
-      2. **Reality Check**: If a date is detected, check "Schedule Context". If that day has > 3 tasks/meetings, populate the "warning" field in JSON.
-      3. **Structure**: Build the JSON.
+      2. **Enrichment**: Calculate precise ISO dates from relative terms ("next friday"). Associate vague project names to IDs.
+      3. **Reality Check**: If a date is detected, check "Schedule Context". If that day has > 3 tasks/meetings, populate the "warning" field.
+      4. **Structure**: Build the JSON.
       
       OUTPUT FORMAT: JSON ONLY.
       
@@ -392,7 +402,10 @@ export const geminiService = {
               const geminiResponse = await ai.models.generateContent({
                   model: MODEL_NAME,
                   contents: { parts: contentParts },
-                  config: { responseMimeType: "application/json" }
+                  config: { 
+                      responseMimeType: "application/json",
+                      thinkingConfig: { thinkingBudget: 2048 } 
+                  }
               });
               responseText = geminiResponse.text || "{}";
           }

@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { FileText, Layout, Calendar, Settings, Plus, Inbox, Network, Home, X, Globe, Layers, User, Moon, Sun, Loader2, Folder, Trash2, CheckSquare, Users, Sparkles } from 'lucide-react';
 import { ViewMode, Document, Project } from '../types';
@@ -53,12 +52,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
       onClick={onClick}
       className={`w-full flex items-center space-x-3 px-3 py-3 md:py-2 rounded-md transition-all text-sm group/item mb-0.5 ${
         isActive 
-        ? 'text-black dark:text-white font-medium bg-gray-100 dark:bg-gray-800/60' 
-        : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/30'
+        ? 'text-sidebar-primary-foreground font-medium bg-sidebar-primary' 
+        : 'text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
       } ${className}`}
       title={!isExpanded ? label : ''}
     >
-      <Icon strokeWidth={1.5} className={`w-5 h-5 md:w-4 md:h-4 min-w-[1rem] ${isActive ? 'text-black dark:text-white' : 'text-gray-400 dark:text-gray-500 group-hover/item:text-gray-900 dark:group-hover/item:text-gray-200'}`} />
+      <Icon strokeWidth={1.5} className={`w-5 h-5 md:w-4 md:h-4 min-w-[1rem] ${isActive ? 'text-sidebar-primary-foreground' : 'text-sidebar-foreground/70 group-hover/item:text-sidebar-accent-foreground'}`} />
       
       <span className={`hidden md:block overflow-hidden whitespace-nowrap transition-all duration-300 ease-in-out origin-left text-[13px] ${isExpanded ? 'opacity-100 w-auto ml-2' : 'opacity-0 w-0'}`}>
           {label}
@@ -76,7 +75,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     <>
       {isMobileOpen && (
         <div 
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] md:hidden animate-in fade-in duration-300"
+            className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[100] md:hidden animate-in fade-in duration-300"
             onClick={onMobileClose}
         />
       )}
@@ -84,18 +83,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <div 
         onMouseEnter={() => onHover(true)}
         onMouseLeave={() => onHover(false)}
-        className={`fixed inset-y-0 left-0 z-[110] flex flex-col bg-white dark:bg-black border-r border-gray-100 dark:border-gray-800 transition-all duration-300 ease-in-out font-sans shadow-2xl md:shadow-none h-full
+        className={`fixed inset-y-0 left-0 z-[110] flex flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border transition-all duration-300 ease-in-out font-sans shadow-2xl md:shadow-none h-full
         ${isMobileOpen ? 'translate-x-0 w-[80vw]' : '-translate-x-full'} 
         md:translate-x-0 ${isExpanded ? 'md:w-64 md:shadow-xl' : 'md:w-16'} group`}
       >
         
         {/* LOGO AREA */}
-        <div className={`h-16 md:h-14 flex items-center transition-all border-b border-gray-50 dark:border-gray-800 shrink-0 overflow-hidden ${isExpanded || isMobileOpen ? 'px-6 md:px-5 justify-between' : 'px-0 justify-center'}`}>
-          <span className={`font-serif text-xl md:text-lg font-bold tracking-tight text-black dark:text-white whitespace-nowrap transition-all duration-300`}>
+        <div className={`h-16 md:h-14 flex items-center transition-all border-b border-sidebar-border shrink-0 overflow-hidden ${isExpanded || isMobileOpen ? 'px-6 md:px-5 justify-between' : 'px-0 justify-center'}`}>
+          <span className={`font-serif text-xl md:text-lg font-bold tracking-tight text-sidebar-foreground whitespace-nowrap transition-all duration-300`}>
              {(isExpanded || isMobileOpen) ? 'Aasani.' : 'A.'}
           </span>
           {isMobileOpen && (
-              <button onClick={onMobileClose} className="md:hidden p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500">
+              <button onClick={onMobileClose} className="md:hidden p-2 rounded-full hover:bg-sidebar-accent text-sidebar-foreground">
                   <X className="w-5 h-5" />
               </button>
           )}
@@ -123,10 +122,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {/* 2. Active Project Context (MOVED UP FOR BETTER VISIBILITY) */}
           {isProjectContext && currentProject && (
               <div className="space-y-1 md:space-y-0.5 animate-in slide-in-from-left-2 fade-in duration-300">
-                  <div className={`hidden md:block px-3 text-[10px] font-bold text-black dark:text-white uppercase tracking-widest mb-2 transition-opacity duration-200 truncate h-4 ${isExpanded ? 'opacity-100' : 'opacity-0'}`}>
+                  <div className={`hidden md:block px-3 text-[10px] font-bold text-sidebar-foreground/80 uppercase tracking-widest mb-2 transition-opacity duration-200 truncate h-4 ${isExpanded ? 'opacity-100' : 'opacity-0'}`}>
                       {currentProject.title}
                   </div>
-                  <div className="md:hidden px-3 text-xs font-bold text-black dark:text-white uppercase tracking-widest mb-2">
+                  <div className="md:hidden px-3 text-xs font-bold text-sidebar-foreground uppercase tracking-widest mb-2">
                       {currentProject.title}
                   </div>
                   
@@ -136,18 +135,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <NavItem icon={Network} label="Graph" isActive={currentView === ViewMode.GRAPH} onClick={() => { onChangeView(ViewMode.GRAPH); onMobileClose(); }} />
                   
                   {/* Pages Section */}
-                  <div className="mt-4 pt-4 border-t border-gray-50 dark:border-gray-800/50">
+                  <div className="mt-4 pt-4 border-t border-sidebar-border">
                       <div className={`hidden md:flex px-3 items-center justify-between mb-1.5 transition-opacity duration-200 h-4 overflow-hidden ${isExpanded ? 'opacity-100' : 'opacity-0'}`}>
-                           <span className="text-[10px] font-semibold text-gray-400 dark:text-gray-600 uppercase tracking-widest">Pages</span>
-                           <button onClick={(e) => { e.stopPropagation(); onCreateDocument(); }} className="text-gray-400 hover:text-black dark:hover:text-white p-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"><Plus className="w-3 h-3" /></button>
+                           <span className="text-[10px] font-semibold text-sidebar-foreground/50 uppercase tracking-widest">Pages</span>
+                           <button onClick={(e) => { e.stopPropagation(); onCreateDocument(); }} className="text-sidebar-foreground/50 hover:text-sidebar-foreground p-0.5 rounded hover:bg-sidebar-accent transition-colors"><Plus className="w-3 h-3" /></button>
                       </div>
                       <div className="space-y-0.5">
-                        {documents.length === 0 && isExpanded && <div className="px-3 text-xs text-gray-400 italic py-1">No pages yet.</div>}
+                        {documents.length === 0 && isExpanded && <div className="px-3 text-xs text-sidebar-foreground/40 italic py-1">No pages yet.</div>}
                         {documents.map(doc => (
                              <button
                                 key={doc.id}
                                 onClick={() => { onChangeView(ViewMode.DOCUMENTS); onSelectDocument(doc.id); onMobileClose(); }}
-                                className={`w-full flex items-center px-3 py-1.5 text-sm text-left transition-colors rounded-md group ${activeDocumentId === doc.id && currentView === ViewMode.DOCUMENTS ? 'text-black dark:text-white bg-gray-100 dark:bg-gray-800 font-medium' : 'text-gray-500 hover:text-black dark:text-gray-400 dark:hover:text-white'}`}
+                                className={`w-full flex items-center px-3 py-1.5 text-sm text-left transition-colors rounded-md group ${activeDocumentId === doc.id && currentView === ViewMode.DOCUMENTS ? 'text-sidebar-accent-foreground bg-sidebar-accent font-medium' : 'text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/50'}`}
                              >
                                 <FileText className="w-4 h-4 mr-2 opacity-70" />
                                 <span className={`truncate transition-all ${isExpanded ? 'opacity-100' : 'opacity-0 w-0'}`}>{doc.title || 'Untitled'}</span>
@@ -159,8 +158,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
           )}
 
           {/* 3. Global Views */}
-          <div className="space-y-1 md:space-y-0.5 pt-4 border-t border-gray-50 dark:border-gray-800">
-              <div className={`hidden md:block px-3 text-[10px] font-semibold text-gray-400 dark:text-gray-600 uppercase tracking-widest mb-1.5 transition-opacity duration-200 truncate h-4 ${isExpanded ? 'opacity-100' : 'opacity-0'}`}>
+          <div className="space-y-1 md:space-y-0.5 pt-4 border-t border-sidebar-border">
+              <div className={`hidden md:block px-3 text-[10px] font-semibold text-sidebar-foreground/50 uppercase tracking-widest mb-1.5 transition-opacity duration-200 truncate h-4 ${isExpanded ? 'opacity-100' : 'opacity-0'}`}>
                   Workspace
               </div>
               <NavItem icon={Layers} label="All Tasks" isActive={currentView === ViewMode.GLOBAL_BOARD} onClick={() => { onChangeView(ViewMode.GLOBAL_BOARD); onMobileClose(); }} />
@@ -171,14 +170,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {/* 4. Projects Switcher */}
           <div className="space-y-1 md:space-y-0.5">
               <div className={`hidden md:flex px-3 items-center justify-between mb-1.5 transition-opacity duration-200 h-4 overflow-hidden ${isExpanded ? 'opacity-100' : 'opacity-0'}`}>
-                  <span className="text-[10px] font-semibold text-gray-400 dark:text-gray-600 uppercase tracking-widest">Switch Project</span>
-                  <button onClick={onCreateProject}><Plus className="w-3 h-3 text-gray-400 hover:text-black dark:hover:text-white" /></button>
+                  <span className="text-[10px] font-semibold text-sidebar-foreground/50 uppercase tracking-widest">Switch Project</span>
+                  <button onClick={onCreateProject}><Plus className="w-3 h-3 text-sidebar-foreground/50 hover:text-sidebar-foreground" /></button>
               </div>
               {projects.map(project => (
                   <div key={project.id} className="group/project-item relative flex items-center mb-0.5">
                       <button
                           onClick={() => { onSelectProject(project.id); onMobileClose(); }}
-                          className={`w-full flex items-center px-3 py-2 rounded-md text-sm transition-colors text-left ${activeProjectId === project.id ? 'text-black dark:text-white font-bold' : 'text-gray-500 hover:text-black dark:text-gray-400 dark:hover:text-white'}`}
+                          className={`w-full flex items-center px-3 py-2 rounded-md text-sm transition-colors text-left ${activeProjectId === project.id ? 'text-sidebar-foreground font-bold bg-sidebar-accent' : 'text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50'}`}
                       >
                           <Folder className="w-4 h-4 mr-3 opacity-70" />
                           <span className={`truncate transition-all ${isExpanded ? 'opacity-100' : 'opacity-0 w-0'}`}>{project.title}</span>
@@ -189,20 +188,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* FOOTER - Settings & Profile */}
-        <div className="p-3 mt-auto border-t border-gray-50 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/50 overflow-hidden shrink-0 pb-safe">
+        <div className="p-3 mt-auto border-t border-sidebar-border bg-sidebar-accent/10 overflow-hidden shrink-0 pb-safe">
           {/* Active Model Indicator */}
           {globalModelLabel && (
-              <div className={`mb-3 px-2 flex items-center gap-2 text-[10px] text-gray-400 dark:text-gray-500 transition-all duration-300 ${!isExpanded ? 'justify-center' : ''}`}>
-                  <Sparkles className="w-3 h-3 text-purple-500" />
+              <div className={`mb-3 px-2 flex items-center gap-2 text-[10px] text-sidebar-foreground/50 transition-all duration-300 ${!isExpanded ? 'justify-center' : ''}`}>
+                  <Sparkles className="w-3 h-3 text-sidebar-primary" />
                   <span className={`truncate ${isExpanded ? 'opacity-100 w-auto' : 'opacity-0 w-0 hidden'}`}>
-                      Powered by <span className="font-bold text-gray-600 dark:text-gray-300">{globalModelLabel}</span>
+                      Powered by <span className="font-bold text-sidebar-foreground">{globalModelLabel}</span>
                   </span>
               </div>
           )}
 
           <button 
             onClick={() => { onChangeView(ViewMode.SETTINGS); onMobileClose(); }}
-            className={`w-full flex items-center space-x-3 px-2 py-2 mb-1 text-xs rounded transition-colors ${currentView === ViewMode.SETTINGS ? 'bg-white dark:bg-gray-800 text-black dark:text-white shadow-sm' : 'text-gray-500 hover:bg-gray-200/50 dark:hover:bg-gray-800/50'}`}
+            className={`w-full flex items-center space-x-3 px-2 py-2 mb-1 text-xs rounded transition-colors ${currentView === ViewMode.SETTINGS ? 'bg-sidebar-accent text-sidebar-accent-foreground shadow-sm' : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/50'}`}
           >
             <Settings className="w-4 h-4" />
             <span className={`hidden md:block transition-all duration-300 ${isExpanded ? 'opacity-100 w-auto' : 'opacity-0 w-0'}`}>Settings</span>
@@ -210,7 +209,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
           <button 
             onClick={onToggleDarkMode}
-            className="w-full flex items-center space-x-3 px-2 py-2 text-xs rounded transition-colors text-gray-500 hover:bg-gray-200/50 dark:hover:bg-gray-800/50"
+            className="w-full flex items-center space-x-3 px-2 py-2 text-xs rounded transition-colors text-sidebar-foreground/70 hover:bg-sidebar-accent/50"
           >
             {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             <span className={`hidden md:block transition-all duration-300 ${isExpanded ? 'opacity-100 w-auto' : 'opacity-0 w-0'}`}>
@@ -218,10 +217,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </span>
           </button>
           
-          <div className={`mt-3 pt-3 border-t border-gray-200 dark:border-gray-700 flex items-center gap-3 px-2 ${!isExpanded ? 'justify-center' : ''}`}>
-              <div className="w-7 h-7 rounded-full bg-black dark:bg-white text-white dark:text-black flex items-center justify-center font-bold text-xs">U</div>
+          <div className={`mt-3 pt-3 border-t border-sidebar-border flex items-center gap-3 px-2 ${!isExpanded ? 'justify-center' : ''}`}>
+              <div className="w-7 h-7 rounded-full bg-sidebar-primary text-sidebar-primary-foreground flex items-center justify-center font-bold text-xs">U</div>
               <div className={`hidden md:block overflow-hidden transition-all duration-300 ${isExpanded ? 'opacity-100 w-auto' : 'opacity-0 w-0'}`}>
-                  <div className="text-xs font-bold text-black dark:text-white truncate">Workspace User</div>
+                  <div className="text-xs font-bold text-sidebar-foreground truncate">Workspace User</div>
               </div>
           </div>
         </div>
