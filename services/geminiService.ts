@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type, Schema } from "@google/genai";
-import { Task, TaskStatus, TaskPriority, ProjectPlan, Attachment, Project, InboxAction, AgentRole, AgentResult, Document, Source } from "../types";
+import { Task, TaskStatus, TaskPriority, ProjectPlan, Attachment, Project, InboxAction, AgentRole, AgentResult, Document, Source, Client } from "../types";
 
 // SAFELY ACCESS API KEY
 const getApiKey = () => {
@@ -27,6 +27,21 @@ interface ChatParams {
     message: string;
     attachments: Attachment[];
     systemContext?: string;
+}
+
+export interface VoiceIntent {
+    type: 'create_task' | 'navigate' | 'create_note' | 'search' | 'unknown';
+    data: any;
+    feedback: string;
+}
+
+export interface DashboardInsight {
+    id: string;
+    type: 'warning' | 'opportunity' | 'success' | 'tip';
+    title: string;
+    message: string;
+    actionLabel?: string;
+    actionLink?: string; // e.g. "task:123" or "view:crm"
 }
 
 // UNIVERSAL PROTOCOL FOR GLOBAL LLMS
@@ -222,6 +237,91 @@ export const geminiService = {
           });
           return response.text || "No answer found.";
       } catch (error) { return "Error querying workspace."; }
+  },
+
+  /**
+   * VOICE COMMAND PARSER
+   */
+  async parseVoiceCommand(transcript: string, projects: Project[]): Promise<VoiceIntent> {
+      if (!apiKey) return { type: 'unknown', data: {}, feedback: "API Key missing." };
+      
+      const projectList = projects.map(p => p.title).join(', ');
+      
+      const prompt = `
+      Act as an Intent Parser for a Workspace OS.
+      User said: "${transcript}"
+      Available Projects: ${projectList}
+      
+      Classify into one of these intents and return JSON:
+      1. 'create_task': User wants to add a task. Extract title, priority (High/Medium/Low), project (match closely or use 'default'), and dueDate (ISO string if mentioned).
+      2. 'create_note': User wants to save a thought/note/idea to Inbox.
+      3. 'navigate': User wants to go to a view (Inbox, CRM, Calendar, Settings, Home, Projects).
+      
+      Format:
+      {
+        "type": "create_task" | "create_note" | "navigate" | "unknown",
+        "data": { ...specific fields... },
+        "feedback": "Spoken confirmation message for the user"
+      }
+      `;
+
+      try {
+          const response = await ai.models.generateContent({
+              model: MODEL_NAME,
+              contents: prompt,
+              config: { responseMimeType: "application/json" }
+          });
+          return JSON.parse(response.text || "{\"type\":\"unknown\"}");
+      } catch (e) {
+          console.error("Voice parse error", e);
+          return { type: 'unknown', data: {}, feedback: "I couldn't understand that command." };
+      }
+  },
+
+  /**
+   * GENERATE DASHBOARD INSIGHTS (PROACTIVE INTELLIGENCE)
+   */
+  async generateDashboardInsights(tasks: Task[], clients: Client[]): Promise<DashboardInsight[]> {
+      if (!apiKey) return [];
+      
+      // Filter for interesting data points to save tokens
+      const highPriority = tasks.filter(t => t.priority === TaskPriority.HIGH && t.status !== TaskStatus.DONE).length;
+      const overdue = tasks.filter(t => t.dueDate && new Date(t.dueDate) < new Date() && t.status !== TaskStatus.DONE).length;
+      const staleClients = clients.filter(c => {
+          const last = new Date(c.lastContact);
+          const diff = (new Date().getTime() - last.getTime()) / (1000 * 3600 * 24);
+          return diff > 14 && c.status !== 'Churned';
+      }).map(c => c.company).join(', ');
+
+      const context = `
+      High Priority Tasks: ${highPriority}
+      Overdue Tasks: ${overdue}
+      Stale Clients (>14 days no contact): ${staleClients || 'None'}
+      Current Time: ${new Date().getHours()}:00
+      `;
+
+      const prompt = `
+      Analyze this workspace context and generate 3 short, punchy "Insight Cards" for the dashboard.
+      Types: 'warning' (urgent), 'opportunity' (sales/growth), 'tip' (productivity).
+      
+      Context: ${context}
+      
+      Return JSON Array:
+      [
+        { "id": "1", "type": "warning", "title": "...", "message": "...", "actionLabel": "...", "actionLink": "..." }
+      ]
+      `;
+
+      try {
+          const response = await ai.models.generateContent({
+              model: MODEL_NAME,
+              contents: prompt,
+              config: { responseMimeType: "application/json" }
+          });
+          return JSON.parse(response.text || "[]");
+      } catch (e) {
+          return [];
+      }
   },
 
   /**
