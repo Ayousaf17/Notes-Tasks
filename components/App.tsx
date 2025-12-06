@@ -1,4 +1,4 @@
-import React, { useState, useEffect, ErrorInfo, ReactNode, createContext, useContext } from 'react';
+import React, { useState, useEffect, ErrorInfo, ReactNode, createContext, useContext, Component } from 'react';
 import { Sidebar } from './Sidebar';
 import { DocumentEditor } from './DocumentEditor';
 import { TaskBoard } from './TaskBoard';
@@ -49,7 +49,7 @@ interface ErrorBoundaryState {
   hasError: boolean;
 }
 
-class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   state: ErrorBoundaryState = { hasError: false };
 
   static getDerivedStateFromError(_: Error): ErrorBoundaryState {
@@ -786,6 +786,17 @@ const AppContent: React.FC = () => {
   // Find the focused item for chat context
   const activeInboxItem = activeInboxItemId ? inboxItems.find(i => i.id === activeInboxItemId) : null;
 
+  // CONTEXT STRING GENERATION
+  const getContextData = () => {
+      if (activeInboxItem) {
+          return `FOCUS: Analyzing Inbox Item "${activeInboxItem.content}". The user wants to discuss this specific raw input.`;
+      }
+      if (currentView === ViewMode.DOCUMENTS && activeDocument) {
+          return activeDocument.content;
+      }
+      return '';
+  };
+
   const getContextForTaskBoard = () => {
     let context = `Project Context: ${activeProject?.title || 'General'}\n`;
     if (activeDocument && activeDocument.content.trim()) context += `Active Document Content:\n${activeDocument.content}\n\n`;
@@ -988,8 +999,8 @@ const AppContent: React.FC = () => {
             <AIChatSidebar 
                 isOpen={isChatOpen} 
                 onClose={() => setIsChatOpen(false)}
-                // Pass active item context if available
-                contextData={activeInboxItem ? `[FOCUS: Analyzing Inbox Item "${activeInboxItem.content}"]` : (currentView === ViewMode.DOCUMENTS ? activeDocument?.content : '')}
+                // Pass the dynamic context string for the HUD
+                contextData={getContextData()}
                 onProjectPlanCreated={handleProjectPlanCreated}
                 messages={chatMessages}
                 setMessages={setChatMessages}

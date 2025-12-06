@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { ChatMessage, ProjectPlan, Document, Task, Integration, TaskStatus, TaskPriority, Project, Client, ActionProposal, Attachment, AgentRole, InboxAction, InboxItem } from '../types';
-import { Send, X, Bot, Paperclip, Loader2, Sparkles, User, ChevronDown, Lock, Settings, Search, CheckCircle2, Calendar, Briefcase, Flag, Plus, File, Folder, Layers, ArrowRight } from 'lucide-react';
+import { Send, X, Bot, Paperclip, Loader2, Sparkles, User, ChevronDown, Lock, Settings, Search, CheckCircle2, Calendar, Briefcase, Flag, Plus, File, Folder, Layers, ArrowRight, Eye, Target } from 'lucide-react';
 import { geminiService } from '../services/geminiService';
 
 interface AIChatSidebarProps {
@@ -377,7 +377,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
             // CONTEXT BUILDING
             let systemContext = `Current Date: ${new Date().toDateString()}\n\nAVAILABLE PROJECTS:\n${projects.map(p => `- ${p.title} (ID: ${p.id})`).join('\n')}\n\nAVAILABLE CLIENTS:\n${clients.map(c => `- ${c.company} (ID: ${c.id})`).join('\n')}\n\nTEAM:\n${teamMembers.join(', ')}\n\n`;
             
-            if (contextData) systemContext += `Current Document Content:\n${contextData}\n\n`;
+            if (contextData) systemContext += `Current Context:\n${contextData}\n\n`;
             if (input.length > 10) {
                  const relevant = await geminiService.findRelevantContext(input, allDocuments, allTasks);
                  if (relevant.text) systemContext += `Relevant Workspace Information:\n${relevant.text}\n\n`;
@@ -534,6 +534,24 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                                 className="flex-1 text-xs bg-transparent border-none focus:ring-0 p-0 text-gray-900 dark:text-white"
                             />
                         </div>
+                    </div>
+                )}
+
+                {/* CONTEXT HUD (HEADS UP DISPLAY) - Visual cue for user */}
+                {contextData && contextData.includes('FOCUS: Analyzing Inbox Item') && (
+                    <div className="bg-purple-50 dark:bg-purple-900/10 border-b border-purple-100 dark:border-purple-800/30 px-4 py-2 flex items-center gap-2">
+                        <Target className="w-3 h-3 text-purple-600 dark:text-purple-400 animate-pulse" />
+                        <span className="text-[10px] font-bold text-purple-700 dark:text-purple-300 uppercase tracking-wide">
+                            Focus Mode: Inbox Handoff
+                        </span>
+                    </div>
+                )}
+                {contextData && !contextData.includes('FOCUS: Analyzing Inbox Item') && contextData.length > 5 && (
+                    <div className="bg-blue-50 dark:bg-blue-900/10 border-b border-blue-100 dark:border-blue-800/30 px-4 py-2 flex items-center gap-2">
+                        <Eye className="w-3 h-3 text-blue-600 dark:text-blue-400" />
+                        <span className="text-[10px] font-bold text-blue-700 dark:text-blue-300 uppercase tracking-wide">
+                            Context Aware
+                        </span>
                     </div>
                 )}
 
