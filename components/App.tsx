@@ -1,4 +1,4 @@
-import React, { useState, useEffect, ErrorInfo, ReactNode, createContext, useContext, Component } from 'react';
+import React, { useState, useEffect, ErrorInfo, ReactNode, createContext, useContext } from 'react';
 import { Sidebar } from './Sidebar';
 import { DocumentEditor } from './DocumentEditor';
 import { TaskBoard } from './TaskBoard';
@@ -50,8 +50,11 @@ interface ErrorBoundaryState {
   hasError: boolean;
 }
 
-class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  state: ErrorBoundaryState = { hasError: false };
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false };
+  }
 
   static getDerivedStateFromError(_: Error): ErrorBoundaryState {
     return { hasError: true };
@@ -211,7 +214,7 @@ const AppContent: React.FC = () => {
   // Calculate Active Model Name for Global Display
   const openRouterInt = integrations.find(i => i.id === 'openrouter');
   const activeModelName = openRouterInt?.connected && openRouterInt.config?.model 
-      ? `OpenRouter: ${openRouterInt.config.model.split('/').pop()}` 
+      ? `${openRouterInt.config.model.split('/').pop()}` 
       : 'Gemini 2.5 Flash';
 
   const [projects, setProjects] = useState<Project[]>([
@@ -600,17 +603,30 @@ const AppContent: React.FC = () => {
   };
 
   // --- Connection Handler ---
-  const handleToggleIntegration = async (id: string, config?: { apiKey?: string, model?: string }) => {
-      setIntegrations(prev => prev.map(i => i.id === id ? { 
-          ...i, 
-          connected: !i.connected, 
-          config: config ? { ...i.config, ...config } : i.config 
-      } : i));
+  const handleManageIntegration = async (id: string, action: 'toggle' | 'connect' | 'disconnect' | 'update', config?: any) => {
+      let isConnectAction = false;
+      
+      setIntegrations(prev => prev.map(i => {
+          if (i.id !== id) return i;
+          
+          let newConnected = i.connected;
+          if (action === 'toggle') newConnected = !i.connected;
+          if (action === 'connect') newConnected = true;
+          if (action === 'disconnect') newConnected = false;
+          // 'update' doesn't change connection status
+          
+          if (newConnected && !i.connected) isConnectAction = true;
+
+          return { 
+              ...i, 
+              connected: newConnected, 
+              config: config ? { ...i.config, ...config } : i.config 
+          };
+      }));
       
       const integration = integrations.find(i => i.id === id);
-      const isConnecting = !integration?.connected;
       
-      if (isConnecting) {
+      if (isConnectAction || (action === 'toggle' && !integration?.connected)) {
           addToast(`Connected to ${integration?.name}`, 'success');
           if (id === 'google') {
               try {
@@ -621,11 +637,13 @@ const AppContent: React.FC = () => {
                   addToast("Failed to sync Google Calendar", 'error');
               }
           }
-      } else {
+      } else if (action === 'disconnect' || (action === 'toggle' && integration?.connected)) {
           addToast(`Disconnected from ${integration?.name}`, 'info');
           if (id === 'google') {
               setTasks(prev => prev.filter(t => t.externalType !== 'GOOGLE_CALENDAR'));
           }
+      } else if (action === 'update') {
+          addToast(`${integration?.name} settings updated`, 'success');
       }
   };
   
@@ -1085,7 +1103,7 @@ const AppContent: React.FC = () => {
                             onDeleteProject={handleDeleteProject}
                             projects={projects}
                             integrations={integrations}
-                            onToggleIntegration={handleToggleIntegration}
+                            onToggleIntegration={handleManageIntegration} // Pass new handler
                         />
                     ) : currentView === ViewMode.REVIEW ? (
                         <ReviewWizard inboxItems={inboxItems} tasks={tasks} projects={projects} onProcessInboxItem={handleProcessInboxItem} onDeleteInboxItem={handleDeleteInboxItem} onDeleteTask={handleDeleteTask} onUpdateTaskStatus={handleUpdateTaskStatus} onUpdateTaskAssignee={handleUpdateTaskAssignee} onClose={() => setCurrentView(ViewMode.HOME)} />
@@ -1170,6 +1188,8 @@ const AppContent: React.FC = () => {
                 onSaveToInbox={handleSaveToInbox} // Pass new handler
                 onExecuteAction={async (id, action) => await executeInboxAction(action)} // Pass new handler wrapper
                 onUpdateEntity={handleUpdateEntity} // Chat can update entities
+                // Pass the handler to allow updating model from chat sidebar
+                onUpdateIntegration={handleManageIntegration}
                 onAddTask={(task) => {
                     const newTask: Task = {
                         id: crypto.randomUUID(),
@@ -1194,7 +1214,7 @@ const AppContent: React.FC = () => {
             <CommandPalette isOpen={isCommandPaletteOpen} onClose={() => setIsCommandPaletteOpen(false)} documents={documents} tasks={tasks} projects={projects} onNavigate={handleNavigate} onCreateDocument={handleCreateDocument} onChangeView={setCurrentView} onSelectProject={handleSelectProject} />
             <CreateProjectModal isOpen={isCreateProjectModalOpen} onClose={() => setIsCreateProjectModalOpen(false)} onCreate={handleCreateProjectConfirm} />
             <CreateClientModal isOpen={isCreateClientModalOpen} onClose={() => setIsCreateClientModalOpen(false)} onCreate={handleAddClient} />
-            <IntegrationsModal isOpen={isIntegrationsOpen} onClose={() => setIsIntegrationsOpen(false)} integrations={integrations} onToggleIntegration={handleToggleIntegration} />
+            <IntegrationsModal isOpen={isIntegrationsOpen} onClose={() => setIsIntegrationsOpen(false)} integrations={integrations} onToggleIntegration={handleManageIntegration} />
             <ConfirmationModal isOpen={confirmationModal.isOpen} title={confirmationModal.title} message={confirmationModal.message} onClose={() => setConfirmationModal(prev => ({ ...prev, isOpen: false }))} onConfirm={confirmationModal.onConfirm} isDanger={confirmationModal.isDanger} confirmText={confirmationModal.confirmText} />
             {selectedTask && <TaskDetailModal task={selectedTask} isOpen={!!selectedTask} onClose={() => setSelectedTaskId(null)} onUpdate={updateTask} onDelete={handleDeleteTask} users={teamMembers} projects={projects} />}
         </main>

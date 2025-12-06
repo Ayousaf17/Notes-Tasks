@@ -13,7 +13,7 @@ interface SettingsViewProps {
   onDeleteProject: (projectId: string) => void;
   projects: Project[];
   integrations: Integration[];
-  onToggleIntegration: (id: string, apiKey?: string) => Promise<void>;
+  onToggleIntegration: (id: string, action: 'toggle' | 'connect' | 'disconnect' | 'update', config?: any) => Promise<void>;
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({ 
@@ -65,7 +65,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
   const handleConnectClick = (integration: Integration) => {
       if (integration.connected) {
-          onToggleIntegration(integration.id);
+          onToggleIntegration(integration.id, 'disconnect');
           return;
       }
       
@@ -76,7 +76,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           // Simulate Cloud OAuth
           setIsSubmitting(true);
           setTimeout(() => {
-              onToggleIntegration(integration.id);
+              onToggleIntegration(integration.id, 'connect');
               setIsSubmitting(false);
           }, 1000);
       }
@@ -88,7 +88,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       
       setIsSubmitting(true);
       await new Promise(resolve => setTimeout(resolve, 800));
-      await onToggleIntegration(id, trimmedKey);
+      await onToggleIntegration(id, 'connect', { apiKey: trimmedKey });
       setIsSubmitting(false);
       setConnectingId(null);
       setApiKeyInput('');

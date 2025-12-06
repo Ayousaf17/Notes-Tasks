@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { X, Cloud, MessageSquare, Check, Loader2, Key, ExternalLink, AlertCircle, Cpu } from 'lucide-react';
+import { X, Cloud, MessageSquare, Check, Loader2, Key, ExternalLink, AlertCircle, Cpu, RefreshCw } from 'lucide-react';
 import { Integration } from '../types';
 import { geminiService } from '../services/geminiService';
 
@@ -8,7 +8,7 @@ interface IntegrationsModalProps {
   isOpen: boolean;
   onClose: () => void;
   integrations: Integration[];
-  onToggleIntegration: (id: string, config?: { apiKey?: string, model?: string }) => Promise<void>;
+  onToggleIntegration: (id: string, action: 'toggle' | 'connect' | 'disconnect' | 'update', config?: { apiKey?: string, model?: string }) => Promise<void>;
 }
 
 export const IntegrationsModal: React.FC<IntegrationsModalProps> = ({ 
@@ -23,19 +23,21 @@ export const IntegrationsModal: React.FC<IntegrationsModalProps> = ({
   
   // Model Selection State
   const [availableModels, setAvailableModels] = useState<{id: string, name: string}[]>([]);
-  const [selectedModel, setSelectedModel] = useState('');
   const [isLoadingModels, setIsLoadingModels] = useState(false);
 
-  // Auto-fetch models when OpenRouter connects
+  // Auto-fetch models if OpenRouter is present (connected or connecting)
   useEffect(() => {
-      if (connectingId === 'openrouter') {
-          setIsLoadingModels(true);
-          geminiService.fetchOpenRouterModels().then(models => {
-              setAvailableModels(models);
-              setIsLoadingModels(false);
-          });
+      const openRouter = integrations.find(i => i.id === 'openrouter');
+      if (isOpen && openRouter && (connectingId === 'openrouter' || openRouter.connected)) {
+          if (availableModels.length === 0) {
+              setIsLoadingModels(true);
+              geminiService.fetchOpenRouterModels().then(models => {
+                  setAvailableModels(models);
+                  setIsLoadingModels(false);
+              });
+          }
       }
-  }, [connectingId]);
+  }, [isOpen, connectingId, integrations]);
 
   if (!isOpen) return null;
 
@@ -44,38 +46,41 @@ export const IntegrationsModal: React.FC<IntegrationsModalProps> = ({
   const handleConnectClick = (integration: Integration) => {
       if (integration.connected) {
           // Disconnect
-          onToggleIntegration(integration.id);
+          onToggleIntegration(integration.id, 'disconnect');
           return;
       }
       
       if (integration.category === 'AI') {
           setConnectingId(integration.id);
           setApiKeyInput('');
-          setSelectedModel('');
       } else {
           // Simulate Cloud OAuth
           setIsSubmitting(true);
           setTimeout(() => {
-              onToggleIntegration(integration.id);
+              onToggleIntegration(integration.id, 'connect');
               setIsSubmitting(false);
           }, 1000);
       }
   };
 
-  const handleSaveConfig = async (id: string) => {
+  const handleSaveKey = async (id: string) => {
       const trimmedKey = apiKeyInput.trim();
       if (!trimmedKey) return;
       
       setIsSubmitting(true);
       await new Promise(resolve => setTimeout(resolve, 800));
       
-      const config = { apiKey: trimmedKey, model: selectedModel || undefined };
-      await onToggleIntegration(id, config);
+      // Default model if none selected yet
+      const config = { apiKey: trimmedKey };
+      await onToggleIntegration(id, 'connect', config);
       
       setIsSubmitting(false);
       setConnectingId(null);
       setApiKeyInput('');
-      setSelectedModel('');
+  };
+
+  const handleModelChange = async (id: string, modelId: string) => {
+      await onToggleIntegration(id, 'update', { model: modelId });
   };
 
   return (
@@ -127,9 +132,25 @@ export const IntegrationsModal: React.FC<IntegrationsModalProps> = ({
                                                     {integration.connected && <div className="flex items-center gap-1 text-[10px] font-bold text-green-600 bg-green-50 dark:bg-green-900/20 px-2 py-0.5 rounded-full"><Check className="w-3 h-3" /> SYNCED</div>}
                                                 </div>
                                                 <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 leading-relaxed">{integration.description}</p>
-                                                {integration.connected && integration.config?.model && (
-                                                    <div className="mt-2 text-[10px] text-gray-500 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded inline-block border border-gray-200 dark:border-gray-700">
-                                                        Model: {integration.config.model}
+                                                
+                                                {/* Connected State: Show Model Picker for OpenRouter */}
+                                                {integration.connected && integration.id === 'openrouter' && (
+                                                    <div className="mt-3">
+                                                        <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Active Model</label>
+                                                        <div className="relative">
+                                                            <Cpu className="absolute left-2 top-2 w-3 h-3 text-gray-400" />
+                                                            <select 
+                                                                value={integration.config?.model || ''} 
+                                                                onChange={(e) => handleModelChange(integration.id, e.target.value)}
+                                                                className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded text-xs py-1.5 pl-7 pr-4 focus:ring-1 focus:ring-black dark:focus:ring-white outline-none appearance-none cursor-pointer text-gray-700 dark:text-gray-200"
+                                                            >
+                                                                <option value="">Default (GPT-4o)</option>
+                                                                {availableModels.map(m => (
+                                                                    <option key={m.id} value={m.id}>{m.name}</option>
+                                                                ))}
+                                                            </select>
+                                                            {isLoadingModels && <div className="absolute right-2 top-2"><Loader2 className="w-3 h-3 animate-spin text-gray-400"/></div>}
+                                                        </div>
                                                     </div>
                                                 )}
                                             </div>
@@ -149,34 +170,13 @@ export const IntegrationsModal: React.FC<IntegrationsModalProps> = ({
                                                     />
                                                 </div>
 
-                                                {/* Model Picker for OpenRouter */}
-                                                {integration.id === 'openrouter' && (
-                                                    <div className="relative">
-                                                        <Cpu className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
-                                                        {isLoadingModels ? (
-                                                            <div className="w-full pl-10 py-2 text-sm text-gray-400">Loading models...</div>
-                                                        ) : (
-                                                            <select
-                                                                value={selectedModel}
-                                                                onChange={(e) => setSelectedModel(e.target.value)}
-                                                                className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-black dark:focus:ring-white outline-none appearance-none"
-                                                            >
-                                                                <option value="">Select a Model (Default: GPT-4o)</option>
-                                                                {availableModels.map(m => (
-                                                                    <option key={m.id} value={m.id}>{m.name}</option>
-                                                                ))}
-                                                            </select>
-                                                        )}
-                                                    </div>
-                                                )}
-
                                                 <div className="flex gap-2 pt-1">
                                                     <button 
-                                                        onClick={() => handleSaveConfig(integration.id)}
+                                                        onClick={() => handleSaveKey(integration.id)}
                                                         disabled={!apiKeyInput.trim() || isSubmitting}
                                                         className="flex-1 bg-black dark:bg-white text-white dark:text-black py-2 rounded-lg text-xs font-bold hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
                                                     >
-                                                        {isSubmitting ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Save Configuration'}
+                                                        {isSubmitting ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Save Key'}
                                                     </button>
                                                     <button 
                                                         onClick={() => setConnectingId(null)}
@@ -184,10 +184,6 @@ export const IntegrationsModal: React.FC<IntegrationsModalProps> = ({
                                                     >
                                                         Cancel
                                                     </button>
-                                                </div>
-                                                <div className="flex items-center gap-1 text-[10px] text-gray-400">
-                                                    <AlertCircle className="w-3 h-3" />
-                                                    <span>Configuration stored locally.</span>
                                                 </div>
                                             </div>
                                         ) : (
