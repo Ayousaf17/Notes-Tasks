@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { InboxItem, Project, InboxAction, Integration, TaskPriority, TaskStatus, Task, Attachment, AgentRole, Client } from '../types';
-import { Mic, Sparkles, Archive, Loader2, CheckCircle2, FileText, Trash2, StopCircle, Paperclip, ChevronDown, Bot, Search, Briefcase, Folder, ArrowRight, User, Layers, MessageSquare, UserPlus, Rocket, Bug, Package, Calendar, CheckSquare } from 'lucide-react';
+import { Mic, Sparkles, Archive, Loader2, CheckCircle2, FileText, Trash2, StopCircle, Paperclip, ChevronDown, Bot, Search, Briefcase, Folder, ArrowRight, User, Layers, MessageSquare, UserPlus, Rocket, Bug, Package, Calendar, CheckSquare, X } from 'lucide-react';
 import { geminiService } from '../services/geminiService';
 import { analyticsService } from '../services/analyticsService';
 
@@ -12,6 +12,7 @@ interface InboxViewProps {
   onDeleteItem: (itemId: string) => void;
   onUpdateItem?: (itemId: string, updates: Partial<InboxItem>) => void; 
   onDiscussItem?: (item: InboxItem) => void; 
+  onAnalyzeItem?: (id: string, content: string, attachments: Attachment[]) => void;
   projects: Project[];
   integrations?: Integration[];
   activeProjectId?: string;
@@ -35,12 +36,16 @@ export const InboxView: React.FC<InboxViewProps> = ({
     onDeleteItem,
     onUpdateItem,
     onDiscussItem,
+    onAnalyzeItem,
     projects,
     integrations,
     activeProjectId
 }) => {
   const [inputText, setInputText] = useState('');
   const [processingId, setProcessingId] = useState<string | null>(null);
+  
+  // Attachments State
+  const [inputAttachments, setInputAttachments] = useState<Attachment[]>([]);
   
   // Stale Bundling State
   const [staleBundleProposal, setStaleBundleProposal] = useState<{ title: string, itemIds: string[] } | null>(null);
@@ -91,11 +96,44 @@ export const InboxView: React.FC<InboxViewProps> = ({
       setStaleBundleProposal(null);
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+              const base64String = reader.result as string;
+              // Remove data URL prefix (e.g. "data:image/png;base64,")
+              const base64Data = base64String.split(',')[1]; 
+              
+              setInputAttachments(prev => [...prev, {
+                  mimeType: file.type,
+                  data: base64Data,
+                  name: file.name
+              }]);
+          };
+          reader.readAsDataURL(file);
+      }
+      // Reset input so same file can be selected again
+      if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const removeAttachment = (index: number) => {
+      setInputAttachments(prev => prev.filter((_, i) => i !== index));
+  };
+
   const handleSubmit = () => {
-      if (!inputText.trim()) return;
-      onAddItem(inputText, 'text', undefined, undefined);
+      if (!inputText.trim() && inputAttachments.length === 0) return;
+      
+      onAddItem(
+          inputText || (inputAttachments.length > 0 ? `Attached File: ${inputAttachments[0].name}` : 'New Item'), 
+          inputAttachments.length > 0 ? 'file' : 'text', 
+          inputAttachments.length > 0 ? inputAttachments[0].name : undefined, 
+          inputAttachments
+      );
+      
       setInputText('');
-      analyticsService.logEvent('inbox_add_item', { type: 'text' });
+      setInputAttachments([]);
+      analyticsService.logEvent('inbox_add_item', { hasAttachment: inputAttachments.length > 0 });
   };
 
   return (
@@ -136,13 +174,27 @@ export const InboxView: React.FC<InboxViewProps> = ({
                 className="w-full text-base bg-transparent border-none focus:ring-0 resize-none max-h-40 min-h-[80px]"
                 onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSubmit())}
             />
+            
+            {/* Attachment Chips */}
+            {inputAttachments.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-3 px-1">
+                    {inputAttachments.map((att, idx) => (
+                        <div key={idx} className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 text-xs px-2 py-1 rounded-md text-gray-700 dark:text-gray-300">
+                            <Paperclip className="w-3 h-3" />
+                            <span className="max-w-[150px] truncate">{att.name || 'Attachment'}</span>
+                            <button onClick={() => removeAttachment(idx)} className="hover:text-red-500"><X className="w-3 h-3"/></button>
+                        </div>
+                    ))}
+                </div>
+            )}
+
             <div className="flex justify-between items-center mt-2 border-t border-gray-50 dark:border-gray-800 pt-3">
                 <div className="flex items-center gap-1">
                     <button className="p-2 rounded-full text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800"><Mic className="w-5 h-5"/></button>
-                    <button onClick={() => fileInputRef.current?.click()} className="p-2 rounded-full text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800"><Paperclip className="w-5 h-5"/></button>
-                    <input type="file" ref={fileInputRef} className="hidden" />
+                    <button onClick={() => fileInputRef.current?.click()} className="p-2 rounded-full text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"><Paperclip className="w-5 h-5"/></button>
+                    <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileChange} />
                 </div>
-                <button onClick={handleSubmit} disabled={!inputText.trim()} className="bg-black dark:bg-white text-white dark:text-black px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50">Capture</button>
+                <button onClick={handleSubmit} disabled={!inputText.trim() && inputAttachments.length === 0} className="bg-black dark:bg-white text-white dark:text-black px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity">Capture</button>
             </div>
         </div>
 
@@ -160,6 +212,17 @@ export const InboxView: React.FC<InboxViewProps> = ({
                         <div className="p-5">
                             <div className="text-sm font-medium dark:text-white whitespace-pre-wrap">{item.content}</div>
                             
+                            {item.attachments && item.attachments.length > 0 && (
+                                <div className="flex flex-wrap gap-2 mt-3">
+                                    {item.attachments.map((att, idx) => (
+                                        <div key={idx} className="flex items-center gap-1.5 bg-gray-50 dark:bg-gray-800 text-xs px-2 py-1.5 rounded text-gray-600 dark:text-gray-400">
+                                            <Paperclip className="w-3 h-3" />
+                                            <span className="truncate max-w-[200px]">{att.name || 'File'}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
                             {/* Tablets Row */}
                             {result && (
                                 <div className="flex gap-2 mt-4">
@@ -190,8 +253,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
                                 {!item.processedResult && (
                                     <button onClick={() => { 
                                         setProcessingId(item.id);
-                                        // Trigger AI Analysis via parent or service (Simplified for UI view)
-                                        // In real usage, this button triggers the `organizeInboxItem` flow
+                                        if (onAnalyzeItem) onAnalyzeItem(item.id, item.content, item.attachments || []);
                                     }} disabled={processingId === item.id} className="text-xs bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 px-3 py-1.5 rounded shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 flex items-center gap-1 text-gray-700 dark:text-white transition-colors">
                                         {processingId === item.id ? <Loader2 className="w-3 h-3 animate-spin"/> : <Sparkles className="w-3 h-3"/>} Analyze
                                     </button>

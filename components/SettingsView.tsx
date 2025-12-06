@@ -1,7 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
-import { User, Trash2, Plus, Moon, Sun, Database, ShieldAlert, Folder, Cloud, MessageSquare, Check, Loader2, Lock, AlertCircle, Plug, ShieldCheck, Globe, Key, Save } from 'lucide-react';
+import { User, Trash2, Plus, Moon, Sun, Database, ShieldAlert, Folder, Cloud, MessageSquare, Check, Loader2, Lock, AlertCircle, Plug, ShieldCheck, Globe, Key, Save, BarChart3 } from 'lucide-react';
 import { Project, Integration } from '../types';
+import { analyticsService } from '../services/analyticsService';
 
 interface SettingsViewProps {
   teamMembers: string[];
@@ -27,7 +28,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     onToggleIntegration
 }) => {
   const [newMember, setNewMember] = useState('');
-  const [activeTab, setActiveTab] = useState<'team' | 'general' | 'data' | 'integrations'>('team');
+  const [activeTab, setActiveTab] = useState<'team' | 'general' | 'data' | 'integrations' | 'insights'>('team');
+  const [usageStats, setUsageStats] = useState<Record<string, number>>({});
   
   // Integration Local State
   const [connectingId, setConnectingId] = useState<string | null>(null);
@@ -45,6 +47,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       const storedKey = localStorage.getItem('aasani_supabase_key');
       if (storedUrl) setDbUrl(storedUrl);
       if (storedKey) setDbKey(storedKey);
+      
+      // Load Analytics
+      setUsageStats(analyticsService.getFeatureUsage());
   }, []);
 
   const handleAddMember = () => {
@@ -106,6 +111,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       { id: 'team', label: 'Team' },
       { id: 'general', label: 'General' },
       { id: 'integrations', label: 'Integrations' },
+      { id: 'insights', label: 'Insights' },
       { id: 'data', label: 'Data' },
   ];
 
@@ -283,6 +289,44 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         })}
                     </div>
                  </div>
+            )}
+
+            {/* INSIGHTS TAB */}
+            {activeTab === 'insights' && (
+                <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 p-6 animate-in fade-in slide-in-from-bottom-2">
+                    <div className="mb-6 flex items-center gap-3">
+                        <div className="p-2 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-lg">
+                            <BarChart3 className="w-6 h-6" />
+                        </div>
+                        <div>
+                            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Workspace Analytics</h2>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">Track how you use Aasani.</p>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="p-4 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800">
+                            <div className="text-xs text-gray-500 uppercase tracking-wide font-medium mb-1">Inbox Captured</div>
+                            <div className="text-2xl font-bold text-gray-900 dark:text-white">{usageStats['inbox_add_item'] || 0}</div>
+                        </div>
+                        <div className="p-4 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800">
+                            <div className="text-xs text-gray-500 uppercase tracking-wide font-medium mb-1">AI Analyses</div>
+                            <div className="text-2xl font-bold text-gray-900 dark:text-white">{usageStats['inbox_analyzed'] || 0}</div>
+                        </div>
+                        <div className="p-4 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800">
+                            <div className="text-xs text-gray-500 uppercase tracking-wide font-medium mb-1">Chat Messages</div>
+                            <div className="text-2xl font-bold text-gray-900 dark:text-white">{usageStats['chat_message_sent'] || 0}</div>
+                        </div>
+                        <div className="p-4 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800">
+                            <div className="text-xs text-gray-500 uppercase tracking-wide font-medium mb-1">Stale Bundles</div>
+                            <div className="text-2xl font-bold text-gray-900 dark:text-white">{usageStats['stale_bundle_executed'] || 0}</div>
+                        </div>
+                    </div>
+                    
+                    <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/10 rounded-lg text-xs text-blue-700 dark:text-blue-300">
+                        <p>These metrics are stored locally in your browser to help visualize your productivity patterns. No data is sent to external servers for tracking.</p>
+                    </div>
+                </div>
             )}
 
             {/* DATA TAB */}

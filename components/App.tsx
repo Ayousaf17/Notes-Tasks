@@ -51,7 +51,9 @@ interface ErrorBoundaryState {
   hasError: boolean;
 }
 
-class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  public state: ErrorBoundaryState;
+
   constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = { hasError: false };
@@ -815,6 +817,51 @@ const AppContent: React.FC = () => {
       setInboxItems(prev => prev.map(item => item.id === itemId ? { ...item, processedResult: action } : item));
   };
 
+  // Build Schedule Context for Reality Check
+  const getScheduleContext = () => {
+      const today = new Date();
+      const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
+      
+      const todayTasks = tasks.filter(t => t.dueDate && new Date(t.dueDate).toDateString() === today.toDateString()).length;
+      const tomorrowTasks = tasks.filter(t => t.dueDate && new Date(t.dueDate).toDateString() === tomorrow.toDateString()).length;
+      
+      return `Today (${today.toDateString()}): ${todayTasks} tasks scheduled.\nTomorrow (${tomorrow.toDateString()}): ${tomorrowTasks} tasks scheduled.`;
+  };
+
+  // --- NEW: ANALYZE INBOX ITEM HANDLER ---
+  const handleAnalyzeInboxItem = async (id: string, content: string, attachments: Attachment[] = []) => {
+      const item = inboxItems.find(i => i.id === id);
+      if (!item) return;
+
+      try {
+          const scheduleContext = getScheduleContext();
+          const openRouterKey = integrations.find(i => i.id === 'openrouter')?.config?.apiKey;
+          const provider = openRouterKey ? 'openrouter' : 'gemini';
+          const apiKey = openRouterKey; // Passed only if OpenRouter used, Gemini uses env
+
+          const result = await geminiService.organizeInboxItem(
+              content,
+              projects,
+              scheduleContext,
+              provider,
+              apiKey,
+              undefined, // model default
+              attachments
+          );
+
+          if (result) {
+              handleStoreInboxSuggestion(id, result);
+              addToast("Analysis complete", 'success');
+              analyticsService.logEvent('inbox_analyzed');
+          } else {
+              addToast("Analysis returned no result", 'warning');
+          }
+      } catch (e) {
+          console.error("Analysis Failed", e);
+          addToast("Analysis failed", 'error');
+      }
+  };
+
   // CLIENTS MANAGEMENT
   const handleAddClient = async (client: Partial<Client>) => {
       try {
@@ -916,9 +963,9 @@ const AppContent: React.FC = () => {
             ))}
         </div>
 
-        {/* Enrichment Banner */}
+        {/* Enrichment Banner - Updated with dynamic position */}
         {enrichmentCandidates.length > 0 && (
-            <div className="fixed bottom-24 right-6 z-[190] md:bottom-6 md:right-20 pointer-events-auto animate-in slide-in-from-bottom-6 fade-in duration-500">
+            <div className={`fixed bottom-24 z-[190] md:bottom-6 pointer-events-auto animate-in slide-in-from-bottom-6 fade-in duration-500 transition-all ${isChatOpen ? 'right-[480px]' : 'right-6 md:right-20'}`}>
                 <button 
                     onClick={handleAutoEnrichAll}
                     className="flex items-center gap-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-3 rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all"
@@ -1015,7 +1062,8 @@ const AppContent: React.FC = () => {
                             }} 
                             onDeleteItem={handleDeleteInboxItem} 
                             onUpdateItem={handleUpdateInboxItem}
-                            onDiscussItem={handleDiscussInboxItem} // Pass the handler
+                            onDiscussItem={handleDiscussInboxItem} 
+                            onAnalyzeItem={handleAnalyzeInboxItem} // Passed Handler
                             projects={projects} 
                             integrations={integrations}
                             activeProjectId={activeProjectId}
@@ -1069,7 +1117,7 @@ const AppContent: React.FC = () => {
                             onPromoteTask={handlePromoteTask} 
                             onNavigate={handleNavigate} 
                             onSelectTask={setSelectedTaskId}
-                            onDiscussTask={handleDiscussTask} // Connect Discuss
+                            onDiscussTask={handleDiscussTask} 
                             users={teamMembers}
                             projects={projects}
                             isGlobalView={currentView === ViewMode.GLOBAL_BOARD}
