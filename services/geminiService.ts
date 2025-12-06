@@ -145,6 +145,20 @@ export const geminiService = {
   },
 
   /**
+   * Fetch Available Models from OpenRouter
+   */
+  async fetchOpenRouterModels(): Promise<{id: string, name: string}[]> {
+      try {
+          const response = await fetch("https://openrouter.ai/api/v1/models");
+          const data = await response.json();
+          return (data.data || []).map((m: any) => ({ id: m.id, name: m.name })).sort((a: any, b: any) => a.name.localeCompare(b.name));
+      } catch (e) {
+          console.error("Failed to fetch OpenRouter models", e);
+          return [];
+      }
+  },
+
+  /**
    * Original Gemini Chat interaction
    */
   async chat(history: { role: string; parts: { text?: string; inlineData?: any }[] }[], message: string, attachments: Attachment[] = [], systemContext?: string): Promise<string> {

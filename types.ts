@@ -204,6 +204,7 @@ export interface Integration {
   category: 'Cloud' | 'AI' | 'Productivity';
   config?: {
     apiKey?: string;
+    model?: string;
     requiresAuth?: boolean;
   };
   status?: 'idle' | 'connecting' | 'connected';

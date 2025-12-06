@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, ErrorInfo, ReactNode, createContext, useContext, Component } from 'react';
 import { Sidebar } from './Sidebar';
 import { DocumentEditor } from './DocumentEditor';
@@ -51,13 +50,8 @@ interface ErrorBoundaryState {
   hasError: boolean;
 }
 
-class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  public state: ErrorBoundaryState;
-
-  constructor(props: ErrorBoundaryProps) {
-    super(props);
-    this.state = { hasError: false };
-  }
+class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  state: ErrorBoundaryState = { hasError: false };
 
   static getDerivedStateFromError(_: Error): ErrorBoundaryState {
     return { hasError: true };
@@ -214,6 +208,12 @@ const AppContent: React.FC = () => {
       { id: 'openrouter', name: 'OpenRouter', description: 'Access GPT-4, Claude, Llama & more.', icon: MessageSquare, connected: false, category: 'AI' },
   ]);
   
+  // Calculate Active Model Name for Global Display
+  const openRouterInt = integrations.find(i => i.id === 'openrouter');
+  const activeModelName = openRouterInt?.connected && openRouterInt.config?.model 
+      ? `OpenRouter: ${openRouterInt.config.model.split('/').pop()}` 
+      : 'Gemini 2.5 Flash';
+
   const [projects, setProjects] = useState<Project[]>([
       { id: 'p1', title: 'V2 Redesign', createdAt: new Date() },
       { id: 'p2', title: 'Marketing Launch', createdAt: new Date() },
@@ -600,8 +600,13 @@ const AppContent: React.FC = () => {
   };
 
   // --- Connection Handler ---
-  const handleToggleIntegration = async (id: string, apiKey?: string) => {
-      setIntegrations(prev => prev.map(i => i.id === id ? { ...i, connected: !i.connected, config: apiKey ? { apiKey } : i.config } : i));
+  const handleToggleIntegration = async (id: string, config?: { apiKey?: string, model?: string }) => {
+      setIntegrations(prev => prev.map(i => i.id === id ? { 
+          ...i, 
+          connected: !i.connected, 
+          config: config ? { ...i.config, ...config } : i.config 
+      } : i));
+      
       const integration = integrations.find(i => i.id === id);
       const isConnecting = !integration?.connected;
       
@@ -835,9 +840,10 @@ const AppContent: React.FC = () => {
 
       try {
           const scheduleContext = getScheduleContext();
-          const openRouterKey = integrations.find(i => i.id === 'openrouter')?.config?.apiKey;
-          const provider = openRouterKey ? 'openrouter' : 'gemini';
-          const apiKey = openRouterKey; // Passed only if OpenRouter used, Gemini uses env
+          const openRouterInt = integrations.find(i => i.id === 'openrouter');
+          const provider = openRouterInt?.connected ? 'openrouter' : 'gemini';
+          const apiKey = openRouterInt?.config?.apiKey; 
+          const model = openRouterInt?.config?.model;
 
           const result = await geminiService.organizeInboxItem(
               content,
@@ -845,7 +851,7 @@ const AppContent: React.FC = () => {
               scheduleContext,
               provider,
               apiKey,
-              undefined, // model default
+              model, // Pass selected model
               attachments
           );
 
@@ -963,7 +969,7 @@ const AppContent: React.FC = () => {
             ))}
         </div>
 
-        {/* Enrichment Banner - Updated with dynamic position */}
+        {/* Enrichment Banner */}
         {enrichmentCandidates.length > 0 && (
             <div className={`fixed bottom-24 z-[190] md:bottom-6 pointer-events-auto animate-in slide-in-from-bottom-6 fade-in duration-500 transition-all ${isChatOpen ? 'right-[480px]' : 'right-6 md:right-20'}`}>
                 <button 
@@ -996,6 +1002,7 @@ const AppContent: React.FC = () => {
             onToggleDarkMode={() => setIsDarkMode(!isDarkMode)}
             isExpanded={isSidebarExpanded}
             onHover={setIsSidebarExpanded}
+            globalModelLabel={activeModelName} // Pass Global Model Label
         />
 
         <main className={`flex-1 flex flex-col h-full relative w-full bg-white dark:bg-black transition-all duration-300 ease-in-out pb-20 md:pb-0 ${isSidebarExpanded ? 'md:pl-64' : 'md:pl-16'}`}>
@@ -1063,7 +1070,7 @@ const AppContent: React.FC = () => {
                             onDeleteItem={handleDeleteInboxItem} 
                             onUpdateItem={handleUpdateInboxItem}
                             onDiscussItem={handleDiscussInboxItem} 
-                            onAnalyzeItem={handleAnalyzeInboxItem} // Passed Handler
+                            onAnalyzeItem={handleAnalyzeInboxItem} 
                             projects={projects} 
                             integrations={integrations}
                             activeProjectId={activeProjectId}

@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { FileText, Layout, Calendar, Settings, Plus, Inbox, Network, Home, X, Globe, Layers, User, Moon, Sun, Loader2, Folder, Trash2, CheckSquare, Users } from 'lucide-react';
+import { FileText, Layout, Calendar, Settings, Plus, Inbox, Network, Home, X, Globe, Layers, User, Moon, Sun, Loader2, Folder, Trash2, CheckSquare, Users, Sparkles } from 'lucide-react';
 import { ViewMode, Document, Project } from '../types';
 
 interface SidebarProps {
@@ -23,6 +23,7 @@ interface SidebarProps {
   onToggleDarkMode: () => void;
   isExpanded: boolean;
   onHover: (expanded: boolean) => void;
+  globalModelLabel?: string; // New Prop
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -43,7 +44,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isDarkMode,
   onToggleDarkMode,
   isExpanded,
-  onHover
+  onHover,
+  globalModelLabel
 }) => {
   
   const NavItem = ({ icon: Icon, label, isActive, onClick, className = '' }: any) => (
@@ -188,6 +190,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         {/* FOOTER - Settings & Profile */}
         <div className="p-3 mt-auto border-t border-gray-50 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/50 overflow-hidden shrink-0 pb-safe">
+          {/* Active Model Indicator */}
+          {globalModelLabel && (
+              <div className={`mb-3 px-2 flex items-center gap-2 text-[10px] text-gray-400 dark:text-gray-500 transition-all duration-300 ${!isExpanded ? 'justify-center' : ''}`}>
+                  <Sparkles className="w-3 h-3 text-purple-500" />
+                  <span className={`truncate ${isExpanded ? 'opacity-100 w-auto' : 'opacity-0 w-0 hidden'}`}>
+                      Powered by <span className="font-bold text-gray-600 dark:text-gray-300">{globalModelLabel}</span>
+                  </span>
+              </div>
+          )}
+
           <button 
             onClick={() => { onChangeView(ViewMode.SETTINGS); onMobileClose(); }}
             className={`w-full flex items-center space-x-3 px-2 py-2 mb-1 text-xs rounded transition-colors ${currentView === ViewMode.SETTINGS ? 'bg-white dark:bg-gray-800 text-black dark:text-white shadow-sm' : 'text-gray-500 hover:bg-gray-200/50 dark:hover:bg-gray-800/50'}`}

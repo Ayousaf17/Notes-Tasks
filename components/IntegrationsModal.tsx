@@ -1,13 +1,14 @@
 
-import React, { useState } from 'react';
-import { X, Cloud, MessageSquare, Check, Loader2, Key, ExternalLink, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Cloud, MessageSquare, Check, Loader2, Key, ExternalLink, AlertCircle, Cpu } from 'lucide-react';
 import { Integration } from '../types';
+import { geminiService } from '../services/geminiService';
 
 interface IntegrationsModalProps {
   isOpen: boolean;
   onClose: () => void;
   integrations: Integration[];
-  onToggleIntegration: (id: string, apiKey?: string) => Promise<void>;
+  onToggleIntegration: (id: string, config?: { apiKey?: string, model?: string }) => Promise<void>;
 }
 
 export const IntegrationsModal: React.FC<IntegrationsModalProps> = ({ 
@@ -19,6 +20,22 @@ export const IntegrationsModal: React.FC<IntegrationsModalProps> = ({
   const [connectingId, setConnectingId] = useState<string | null>(null);
   const [apiKeyInput, setApiKeyInput] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Model Selection State
+  const [availableModels, setAvailableModels] = useState<{id: string, name: string}[]>([]);
+  const [selectedModel, setSelectedModel] = useState('');
+  const [isLoadingModels, setIsLoadingModels] = useState(false);
+
+  // Auto-fetch models when OpenRouter connects
+  useEffect(() => {
+      if (connectingId === 'openrouter') {
+          setIsLoadingModels(true);
+          geminiService.fetchOpenRouterModels().then(models => {
+              setAvailableModels(models);
+              setIsLoadingModels(false);
+          });
+      }
+  }, [connectingId]);
 
   if (!isOpen) return null;
 
@@ -31,13 +48,12 @@ export const IntegrationsModal: React.FC<IntegrationsModalProps> = ({
           return;
       }
       
-      // For Google/Cloud, we typically simulate or need a backend for OAuth.
-      // For AI, we need API Keys.
       if (integration.category === 'AI') {
           setConnectingId(integration.id);
           setApiKeyInput('');
+          setSelectedModel('');
       } else {
-          // Simulate OAuth for Cloud services (since we don't have a backend)
+          // Simulate Cloud OAuth
           setIsSubmitting(true);
           setTimeout(() => {
               onToggleIntegration(integration.id);
@@ -46,17 +62,20 @@ export const IntegrationsModal: React.FC<IntegrationsModalProps> = ({
       }
   };
 
-  const handleSaveKey = async (id: string) => {
+  const handleSaveConfig = async (id: string) => {
       const trimmedKey = apiKeyInput.trim();
       if (!trimmedKey) return;
       
       setIsSubmitting(true);
-      // Simulate validation delay
       await new Promise(resolve => setTimeout(resolve, 800));
-      await onToggleIntegration(id, trimmedKey);
+      
+      const config = { apiKey: trimmedKey, model: selectedModel || undefined };
+      await onToggleIntegration(id, config);
+      
       setIsSubmitting(false);
       setConnectingId(null);
       setApiKeyInput('');
+      setSelectedModel('');
   };
 
   return (
@@ -93,10 +112,9 @@ export const IntegrationsModal: React.FC<IntegrationsModalProps> = ({
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {integrations.filter(i => i.category === category).map(integration => {
                             const isConnecting = connectingId === integration.id;
-                            const isProcessing = isSubmitting; // Simplification: lock all during submit for demo
-
+                            
                             return (
-                                <div key={integration.id} className={`bg-white dark:bg-gray-900 border rounded-xl transition-all duration-200 overflow-hidden border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700 shadow-sm hover:shadow-md ${isConnecting ? 'ring-2 ring-black dark:ring-white border-transparent' : ''}`}>
+                                <div key={integration.id} className={`bg-white dark:bg-gray-900 border rounded-xl transition-all duration-200 overflow-visible border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700 shadow-sm hover:shadow-md ${isConnecting ? 'ring-2 ring-black dark:ring-white border-transparent' : ''}`}>
                                     <div className="p-5">
                                         <div className="flex items-start gap-4 mb-4">
                                             <div className={`p-3 rounded-lg flex-shrink-0 ${integration.connected ? 'bg-black dark:bg-white text-white dark:text-black' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300'}`}>
@@ -109,6 +127,11 @@ export const IntegrationsModal: React.FC<IntegrationsModalProps> = ({
                                                     {integration.connected && <div className="flex items-center gap-1 text-[10px] font-bold text-green-600 bg-green-50 dark:bg-green-900/20 px-2 py-0.5 rounded-full"><Check className="w-3 h-3" /> SYNCED</div>}
                                                 </div>
                                                 <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 leading-relaxed">{integration.description}</p>
+                                                {integration.connected && integration.config?.model && (
+                                                    <div className="mt-2 text-[10px] text-gray-500 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded inline-block border border-gray-200 dark:border-gray-700">
+                                                        Model: {integration.config.model}
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
 
@@ -125,13 +148,35 @@ export const IntegrationsModal: React.FC<IntegrationsModalProps> = ({
                                                         className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-black dark:focus:ring-white outline-none"
                                                     />
                                                 </div>
-                                                <div className="flex gap-2">
+
+                                                {/* Model Picker for OpenRouter */}
+                                                {integration.id === 'openrouter' && (
+                                                    <div className="relative">
+                                                        <Cpu className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+                                                        {isLoadingModels ? (
+                                                            <div className="w-full pl-10 py-2 text-sm text-gray-400">Loading models...</div>
+                                                        ) : (
+                                                            <select
+                                                                value={selectedModel}
+                                                                onChange={(e) => setSelectedModel(e.target.value)}
+                                                                className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-black dark:focus:ring-white outline-none appearance-none"
+                                                            >
+                                                                <option value="">Select a Model (Default: GPT-4o)</option>
+                                                                {availableModels.map(m => (
+                                                                    <option key={m.id} value={m.id}>{m.name}</option>
+                                                                ))}
+                                                            </select>
+                                                        )}
+                                                    </div>
+                                                )}
+
+                                                <div className="flex gap-2 pt-1">
                                                     <button 
-                                                        onClick={() => handleSaveKey(integration.id)}
+                                                        onClick={() => handleSaveConfig(integration.id)}
                                                         disabled={!apiKeyInput.trim() || isSubmitting}
                                                         className="flex-1 bg-black dark:bg-white text-white dark:text-black py-2 rounded-lg text-xs font-bold hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
                                                     >
-                                                        {isSubmitting ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Save Key'}
+                                                        {isSubmitting ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Save Configuration'}
                                                     </button>
                                                     <button 
                                                         onClick={() => setConnectingId(null)}
@@ -142,7 +187,7 @@ export const IntegrationsModal: React.FC<IntegrationsModalProps> = ({
                                                 </div>
                                                 <div className="flex items-center gap-1 text-[10px] text-gray-400">
                                                     <AlertCircle className="w-3 h-3" />
-                                                    <span>Keys are stored locally in your browser.</span>
+                                                    <span>Configuration stored locally.</span>
                                                 </div>
                                             </div>
                                         ) : (
