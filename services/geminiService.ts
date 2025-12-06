@@ -368,12 +368,12 @@ export const geminiService = {
   },
 
   /**
-   * UPDATED: organizeInboxItem with Reality Check support & Deep Reasoning
+   * UPDATED: organizeInboxItem with Reality Check support & Deep Reasoning & Auto-Assignment
    */
   async organizeInboxItem(
       content: string, 
       projects: Project[], 
-      scheduleContext: string, // NEW: String describing existing load on dates
+      scheduleContext: string, 
       provider?: 'gemini' | 'openrouter', 
       apiKey?: string, 
       model?: string, 
@@ -389,7 +389,7 @@ export const geminiService = {
       
       CONTEXT:
       - Current Time: ${currentDate} (${currentDay})
-      - Schedule Context (Reality Check):
+      - Schedule Context (Reality Check Data):
       ${scheduleContext}
       - Available Projects: 
       ${projectContext}
@@ -399,8 +399,12 @@ export const geminiService = {
       THINKING PROCESS (DEEP REASONING):
       1. **Intent**: Task, Doc, or Lead?
       2. **Enrichment**: Calculate precise ISO dates from relative terms ("next friday"). Associate vague project names to IDs.
-      3. **Reality Check**: If a date is detected, check "Schedule Context". If that day has > 3 tasks/meetings, populate the "warning" field.
-      4. **Structure**: Build the JSON.
+      3. **Reality Check**: 
+         - If a target date is identified, cross-reference with 'Schedule Context'.
+         - If the date already has > 2 existing tasks/meetings, populate "warning" with: "⚠️ Conflict on [Date]: [Count] existing items. Suggest moving to [Alternative Date]."
+         - If no specific date is mentioned but user implies urgency ("ASAP"), check today/tomorrow load.
+      4. **Role Assignment**: If the task involves research, analysis, or data gathering, assign to 'AI_RESEARCHER'. If it involves writing, drafting, or editing, assign to 'AI_WRITER'. If it involves planning, scheduling, or strategy, assign to 'AI_PLANNER'. Otherwise, leave assignee undefined (or 'Unassigned').
+      5. **Structure**: Build the JSON.
       
       OUTPUT FORMAT: JSON ONLY.
       
@@ -409,14 +413,15 @@ export const geminiService = {
         "actionType": "create_task" | "create_document" | "mixed" | "create_client",
         "targetProjectId": "string",
         "reasoning": "string",
-        "warning": "string (Optional: '⚠️ 3 meetings already scheduled for Friday. Consider Monday?')",
+        "warning": "string (Optional warning message about scheduling conflicts)",
         "data": {
           "title": "string",
           "description": "string",
           "priority": "High" | "Medium" | "Low",
+          "assignee": "AI_RESEARCHER" | "AI_WRITER" | "AI_PLANNER" | "Unassigned",
           "dueDate": "ISO String",
           "content": "Markdown",
-          "extractedTasks": [{ "title": "string", "priority": "Medium", "dueDate": "string" }],
+          "extractedTasks": [{ "title": "string", "priority": "Medium", "dueDate": "string", "assignee": "string" }],
           "clientData": { "name": "string", "company": "string", "email": "string", "value": number, "status": "Lead" }
         }
       }
@@ -552,7 +557,25 @@ export const geminiService = {
   async fixGrammar(text: string): Promise<string> { return this.simpleGen(`Fix grammar: "${text}"`) || text; },
   async shortenText(text: string): Promise<string> { return this.simpleGen(`Shorten: "${text}"`) || text; },
   async continueWriting(context: string): Promise<string> { return this.simpleGen(`Continue: "${context.slice(-2000)}"`) || ""; },
-  async expandTaskToContent(taskTitle: string, taskDescription?: string): Promise<string> { return this.simpleGen(`Expand "${taskTitle} - ${taskDescription}" to markdown doc.`) || `# ${taskTitle}`; },
+  
+  // UPDATED: Document Generation Prompt to match "Austin Wealth Weekly" style
+  async expandTaskToContent(taskTitle: string, taskDescription?: string): Promise<string> { 
+      const prompt = `
+      Expand the task "${taskTitle}" into a professional, article-style document.
+      Description Context: "${taskDescription || ''}"
+      
+      Format Requirements (Markdown):
+      1. **Title**: Bold, clear header.
+      2. **Subtitle/Meta**: Include a hypothetical issue number or date line (e.g., "Strategic Brief | October 2025").
+      3. **Hook**: An italicized introductory paragraph setting the context.
+      4. **Body**: Use numbered sections with bold headers (e.g., "1. The Context").
+      5. **Tables**: If data comparison is relevant, include a Markdown table.
+      6. **Action Plan**: A bulleted list of next steps.
+      
+      Make it professional, insightful, and well-structured.
+      `;
+      return this.simpleGen(prompt) || `# ${taskTitle}`; 
+  },
   
   async simpleGen(prompt: string): Promise<string> {
       if(!apiKey) return "";

@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Document, Task, TaskPriority, TaskStatus } from '../types';
 import { Wand2, ListChecks, RefreshCw, X, Check, User, Flag, AlignLeft, Tag as TagIcon, Sparkles, Edit3, Eye, SpellCheck, Scissors, Table as TableIcon, Link as LinkIcon, FileText, Maximize2, Minimize2, Heading1, Heading2, List, CheckSquare, Plus, Loader2, Trash2, Cloud } from 'lucide-react';
@@ -68,24 +69,24 @@ const MarkdownRenderer: React.FC<{
         const headers = parseRow(headerRow);
 
         return (
-            <div className="overflow-x-auto my-6 border border-gray-200 dark:border-gray-800 rounded-lg shadow-sm">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-800">
-                    <thead className="bg-gray-50 dark:bg-gray-900">
+            <div className="overflow-x-auto my-8 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
+                <table className="min-w-full text-left text-sm border-collapse">
+                    <thead className="bg-gray-100/50 dark:bg-gray-800/50">
                         <tr>
                             {headers.map((h, i) => (
-                                <th key={i} className="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                <th key={i} className="px-6 py-4 font-bold text-gray-700 dark:text-gray-200 border-b border-gray-200 dark:border-gray-700 tracking-wide text-xs uppercase">
                                     {h}
                                 </th>
                             ))}
                         </tr>
                     </thead>
-                    <tbody className="bg-white dark:bg-black divide-y divide-gray-200 dark:divide-gray-800">
+                    <tbody className="bg-white dark:bg-black divide-y divide-gray-100 dark:divide-gray-800">
                         {bodyRows.map((row, i) => {
                             const cells = parseRow(row);
                             return (
-                                <tr key={i} className="hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors">
+                                <tr key={i} className="hover:bg-gray-50 dark:hover:bg-gray-900/30 transition-colors">
                                     {cells.map((cell, j) => (
-                                        <td key={j} className="px-6 py-4 whitespace-normal text-sm text-gray-700 dark:text-gray-300 leading-snug">
+                                        <td key={j} className="px-6 py-4 whitespace-normal text-gray-600 dark:text-gray-300 leading-snug font-medium">
                                             {cell}
                                         </td>
                                     ))}

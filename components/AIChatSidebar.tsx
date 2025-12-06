@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { ChatMessage, ProjectPlan, Document, Task, Integration, TaskStatus, TaskPriority, Project, Client, ActionProposal, Attachment, AgentRole, InboxAction, InboxItem, FocusItem } from '../types';
 import { Send, X, Bot, Paperclip, Loader2, Sparkles, User, ChevronDown, Lock, Settings, Search, CheckCircle2, Calendar, Briefcase, Flag, Plus, File, Folder, Layers, ArrowRight, Eye, Target, MessageSquare, Cpu, Globe } from 'lucide-react';
@@ -22,6 +23,16 @@ interface AIChatSidebarProps {
   onUpdateEntity?: (type: 'task'|'document'|'client'|'project', id: string, updates: any) => void;
   onUpdateIntegration?: (id: string, action: 'update', config: any) => void;
 }
+
+const MascotIcon = ({ className }: { className?: string }) => (
+    <svg viewBox="0 0 48 48" className={className} fill="none">
+        <path d="M24 4 C10 4, 4 14, 4 26 C4 38, 14 44, 24 44 C34 44, 44 38, 44 26 C44 14, 38 4, 24 4 Z" fill="currentColor" className="text-black dark:text-white transition-colors"/>
+        <path d="M24 8 C14 8, 8 16, 8 26 C8 36, 16 40, 24 40 C32 40, 40 36, 40 26 C40 16, 36 8, 24 8 Z" fill="currentColor" className="text-white dark:text-zinc-800 transition-colors"/>
+        <circle cx="16" cy="18" r="3.5" fill="currentColor" className="text-black dark:text-white" />
+        <circle cx="32" cy="18" r="3.5" fill="currentColor" className="text-black dark:text-white" />
+        <path d="M20 29 Q24 31 28 29" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="text-black dark:text-white" />
+    </svg>
+);
 
 // ... (ProposalCard and FormattedMessage Components remain mostly the same, elided for brevity but fully included in implementation) ...
 const ProposalCard = ({ proposal, onConfirm, onSaveToInbox, onCancel }: any) => {
@@ -225,14 +236,14 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
 
     return (
         <>
-            {isOpen && <div className="fixed inset-0 bg-background/50 z-30 md:hidden" onClick={onClose} />}
-            <div className={`fixed right-0 top-0 bottom-0 w-full md:w-[450px] bg-card border-l border-border shadow-2xl z-40 transform transition-transform duration-300 flex flex-col ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+            {isOpen && <div className="fixed inset-0 bg-background/50 z-[55] md:hidden" onClick={onClose} />}
+            <div className={`fixed right-0 top-0 h-[100dvh] w-full md:w-[450px] bg-card border-l border-border shadow-2xl z-[60] transform transition-transform duration-300 flex flex-col ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}>
                 
                 {/* Header */}
-                <div className="p-4 border-b border-border flex justify-between items-center bg-card relative z-50">
+                <div className="p-4 border-b border-border flex justify-between items-center bg-card relative z-50 pt-safe">
                     <div className="flex flex-col">
                         <div className="flex items-center gap-2">
-                            <Sparkles className="w-4 h-4 text-primary" />
+                            <MascotIcon className="w-5 h-5 text-primary" />
                             <span className="font-bold text-sm text-foreground">Aasani Chat</span>
                         </div>
                         {/* Model Selector / Indicator */}
@@ -319,7 +330,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                 </div>
 
                 {/* Input Area */}
-                <div className="p-4 border-t border-border bg-card">
+                <div className="p-4 border-t border-border bg-card safe-area-bottom pb-[calc(1rem+env(safe-area-inset-bottom))]">
                     <div className="relative flex items-center gap-2">
                         <input
                             type="text"
@@ -327,9 +338,9 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                             onChange={(e) => setInput(e.target.value)}
                             onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
                             placeholder="Type a message..."
-                            className="flex-1 bg-muted border-none rounded-full px-4 py-2 text-sm focus:ring-2 focus:ring-primary text-foreground placeholder-muted-foreground"
+                            className="flex-1 bg-muted border-none rounded-full px-4 py-3 md:py-2 text-base md:text-sm focus:ring-2 focus:ring-primary text-foreground placeholder-muted-foreground"
                         />
-                        <button onClick={handleSendMessage} className="p-2 bg-primary text-primary-foreground rounded-full">
+                        <button onClick={handleSendMessage} className="p-3 md:p-2 bg-primary text-primary-foreground rounded-full">
                             <Send className="w-4 h-4" />
                         </button>
                     </div>

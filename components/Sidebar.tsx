@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { FileText, Layout, Calendar, Settings, Plus, Inbox, Network, Home, X, Globe, Layers, User, Moon, Sun, Loader2, Folder, Trash2, CheckSquare, Users, Sparkles } from 'lucide-react';
 import { ViewMode, Document, Project } from '../types';
@@ -22,8 +23,18 @@ interface SidebarProps {
   onToggleDarkMode: () => void;
   isExpanded: boolean;
   onHover: (expanded: boolean) => void;
-  globalModelLabel?: string; // New Prop
+  globalModelLabel?: string; 
 }
+
+const MascotIcon = ({ className }: { className?: string }) => (
+    <svg viewBox="0 0 48 48" className={className} fill="none">
+        <path d="M24 4 C10 4, 4 14, 4 26 C4 38, 14 44, 24 44 C34 44, 44 38, 44 26 C44 14, 38 4, 24 4 Z" fill="currentColor" className="text-black dark:text-white transition-colors"/>
+        <path d="M24 8 C14 8, 8 16, 8 26 C8 36, 16 40, 24 40 C32 40, 40 36, 40 26 C40 16, 36 8, 24 8 Z" fill="currentColor" className="text-white dark:text-zinc-800 transition-colors"/>
+        <circle cx="16" cy="18" r="3.5" fill="currentColor" className="text-black dark:text-white" />
+        <circle cx="32" cy="18" r="3.5" fill="currentColor" className="text-black dark:text-white" />
+        <path d="M20 29 Q24 31 28 29" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="text-black dark:text-white" />
+    </svg>
+);
 
 export const Sidebar: React.FC<SidebarProps> = ({
   currentView,
@@ -67,7 +78,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     </button>
   );
 
-  // Helper to determine if we are "in" a project view
   const isProjectContext = ![ViewMode.HOME, ViewMode.INBOX, ViewMode.GLOBAL_BOARD, ViewMode.GLOBAL_CALENDAR, ViewMode.SETTINGS, ViewMode.CLIENTS].includes(currentView);
   const currentProject = projects.find(p => p.id === activeProjectId);
 
@@ -119,7 +129,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               />
           </div>
 
-          {/* 2. Active Project Context (MOVED UP FOR BETTER VISIBILITY) */}
+          {/* 2. Active Project Context */}
           {isProjectContext && currentProject && (
               <div className="space-y-1 md:space-y-0.5 animate-in slide-in-from-left-2 fade-in duration-300">
                   <div className={`hidden md:block px-3 text-[10px] font-bold text-sidebar-foreground/80 uppercase tracking-widest mb-2 transition-opacity duration-200 truncate h-4 ${isExpanded ? 'opacity-100' : 'opacity-0'}`}>
@@ -198,6 +208,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   </span>
               </div>
           )}
+
+          {/* Mascot Icon in Footer */}
+          <div className={`mb-2 flex items-center justify-center transition-all ${!isExpanded ? 'justify-center' : 'justify-start px-2'}`}>
+             <MascotIcon className="w-6 h-6 hover:scale-110 transition-transform cursor-pointer" />
+             <span className={`ml-3 text-xs font-bold text-sidebar-foreground transition-all duration-300 ${isExpanded ? 'opacity-100 w-auto' : 'opacity-0 w-0 hidden'}`}>Aasani</span>
+          </div>
 
           <button 
             onClick={() => { onChangeView(ViewMode.SETTINGS); onMobileClose(); }}

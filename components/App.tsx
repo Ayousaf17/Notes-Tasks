@@ -43,6 +43,17 @@ export const useToast = () => {
   return context;
 };
 
+// Mascot SVG Component for Header
+const MascotIcon = ({ className }: { className?: string }) => (
+    <svg viewBox="0 0 48 48" className={className} fill="none">
+        <path d="M24 4 C10 4, 4 14, 4 26 C4 38, 14 44, 24 44 C34 44, 44 38, 44 26 C44 14, 38 4, 24 4 Z" fill="currentColor" className="text-black dark:text-white transition-colors"/>
+        <path d="M24 8 C14 8, 8 16, 8 26 C8 36, 16 40, 24 40 C32 40, 40 36, 40 26 C40 16, 36 8, 24 8 Z" fill="currentColor" className="text-white dark:text-zinc-800 transition-colors"/>
+        <circle cx="16" cy="18" r="3.5" fill="currentColor" className="text-black dark:text-white" />
+        <circle cx="32" cy="18" r="3.5" fill="currentColor" className="text-black dark:text-white" />
+        <path d="M20 29 Q24 31 28 29" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="text-black dark:text-white" />
+    </svg>
+);
+
 // Error Boundary Component
 interface ErrorBoundaryProps {
   children?: ReactNode;
@@ -53,7 +64,10 @@ interface ErrorBoundaryState {
 }
 
 class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  state: ErrorBoundaryState = { hasError: false };
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false };
+  }
 
   static getDerivedStateFromError(_: Error): ErrorBoundaryState {
     return { hasError: true };
@@ -490,9 +504,10 @@ const AppContent: React.FC = () => {
   const handleDeleteInboxItem = (id: string) => setInboxItems(prev => prev.filter(i => i.id !== id));
   const handleUpdateInboxItem = (id: string, updates: Partial<InboxItem>) => setInboxItems(prev => prev.map(i => i.id === id ? { ...i, ...updates } : i));
   const handleProcessInboxItem = async (itemId: string, action: InboxAction) => {
-      let targetProjectId = action.targetProjectId;
+      // FIX: Robustly handle potential null targetProjectId from AI
+      let targetProjectId = action.targetProjectId || 'default';
       
-      if (targetProjectId.startsWith('NEW:')) {
+      if (typeof targetProjectId === 'string' && targetProjectId.startsWith('NEW:')) {
           const title = targetProjectId.substring(4);
           const newProject: Project = {
               id: crypto.randomUUID(),
@@ -505,6 +520,11 @@ const AppContent: React.FC = () => {
           targetProjectId = newProject.id;
       }
 
+      // Fallback for default or empty project ID
+      if (!targetProjectId || targetProjectId === 'default') {
+          targetProjectId = activeProjectId || projects[0]?.id || 'p1';
+      }
+
       if (action.actionType === 'create_task') {
           const newTask: Task = {
               id: crypto.randomUUID(),
@@ -513,7 +533,7 @@ const AppContent: React.FC = () => {
               description: action.data.description || '',
               status: TaskStatus.TODO,
               priority: action.data.priority || TaskPriority.MEDIUM,
-              assignee: 'Unassigned',
+              assignee: action.data.assignee || 'Unassigned',
               dueDate: new Date(),
               dependencies: [],
               createdAt: new Date(),
@@ -539,12 +559,14 @@ const AppContent: React.FC = () => {
   };
   const handleStoreInboxSuggestion = (id: string, action: InboxAction) => setInboxItems(prev => prev.map(i => i.id === id ? { ...i, processedResult: action } : i));
   const handleAnalyzeInboxItem = async (id: string, content: string, attachments: Attachment[]) => { 
-      // Construct schedule context for deep reasoning about conflicts
+      // Construct detailed schedule context for "Reality Check"
       const now = new Date();
+      const nextMonth = new Date();
+      nextMonth.setDate(now.getDate() + 30);
+
       const upcoming = tasks
-          .filter(t => t.dueDate && new Date(t.dueDate) > now)
-          .slice(0, 10)
-          .map(t => `${t.title} (Due: ${new Date(t.dueDate!).toLocaleDateString()})`)
+          .filter(t => t.dueDate && new Date(t.dueDate) > now && new Date(t.dueDate) < nextMonth)
+          .map(t => `[${new Date(t.dueDate!).toLocaleDateString()}] ${t.title} (${t.status})`)
           .join('\n');
 
       const action = await geminiService.organizeInboxItem(
@@ -574,14 +596,22 @@ const AppContent: React.FC = () => {
   
   const executeInboxAction = async (action: InboxAction) => { 
       // Reuse logic from handleProcessInboxItem but without item ID context
-       let targetProjectId = action.targetProjectId;
-      if (targetProjectId.startsWith('NEW:')) {
+       // FIX: Robustly handle potential null targetProjectId from AI
+       let targetProjectId = action.targetProjectId || 'default';
+
+      if (typeof targetProjectId === 'string' && targetProjectId.startsWith('NEW:')) {
           const title = targetProjectId.substring(4);
           const newProject: Project = { id: crypto.randomUUID(), title: title, icon: '📁', createdAt: new Date() };
           await dataService.createProject(newProject);
           setProjects(prev => [...prev, newProject]);
           targetProjectId = newProject.id;
       }
+
+      // Fallback for default or empty project ID
+      if (!targetProjectId || targetProjectId === 'default') {
+          targetProjectId = activeProjectId || projects[0]?.id || 'p1';
+      }
+
       if (action.actionType === 'create_task') {
           const newTask: Task = {
               id: crypto.randomUUID(),
@@ -590,7 +620,7 @@ const AppContent: React.FC = () => {
               description: action.data.description,
               status: TaskStatus.TODO,
               priority: action.data.priority || TaskPriority.MEDIUM,
-              assignee: 'Unassigned',
+              assignee: action.data.assignee || 'Unassigned',
               dueDate: new Date(),
               dependencies: [],
               createdAt: new Date(),
@@ -736,11 +766,14 @@ const AppContent: React.FC = () => {
                     <Mic className="w-4 h-4 text-gray-600 dark:text-gray-300 group-hover:text-purple-500" />
                 </button>
                 
+                {/* Search Button with Magnifying Glass */}
                 <button onClick={() => setIsCommandPaletteOpen(true)} className="text-gray-400 hover:text-black dark:hover:text-white transition-colors">
-                    <Command className="w-4 h-4" />
+                    <Search className="w-4 h-4" />
                 </button>
-                <button onClick={() => setIsChatOpen(!isChatOpen)} className={`transition-colors ${isChatOpen ? 'text-purple-600 dark:text-purple-400' : 'text-gray-400 hover:text-black dark:hover:text-white'}`}>
-                    <Sparkles className="w-4 h-4" />
+                
+                {/* Chat Button with Mascot Icon */}
+                <button onClick={() => setIsChatOpen(!isChatOpen)} className={`transition-colors flex items-center justify-center ${isChatOpen ? 'text-purple-600 dark:text-purple-400' : 'text-gray-400 hover:text-black dark:hover:text-white'}`}>
+                    <MascotIcon className="w-5 h-5" />
                 </button>
             </div>
             </header>
