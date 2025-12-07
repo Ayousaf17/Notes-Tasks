@@ -28,56 +28,49 @@
               sm: 'calc(var(--radius) - 4px)',
             },
             colors: {
-              background: 'var(--background)',
-              foreground: 'var(--foreground)',
+              background: 'hsl(var(--background))',
+              foreground: 'hsl(var(--foreground))',
               card: {
-                DEFAULT: 'var(--card)',
-                foreground: 'var(--card-foreground)',
+                DEFAULT: 'hsl(var(--card))',
+                foreground: 'hsl(var(--card-foreground))',
               },
               popover: {
-                DEFAULT: 'var(--popover)',
-                foreground: 'var(--popover-foreground)',
+                DEFAULT: 'hsl(var(--popover))',
+                foreground: 'hsl(var(--popover-foreground))',
               },
               primary: {
-                DEFAULT: 'var(--primary)',
-                foreground: 'var(--primary-foreground)',
+                DEFAULT: 'hsl(var(--primary))',
+                foreground: 'hsl(var(--primary-foreground))',
               },
               secondary: {
-                DEFAULT: 'var(--secondary)',
-                foreground: 'var(--secondary-foreground)',
+                DEFAULT: 'hsl(var(--secondary))',
+                foreground: 'hsl(var(--secondary-foreground))',
               },
               muted: {
-                DEFAULT: 'var(--muted)',
-                foreground: 'var(--muted-foreground)',
+                DEFAULT: 'hsl(var(--muted))',
+                foreground: 'hsl(var(--muted-foreground))',
               },
               accent: {
-                DEFAULT: 'var(--accent)',
-                foreground: 'var(--accent-foreground)',
+                DEFAULT: 'hsl(var(--accent))',
+                foreground: 'hsl(var(--accent-foreground))',
               },
               destructive: {
-                DEFAULT: 'var(--destructive)',
-                foreground: 'var(--destructive-foreground)',
+                DEFAULT: 'hsl(var(--destructive))',
+                foreground: 'hsl(var(--destructive-foreground))',
               },
-              border: 'var(--border)',
-              input: 'var(--input)',
-              ring: 'var(--ring)',
+              border: 'hsl(var(--border))',
+              input: 'hsl(var(--input))',
+              ring: 'hsl(var(--ring))',
               sidebar: {
-                DEFAULT: 'var(--sidebar)',
-                foreground: 'var(--sidebar-foreground)',
-                primary: 'var(--sidebar-primary)',
-                'primary-foreground': 'var(--sidebar-primary-foreground)',
-                accent: 'var(--sidebar-accent)',
-                'accent-foreground': 'var(--sidebar-accent-foreground)',
-                border: 'var(--sidebar-border)',
-                ring: 'var(--sidebar-ring)',
+                DEFAULT: 'hsl(var(--sidebar))',
+                foreground: 'hsl(var(--sidebar-foreground))',
+                primary: 'hsl(var(--sidebar-primary))',
+                'primary-foreground': 'hsl(var(--sidebar-primary-foreground))',
+                accent: 'hsl(var(--sidebar-accent))',
+                'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
+                border: 'hsl(var(--sidebar-border))',
+                ring: 'hsl(var(--sidebar-ring))',
               },
-              chart: {
-                1: 'var(--chart-1)',
-                2: 'var(--chart-2)',
-                3: 'var(--chart-3)',
-                4: 'var(--chart-4)',
-                5: 'var(--chart-5)',
-              }
             }
           }
         }
@@ -85,29 +78,38 @@
     </script>
     <style>
       :root {
-        /* Neutral Grey Theme */
-        --background: 0 0% 100%;
+        /* Zinc-inspired Neutral Theme for Depth & Professionalism */
+        --background: 240 5% 96%; /* Light Grey */
         --foreground: 240 10% 3.9%;
-        --card: 0 0% 100%;
+        
+        --card: 0 0% 100%; /* Pure White */
         --card-foreground: 240 10% 3.9%;
+        
         --popover: 0 0% 100%;
         --popover-foreground: 240 10% 3.9%;
-        --primary: 240 5.9% 10%; /* Very dark grey/black */
+        
+        --primary: 240 5.9% 10%; /* Dark Charcoal */
         --primary-foreground: 0 0% 98%;
+        
         --secondary: 240 4.8% 95.9%;
         --secondary-foreground: 240 5.9% 10%;
+        
         --muted: 240 4.8% 95.9%;
         --muted-foreground: 240 3.8% 46.1%;
+        
         --accent: 240 4.8% 95.9%;
         --accent-foreground: 240 5.9% 10%;
+        
         --destructive: 0 84.2% 60.2%;
         --destructive-foreground: 0 0% 98%;
+        
         --border: 240 5.9% 90%;
         --input: 240 5.9% 90%;
         --ring: 240 5.9% 10%;
+        
         --radius: 0.75rem;
         
-        --sidebar: 0 0% 99%;
+        --sidebar: 0 0% 100%;
         --sidebar-foreground: 240 5.3% 26.1%;
         --sidebar-primary: 240 5.9% 10%;
         --sidebar-primary-foreground: 0 0% 98%;
@@ -118,27 +120,35 @@
       }
 
       .dark {
-        --background: 240 10% 3.9%;
+        --background: 240 10% 3.9%; /* Deep Black/Zinc */
         --foreground: 0 0% 98%;
-        --card: 240 10% 3.9%;
+        
+        --card: 240 10% 5%; /* Slightly lighter than bg */
         --card-foreground: 0 0% 98%;
+        
         --popover: 240 10% 3.9%;
         --popover-foreground: 0 0% 98%;
+        
         --primary: 0 0% 98%;
         --primary-foreground: 240 5.9% 10%;
+        
         --secondary: 240 3.7% 15.9%;
         --secondary-foreground: 0 0% 98%;
+        
         --muted: 240 3.7% 15.9%;
         --muted-foreground: 240 5% 64.9%;
+        
         --accent: 240 3.7% 15.9%;
         --accent-foreground: 0 0% 98%;
+        
         --destructive: 0 62.8% 30.6%;
         --destructive-foreground: 0 0% 98%;
+        
         --border: 240 3.7% 15.9%;
         --input: 240 3.7% 15.9%;
         --ring: 240 4.9% 83.9%;
         
-        --sidebar: 240 5.9% 10%;
+        --sidebar: 240 10% 3.9%;
         --sidebar-foreground: 240 4.8% 95.9%;
         --sidebar-primary: 224.3 76.3% 48%;
         --sidebar-primary-foreground: 0 0% 100%;
@@ -149,14 +159,14 @@
       }
 
       html, body, #root {
-        height: 100dvh; /* Dynamic viewport height for mobile browsers */
+        height: 100dvh; 
         width: 100%;
         margin: 0;
         padding: 0;
         overflow: hidden; 
         -webkit-tap-highlight-color: transparent; 
         touch-action: pan-y;
-        overscroll-behavior-y: none; /* Prevents rubber-banding on Mac/iOS */
+        overscroll-behavior-y: none;
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
       }
