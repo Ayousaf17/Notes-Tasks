@@ -1,4 +1,5 @@
-import React, { useState, useEffect, ErrorInfo, ReactNode, createContext, useContext, Component } from 'react';
+
+import React, { useState, useEffect, ErrorInfo, ReactNode, createContext, useContext, Component, useRef } from 'react';
 import { Sidebar } from './Sidebar';
 import { DocumentEditor } from './DocumentEditor';
 import { TaskBoard } from './TaskBoard';
@@ -64,7 +65,10 @@ interface ErrorBoundaryState {
 }
 
 class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  state: ErrorBoundaryState = { hasError: false };
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false };
+  }
 
   static getDerivedStateFromError(_: Error): ErrorBoundaryState {
     return { hasError: true };
@@ -131,10 +135,20 @@ const MobileBottomNav = ({ currentView, onChangeView, onOpenMenu, onSearch }: { 
 
 const AppContent: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewMode>(ViewMode.HOME); 
+  const [viewHistory, setViewHistory] = useState<ViewMode[]>([]); // History Stack for Navigation
+  
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-  const [isSidebarExpanded, setIsSidebarExpanded] = useState(false); 
+  const [isSidebarHovered, setIsSidebarHovered] = useState(false); 
+  const [isSidebarPinned, setIsSidebarPinned] = useState(() => {
+      if (typeof window !== 'undefined') return localStorage.getItem('sidebarPinned') === 'true';
+      return false;
+  });
+
   const [isContextSidebarOpen, setIsContextSidebarOpen] = useState(false); // Mobile Context Sidebar State
   
+  // Touch Gesture Refs
+  const touchStartRef = useRef<{x: number, y: number} | null>(null);
+
   // Toast State
   const [toasts, setToasts] = useState<Toast[]>([]);
 
@@ -304,6 +318,60 @@ const AppContent: React.FC = () => {
       return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  // --- NAVIGATION & HISTORY LOGIC ---
+  const handleViewChange = (newView: ViewMode) => {
+      if (currentView !== newView) {
+          setViewHistory(prev => [...prev, currentView]);
+          setCurrentView(newView);
+      }
+  };
+
+  const handleBackNavigation = () => {
+      if (viewHistory.length > 0) {
+          const prevView = viewHistory[viewHistory.length - 1];
+          setViewHistory(prev => prev.slice(0, -1));
+          setCurrentView(prevView);
+          addToast("Navigated Back", 'info');
+      }
+  };
+
+  // --- GESTURE HANDLING ---
+  useEffect(() => {
+      const handleTouchStart = (e: TouchEvent) => {
+          touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      };
+
+      const handleTouchEnd = (e: TouchEvent) => {
+          if (!touchStartRef.current) return;
+          const endX = e.changedTouches[0].clientX;
+          const startX = touchStartRef.current.x;
+          const deltaX = endX - startX;
+          const windowWidth = window.innerWidth;
+
+          // 1. Edge Swipe Left-to-Right (Open Sidebar)
+          // Must start from very left edge (0-40px)
+          if (startX < 40 && deltaX > 100) {
+              setIsMobileSidebarOpen(true);
+          }
+
+          // 2. Edge Swipe Right-to-Left (Go Back)
+          // Must start from right edge
+          // Simulate "Back" navigation for app history
+          if (startX > windowWidth - 40 && deltaX < -100) {
+              handleBackNavigation();
+          }
+
+          touchStartRef.current = null;
+      };
+
+      window.addEventListener('touchstart', handleTouchStart);
+      window.addEventListener('touchend', handleTouchEnd);
+      return () => {
+          window.removeEventListener('touchstart', handleTouchStart);
+          window.removeEventListener('touchend', handleTouchEnd);
+      };
+  }, [viewHistory, currentView]);
+
   const [enrichmentCandidates, setEnrichmentCandidates] = useState<Task[]>([]);
   
   useEffect(() => {
@@ -327,7 +395,7 @@ const AppContent: React.FC = () => {
   const handleSelectProject = (projectId: string) => {
       setActiveProjectId(projectId);
       setActiveDocId(null);
-      setCurrentView(ViewMode.PROJECT_OVERVIEW); 
+      handleViewChange(ViewMode.PROJECT_OVERVIEW); 
   };
   const handleManageIntegration = async (id: string, action: 'toggle' | 'connect' | 'disconnect' | 'update', config?: any) => {
       let isConnectAction = false;
@@ -383,7 +451,7 @@ const AppContent: React.FC = () => {
       } else if (type === 'navigate') {
           const view = data.view?.toUpperCase();
           if (ViewMode[view as keyof typeof ViewMode]) {
-              setCurrentView(ViewMode[view as keyof typeof ViewMode]);
+              handleViewChange(ViewMode[view as keyof typeof ViewMode]);
               addToast(`Navigated to ${data.view}`, 'info');
           }
       }
@@ -409,9 +477,9 @@ const AppContent: React.FC = () => {
               if (activeProjectId === id) {
                   if (remainingProjects.length > 0) {
                       setActiveProjectId(remainingProjects[0].id);
-                      setCurrentView(ViewMode.PROJECT_OVERVIEW);
+                      handleViewChange(ViewMode.PROJECT_OVERVIEW);
                   } else {
-                      setCurrentView(ViewMode.HOME);
+                      handleViewChange(ViewMode.HOME);
                   }
               }
               addToast('Project deleted', 'info');
@@ -430,7 +498,7 @@ const AppContent: React.FC = () => {
     };
     setDocuments(prev => [...prev, newDoc]);
     setActiveDocId(newDoc.id);
-    setCurrentView(ViewMode.DOCUMENTS);
+    handleViewChange(ViewMode.DOCUMENTS);
     await dataService.createDocument(newDoc);
   };
   const handleDeleteDocument = (id: string) => {
@@ -482,12 +550,12 @@ const AppContent: React.FC = () => {
       await dataService.createDocument(newDoc);
       setActiveProjectId(task.projectId);
       setActiveDocId(newDoc.id);
-      setCurrentView(ViewMode.DOCUMENTS);
+      handleViewChange(ViewMode.DOCUMENTS);
       addToast('Task promoted to Document', 'success');
   };
   const handleNavigate = (type: 'document' | 'task', id: string) => { 
-      if(type==='document'){ setActiveDocId(id); setCurrentView(ViewMode.DOCUMENTS); }
-      if(type==='task'){ setSelectedTaskId(id); setCurrentView(ViewMode.BOARD); }
+      if(type==='document'){ setActiveDocId(id); handleViewChange(ViewMode.DOCUMENTS); }
+      if(type==='task'){ setSelectedTaskId(id); handleViewChange(ViewMode.BOARD); }
   };
   const handleAddInboxItem = (content: string, type: 'text' | 'audio' | 'file', fileName?: string, attachments?: Attachment[]) => {
       const newItem: InboxItem = { id: crypto.randomUUID(), content, type, fileName, attachments, status: 'pending', createdAt: new Date() };
@@ -679,13 +747,19 @@ const AppContent: React.FC = () => {
 
     setActiveProjectId(newProject.id);
     setActiveDocId(newDoc.id);
-    setCurrentView(ViewMode.DOCUMENTS);
+    handleViewChange(ViewMode.DOCUMENTS);
     addToast('Project Plan Generated', 'success');
   };
   const handleUpdateEntity = (type: string, id: string, updates: any) => { 
       if(type==='task') updateTask(id, updates);
       if(type==='document') handleUpdateDocument({ ...documents.find(d=>d.id===id)!, ...updates });
       addToast(`${type} updated`, 'success');
+  };
+
+  const handleTogglePin = () => {
+      const newState = !isSidebarPinned;
+      setIsSidebarPinned(newState);
+      localStorage.setItem('sidebarPinned', String(newState));
   };
 
   const activeDocument = documents.find(d => d.id === activeDocId);
@@ -707,9 +781,11 @@ const AppContent: React.FC = () => {
       return '';
   };
 
+  const isSidebarExpanded = isSidebarPinned || isSidebarHovered;
+
   return (
     <ToastContext.Provider value={{ addToast }}>
-        <div className="flex h-screen w-full bg-white dark:bg-black overflow-hidden font-sans text-gray-900 dark:text-gray-100 transition-colors duration-200">
+        <div className="flex h-[100dvh] w-full bg-white dark:bg-black overflow-hidden font-sans text-gray-900 dark:text-gray-100 transition-colors duration-200">
         
         {/* TOAST CONTAINER */}
         <div className="fixed bottom-20 md:bottom-6 right-6 z-[200] flex flex-col gap-2 pointer-events-none">
@@ -725,12 +801,12 @@ const AppContent: React.FC = () => {
             ))}
         </div>
 
-        {/* Global Sticker Mascot - Updated with Chat Toggle */}
-        <AasaniMascot fixed onClick={() => setIsChatOpen(true)} />
+        {/* Global Sticker Mascot - Updated with Drag & Chat Toggle */}
+        <AasaniMascot onClick={() => setIsChatOpen(true)} />
 
         <Sidebar
             currentView={currentView}
-            onChangeView={setCurrentView}
+            onChangeView={handleViewChange}
             projects={projects}
             activeProjectId={activeProjectId}
             onSelectProject={handleSelectProject}
@@ -747,7 +823,9 @@ const AppContent: React.FC = () => {
             isDarkMode={isDarkMode}
             onToggleDarkMode={() => setIsDarkMode(!isDarkMode)}
             isExpanded={isSidebarExpanded}
-            onHover={setIsSidebarExpanded}
+            isPinned={isSidebarPinned}
+            onTogglePin={handleTogglePin}
+            onHover={setIsSidebarHovered}
             globalModelLabel={activeModelName}
         />
 
@@ -784,8 +862,8 @@ const AppContent: React.FC = () => {
                             projects={projects} 
                             userName="User" 
                             onNavigate={handleNavigate} 
-                            onChangeView={setCurrentView}
-                            onStartReview={() => setCurrentView(ViewMode.REVIEW)} 
+                            onChangeView={handleViewChange}
+                            onStartReview={() => handleViewChange(ViewMode.REVIEW)} 
                             onCreateProject={handleOpenCreateProject}
                             teamMembers={teamMembers}
                             clients={clients} 
@@ -796,7 +874,7 @@ const AppContent: React.FC = () => {
                             tasks={projectTasks}
                             documents={projectDocs}
                             onNavigate={handleNavigate}
-                            onChangeView={setCurrentView}
+                            onChangeView={handleViewChange}
                         />
                     ) : currentView === ViewMode.INBOX ? (
                         <InboxView 
@@ -824,7 +902,7 @@ const AppContent: React.FC = () => {
                             onToggleIntegration={handleManageIntegration}
                         />
                     ) : currentView === ViewMode.REVIEW ? (
-                        <ReviewWizard inboxItems={inboxItems} tasks={tasks} projects={projects} onProcessInboxItem={handleProcessInboxItem} onDeleteInboxItem={handleDeleteInboxItem} onDeleteTask={handleDeleteTask} onUpdateTaskStatus={handleUpdateTaskStatus} onUpdateTaskAssignee={handleUpdateTaskAssignee} onClose={() => setCurrentView(ViewMode.HOME)} />
+                        <ReviewWizard inboxItems={inboxItems} tasks={tasks} projects={projects} onProcessInboxItem={handleProcessInboxItem} onDeleteInboxItem={handleDeleteInboxItem} onDeleteTask={handleDeleteTask} onUpdateTaskStatus={handleUpdateTaskStatus} onUpdateTaskAssignee={handleUpdateTaskAssignee} onClose={() => handleViewChange(ViewMode.HOME)} />
                     ) : currentView === ViewMode.DOCUMENTS && activeDocument ? (
                         <DocumentEditor 
                             document={activeDocument} 
@@ -939,7 +1017,7 @@ const AppContent: React.FC = () => {
             />
 
             {/* Other Modals */}
-            <CommandPalette isOpen={isCommandPaletteOpen} onClose={() => setIsCommandPaletteOpen(false)} documents={documents} tasks={tasks} projects={projects} onNavigate={handleNavigate} onCreateDocument={handleCreateDocument} onChangeView={setCurrentView} onSelectProject={handleSelectProject} />
+            <CommandPalette isOpen={isCommandPaletteOpen} onClose={() => setIsCommandPaletteOpen(false)} documents={documents} tasks={tasks} projects={projects} onNavigate={handleNavigate} onCreateDocument={handleCreateDocument} onChangeView={handleViewChange} onSelectProject={handleSelectProject} />
             <CreateProjectModal isOpen={isCreateProjectModalOpen} onClose={() => setIsCreateProjectModalOpen(false)} onCreate={handleCreateProjectConfirm} />
             <CreateClientModal isOpen={isCreateClientModalOpen} onClose={() => setIsCreateClientModalOpen(false)} onCreate={handleAddClient} />
             <IntegrationsModal isOpen={isIntegrationsOpen} onClose={() => setIsIntegrationsOpen(false)} integrations={integrations} onToggleIntegration={handleManageIntegration} />
@@ -947,7 +1025,7 @@ const AppContent: React.FC = () => {
             {selectedTask && <TaskDetailModal task={selectedTask} isOpen={!!selectedTask} onClose={() => setSelectedTaskId(null)} onUpdate={updateTask} onDelete={handleDeleteTask} users={teamMembers} projects={projects} />}
         </main>
 
-        <MobileBottomNav currentView={currentView} onChangeView={setCurrentView} onOpenMenu={() => setIsMobileSidebarOpen(true)} onSearch={() => setIsCommandPaletteOpen(true)} />
+        <MobileBottomNav currentView={currentView} onChangeView={handleViewChange} onOpenMenu={() => setIsMobileSidebarOpen(true)} onSearch={() => setIsCommandPaletteOpen(true)} />
         </div>
     </ToastContext.Provider>
   );

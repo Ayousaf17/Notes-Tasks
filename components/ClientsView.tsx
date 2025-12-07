@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Client, Project, ClientActivity } from '../types';
 import { Mail, Briefcase, DollarSign, Clock, Users, Search, Plus, Filter, MoreHorizontal, LayoutGrid, List, Phone, Calendar, CheckCircle2, MessageSquare, Send, X, FileText, ChevronRight, Folder, Trash2 } from 'lucide-react';
@@ -148,7 +147,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({ clients, projects, onA
                                                     client.status === 'Active' 
                                                     ? 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800'
                                                     : client.status === 'Lead'
-                                                    ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800'
+                                                    ? 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700'
                                                     : client.status === 'Negotiation'
                                                     ? 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900/20 dark:text-orange-400 dark:border-orange-800'
                                                     : 'bg-gray-50 text-gray-600 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700'
@@ -249,7 +248,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({ clients, projects, onA
                           <div>
                               <h2 className="text-2xl font-bold text-gray-900 dark:text-white leading-none">{selectedClient.company}</h2>
                               <div className="text-sm text-gray-500 mt-1 flex items-center gap-2">
-                                  <span className={`w-2 h-2 rounded-full ${selectedClient.status === 'Active' ? 'bg-green-500' : 'bg-blue-500'}`}></span>
+                                  <span className={`w-2 h-2 rounded-full ${selectedClient.status === 'Active' ? 'bg-green-500' : 'bg-gray-500'}`}></span>
                                   {selectedClient.status}
                               </div>
                           </div>
@@ -276,22 +275,22 @@ export const ClientsView: React.FC<ClientsViewProps> = ({ clients, projects, onA
               <div className="flex-1 overflow-y-auto p-6 space-y-8">
                   
                   {/* Google Workspace Integration Slot */}
-                  <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900/50 rounded-xl">
+                  <div className="p-4 bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-800 rounded-xl">
                       <div className="flex items-center justify-between mb-3">
-                          <h3 className="text-xs font-bold text-blue-800 dark:text-blue-300 uppercase tracking-widest flex items-center gap-2">
+                          <h3 className="text-xs font-bold text-gray-800 dark:text-gray-300 uppercase tracking-widest flex items-center gap-2">
                               <Folder className="w-3.5 h-3.5" /> Google Workspace
                           </h3>
-                          <span className="text-[10px] bg-white dark:bg-blue-900 text-blue-600 dark:text-blue-300 px-2 py-0.5 rounded-full font-bold">SYNC ACTIVE</span>
+                          <span className="text-[10px] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 px-2 py-0.5 rounded-full font-bold">SYNC ACTIVE</span>
                       </div>
                       <div className="flex items-center gap-3 mb-2">
-                          <div className="p-2 bg-white dark:bg-gray-900 rounded-lg border border-blue-100 dark:border-blue-900">
+                          <div className="p-2 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800">
                               <Folder className="w-5 h-5 text-gray-500" />
                           </div>
                           <div className="flex-1">
                               <div className="text-sm font-medium text-gray-900 dark:text-white truncate">Client_Assets/{selectedClient.company}</div>
                               <div className="text-[10px] text-gray-500">Shared Drive Folder</div>
                           </div>
-                          <button className="text-xs text-blue-600 dark:text-blue-400 font-bold hover:underline">Open</button>
+                          <button className="text-xs text-gray-600 dark:text-gray-400 font-bold hover:underline">Open</button>
                       </div>
                   </div>
 
@@ -352,7 +351,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({ clients, projects, onA
                       <div className="space-y-6 relative before:absolute before:left-2 before:top-0 before:bottom-0 before:w-0.5 before:bg-gray-100 dark:before:bg-gray-800">
                           {(selectedClient.activities || []).map((activity, i) => (
                               <div key={i} className="relative pl-8">
-                                  <div className={`absolute left-0 top-1 w-4 h-4 rounded-full border-2 border-white dark:border-gray-950 ${activity.type === 'call' ? 'bg-blue-500' : 'bg-purple-500'}`}></div>
+                                  <div className={`absolute left-0 top-1 w-4 h-4 rounded-full border-2 border-white dark:border-gray-950 ${activity.type === 'call' ? 'bg-gray-500' : 'bg-gray-400'}`}></div>
                                   <div className="text-sm text-gray-800 dark:text-gray-200">{activity.content}</div>
                                   <div className="text-[10px] text-gray-400 mt-1">{activity.timestamp.toLocaleString()}</div>
                               </div>

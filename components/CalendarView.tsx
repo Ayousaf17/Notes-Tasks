@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, Cloud, Folder } from 'lucide-react';
 import { Task, TaskPriority, TaskStatus, Project } from '../types';
@@ -46,12 +45,12 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onSelectTask,
 
   const getPriorityColor = (task: Task) => {
     if (task.externalType === 'GOOGLE_CALENDAR') {
-        return 'bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200 border-blue-200 dark:border-blue-800 hover:bg-blue-200 dark:hover:bg-blue-900/70';
+        return 'bg-gray-100 dark:bg-gray-900/50 text-gray-800 dark:text-gray-200 border-gray-200 dark:border-gray-800 hover:bg-gray-200 dark:hover:bg-gray-900/70';
     }
     switch(task.priority) {
         case TaskPriority.HIGH: return 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-red-100 dark:border-red-900/50 hover:border-red-200';
         case TaskPriority.MEDIUM: return 'bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 border-orange-100 dark:border-orange-900/50 hover:border-orange-200';
-        case TaskPriority.LOW: return 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-100 dark:border-blue-900/50 hover:border-blue-200';
+        case TaskPriority.LOW: return 'bg-gray-50 dark:bg-gray-900/30 text-gray-700 dark:text-gray-300 border-gray-100 dark:border-gray-900/50 hover:border-gray-200';
         default: return 'bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-100 dark:border-gray-700 hover:border-gray-200';
     }
   };
@@ -173,7 +172,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onSelectTask,
                     onDrop={(e) => handleDrop(e, day)}
                     className={`group border-b border-r border-gray-100 dark:border-gray-800 p-2 transition-all relative flex flex-col gap-1 overflow-hidden
                         ${isToday ? 'bg-white dark:bg-gray-900 ring-1 ring-inset ring-black dark:ring-white z-10' : ''}
-                        ${isDragOver ? 'bg-indigo-50/80 dark:bg-indigo-900/50 ring-2 ring-inset ring-indigo-200 dark:ring-indigo-500' : 'hover:bg-white dark:hover:bg-gray-900'}
+                        ${isDragOver ? 'bg-gray-100 dark:bg-gray-800 ring-2 ring-inset ring-gray-400 dark:ring-gray-600' : 'hover:bg-white dark:hover:bg-gray-900'}
                     `}
                 >
                     <div className="flex justify-between items-start mb-1 pointer-events-none">

@@ -1,5 +1,5 @@
 import React from 'react';
-import { FileText, Layout, Calendar, Settings, Plus, Inbox, Network, Home, X, Globe, Layers, User, Moon, Sun, Loader2, Folder, Trash2, CheckSquare, Users, Sparkles, LogOut } from 'lucide-react';
+import { FileText, Layout, Calendar, Settings, Plus, Inbox, Network, Home, X, Globe, Layers, User, Moon, Sun, Loader2, Folder, Trash2, CheckSquare, Users, Sparkles, LogOut, Pin, PinOff } from 'lucide-react';
 import { ViewMode, Document, Project } from '../types';
 
 interface SidebarProps {
@@ -21,6 +21,8 @@ interface SidebarProps {
   isDarkMode: boolean;
   onToggleDarkMode: () => void;
   isExpanded: boolean;
+  isPinned: boolean;
+  onTogglePin: () => void;
   onHover: (expanded: boolean) => void;
   globalModelLabel?: string; 
 }
@@ -43,6 +45,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isDarkMode,
   onToggleDarkMode,
   isExpanded,
+  isPinned,
+  onTogglePin,
   onHover,
   globalModelLabel
 }) => {
@@ -80,20 +84,29 @@ export const Sidebar: React.FC<SidebarProps> = ({
       )}
 
       <div 
-        onMouseEnter={() => onHover(true)}
-        onMouseLeave={() => onHover(false)}
+        onMouseEnter={() => !isPinned && onHover(true)}
+        onMouseLeave={() => !isPinned && onHover(false)}
         className={`fixed inset-y-0 left-0 z-[110] flex flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border transition-all duration-300 ease-in-out font-sans shadow-2xl md:shadow-none h-full
         ${isMobileOpen ? 'translate-x-0 w-[80vw]' : '-translate-x-full'} 
         md:translate-x-0 ${isExpanded ? 'md:w-64 md:shadow-xl' : 'md:w-16'} group`}
       >
         
-        {/* LOGO AREA */}
-        <div className={`h-16 md:h-14 flex items-center transition-all border-b border-sidebar-border shrink-0 overflow-hidden ${isExpanded || isMobileOpen ? 'px-6 md:px-5 justify-between' : 'px-0 justify-center'}`}>
-          <span className={`font-serif text-xl md:text-lg font-bold tracking-tight text-sidebar-foreground whitespace-nowrap transition-all duration-300`}>
-             {(isExpanded || isMobileOpen) ? 'Aasani.' : 'A.'}
-          </span>
+        {/* LOGO AREA - STANDARDIZED */}
+        <div className={`h-16 md:h-14 flex items-center transition-all border-b border-sidebar-border shrink-0 overflow-hidden ${isExpanded || isMobileOpen ? 'px-4' : 'px-0 justify-center'}`}>
+          <div className="flex items-center gap-3">
+              {/* App Icon (Logo Mark) */}
+              <div className="w-8 h-8 md:w-7 md:h-7 bg-black dark:bg-white text-white dark:text-black rounded-lg flex items-center justify-center font-serif font-bold text-lg md:text-base shrink-0 ml-0.5 shadow-sm">
+                  A
+              </div>
+              
+              {/* App Text (Logo Type) */}
+              <div className={`font-semibold text-lg tracking-tight text-sidebar-foreground whitespace-nowrap transition-all duration-300 ${isExpanded || isMobileOpen ? 'opacity-100 w-auto' : 'opacity-0 w-0 hidden'}`}>
+                  Aasani
+              </div>
+          </div>
+
           {isMobileOpen && (
-              <button onClick={onMobileClose} className="md:hidden p-2 rounded-full hover:bg-sidebar-accent text-sidebar-foreground">
+              <button onClick={onMobileClose} className="md:hidden ml-auto p-2 rounded-full hover:bg-sidebar-accent text-sidebar-foreground">
                   <X className="w-5 h-5" />
               </button>
           )}
@@ -200,6 +213,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* FOOTER - Cleaned up */}
         <div className="p-3 mt-auto border-t border-sidebar-border bg-sidebar-accent/10 overflow-hidden shrink-0 pb-safe">
           
+          {/* Pin Toggle (Desktop Only) */}
+          <div className="hidden md:flex justify-end mb-2">
+              <button 
+                  onClick={onTogglePin}
+                  className={`p-1.5 rounded hover:bg-sidebar-accent text-sidebar-foreground/50 hover:text-sidebar-foreground transition-colors ${!isExpanded ? 'hidden' : ''}`}
+                  title={isPinned ? "Unpin Sidebar" : "Pin Sidebar"}
+              >
+                  {isPinned ? <PinOff className="w-3.5 h-3.5" /> : <Pin className="w-3.5 h-3.5" />}
+              </button>
+          </div>
+
           <button 
             onClick={() => { onChangeView(ViewMode.SETTINGS); onMobileClose(); }}
             className={`w-full flex items-center space-x-3 px-2 py-2 mb-1 text-xs rounded transition-colors ${currentView === ViewMode.SETTINGS ? 'bg-sidebar-accent text-sidebar-accent-foreground shadow-sm' : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/50'}`}
@@ -219,7 +243,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </button>
           
           <div className={`mt-3 pt-3 border-t border-sidebar-border flex items-center gap-3 px-2 ${!isExpanded ? 'justify-center' : ''}`}>
-              <div className="w-7 h-7 rounded-full bg-sidebar-primary text-sidebar-primary-foreground flex items-center justify-center font-bold text-xs">U</div>
+              <div className="w-7 h-7 rounded-full bg-sidebar-primary text-sidebar-primary-foreground flex items-center justify-center font-bold text-xs shrink-0">U</div>
               <div className={`hidden md:block overflow-hidden transition-all duration-300 ${isExpanded ? 'opacity-100 w-auto' : 'opacity-0 w-0'}`}>
                   <div className="text-xs font-bold text-sidebar-foreground truncate">Workspace User</div>
               </div>

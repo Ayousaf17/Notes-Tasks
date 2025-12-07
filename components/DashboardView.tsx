@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useMemo } from 'react';
 import { Task, Document, Project, TaskPriority, TaskStatus, Client, ViewMode } from '../types';
 import { geminiService, DailyBriefing } from '../services/geminiService';
@@ -126,7 +125,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-secondary border border-border">
                         {briefing.vibe === 'Deep Work' && <Zap className="w-4 h-4 text-purple-500" />}
                         {briefing.vibe === 'Meeting Heavy' && <Users className="w-4 h-4 text-orange-500" />}
-                        {briefing.vibe === 'Admin & Cleanup' && <Coffee className="w-4 h-4 text-blue-500" />}
+                        {briefing.vibe === 'Admin & Cleanup' && <Coffee className="w-4 h-4 text-gray-500" />}
                         {briefing.vibe === 'Light' && <Sparkles className="w-4 h-4 text-green-500" />}
                         <span className="text-xs font-bold text-foreground uppercase tracking-wide">{briefing.vibe} Mode</span>
                     </div>
