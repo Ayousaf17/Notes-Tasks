@@ -65,7 +65,7 @@ interface ErrorBoundaryState {
   hasError: boolean;
 }
 
-class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = { hasError: false };
@@ -920,6 +920,7 @@ const AppContent: React.FC = () => {
                             onNavigate={handleNavigate} 
                             onDelete={() => handleDeleteDocument(activeDocument.id)}
                             onToggleContext={() => setIsContextSidebarOpen(prev => !prev)}
+                            integrations={integrations} 
                         />
                     ) : currentView === ViewMode.DOCUMENTS && !activeDocument ? (
                         <button onClick={handleCreateDocument} className="flex flex-col items-center justify-center h-full w-full text-gray-400 dark:text-gray-600 hover:text-gray-600 dark:hover:text-gray-300 transition-colors cursor-pointer">

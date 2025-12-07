@@ -234,6 +234,7 @@ export interface Integration {
   config?: {
     apiKey?: string;
     model?: string;
+    webhookUrl?: string; // n8n support
     requiresAuth?: boolean;
   };
   status?: 'idle' | 'connecting' | 'connected';

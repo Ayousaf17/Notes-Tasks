@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Cloud, MessageSquare, Check, Loader2, Key, ExternalLink, AlertCircle, Cpu, RefreshCw, Search, ChevronDown } from 'lucide-react';
+import { X, Cloud, MessageSquare, Check, Loader2, Key, ExternalLink, AlertCircle, Cpu, RefreshCw, Search, ChevronDown, Webhook } from 'lucide-react';
 import { Integration } from '../types';
 import { geminiService } from '../services/geminiService';
 
@@ -8,7 +8,7 @@ interface IntegrationsModalProps {
   isOpen: boolean;
   onClose: () => void;
   integrations: Integration[];
-  onToggleIntegration: (id: string, action: 'toggle' | 'connect' | 'disconnect' | 'update', config?: { apiKey?: string, model?: string }) => Promise<void>;
+  onToggleIntegration: (id: string, action: 'toggle' | 'connect' | 'disconnect' | 'update', config?: { apiKey?: string, model?: string, webhookUrl?: string }) => Promise<void>;
 }
 
 export const IntegrationsModal: React.FC<IntegrationsModalProps> = ({ 
@@ -18,7 +18,7 @@ export const IntegrationsModal: React.FC<IntegrationsModalProps> = ({
   onToggleIntegration 
 }) => {
   const [connectingId, setConnectingId] = useState<string | null>(null);
-  const [apiKeyInput, setApiKeyInput] = useState('');
+  const [inputValue, setInputValue] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Model Selection State
@@ -64,28 +64,27 @@ export const IntegrationsModal: React.FC<IntegrationsModalProps> = ({
           onToggleIntegration(integration.id, 'disconnect');
           return;
       }
-      
-      if (integration.category === 'AI') {
-          setConnectingId(integration.id);
-          setApiKeyInput('');
-      } else {
-          setIsSubmitting(true);
-          setTimeout(() => {
-              onToggleIntegration(integration.id, 'connect');
-              setIsSubmitting(false);
-          }, 1000);
-      }
+      setConnectingId(integration.id);
+      setInputValue('');
   };
 
-  const handleSaveKey = async (id: string) => {
-      const trimmedKey = apiKeyInput.trim();
-      if (!trimmedKey) return;
+  const handleSaveConfig = async (integration: Integration) => {
+      const trimmedValue = inputValue.trim();
+      if (!trimmedValue) return;
+      
       setIsSubmitting(true);
       await new Promise(resolve => setTimeout(resolve, 800));
-      await onToggleIntegration(id, 'connect', { apiKey: trimmedKey });
+      
+      // If Cloud (Google), treat input as Webhook URL. If AI, treat as API Key.
+      if (integration.category === 'Cloud') {
+          await onToggleIntegration(integration.id, 'connect', { webhookUrl: trimmedValue });
+      } else {
+          await onToggleIntegration(integration.id, 'connect', { apiKey: trimmedValue });
+      }
+      
       setIsSubmitting(false);
       setConnectingId(null);
-      setApiKeyInput('');
+      setInputValue('');
   };
 
   const handleModelChange = async (id: string, modelId: string) => {
@@ -130,6 +129,7 @@ export const IntegrationsModal: React.FC<IntegrationsModalProps> = ({
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {integrations.filter(i => i.category === category).map(integration => {
                             const isConnecting = connectingId === integration.id;
+                            const isCloud = integration.category === 'Cloud';
                             
                             return (
                                 <div key={integration.id} className={`bg-white dark:bg-gray-900 border rounded-xl transition-all duration-200 overflow-visible border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700 shadow-sm hover:shadow-md ${isConnecting ? 'ring-2 ring-black dark:ring-white border-transparent' : ''}`}>
@@ -142,7 +142,7 @@ export const IntegrationsModal: React.FC<IntegrationsModalProps> = ({
                                             <div className="flex-1 min-w-0 pt-1">
                                                 <div className="flex items-center justify-between mb-1">
                                                     <h4 className="font-semibold text-gray-900 dark:text-white truncate text-base">{integration.name}</h4>
-                                                    {integration.connected && <div className="flex items-center gap-1 text-[10px] font-bold text-green-600 bg-green-50 dark:bg-green-900/20 px-2 py-0.5 rounded-full"><Check className="w-3 h-3" /> SYNCED</div>}
+                                                    {integration.connected && <div className="flex items-center gap-1 text-[10px] font-bold text-green-600 bg-green-50 dark:bg-green-900/20 px-2 py-0.5 rounded-full"><Check className="w-3 h-3" /> ACTIVE</div>}
                                                 </div>
                                                 <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 leading-relaxed">{integration.description}</p>
                                                 
@@ -209,24 +209,29 @@ export const IntegrationsModal: React.FC<IntegrationsModalProps> = ({
                                         {isConnecting ? (
                                             <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
                                                 <div className="relative">
-                                                    <Key className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+                                                    {isCloud ? (
+                                                        <Webhook className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+                                                    ) : (
+                                                        <Key className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+                                                    )}
                                                     <input 
-                                                        type="password"
+                                                        type={isCloud ? "text" : "password"}
                                                         autoFocus
-                                                        value={apiKeyInput}
-                                                        onChange={(e) => setApiKeyInput(e.target.value)}
-                                                        placeholder={`Enter ${integration.name} API Key`}
+                                                        value={inputValue}
+                                                        onChange={(e) => setInputValue(e.target.value)}
+                                                        placeholder={isCloud ? "Enter n8n Webhook URL" : `Enter ${integration.name} API Key`}
                                                         className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-black dark:focus:ring-white outline-none"
                                                     />
                                                 </div>
+                                                {isCloud && <div className="text-[10px] text-gray-400 pl-1">Use a webhook to bridge Aasani with your private cloud.</div>}
 
                                                 <div className="flex gap-2 pt-1">
                                                     <button 
-                                                        onClick={() => handleSaveKey(integration.id)}
-                                                        disabled={!apiKeyInput.trim() || isSubmitting}
+                                                        onClick={() => handleSaveConfig(integration)}
+                                                        disabled={!inputValue.trim() || isSubmitting}
                                                         className="flex-1 bg-black dark:bg-white text-white dark:text-black py-2 rounded-lg text-xs font-bold hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
                                                     >
-                                                        {isSubmitting ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Save Key'}
+                                                        {isSubmitting ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Save Connection'}
                                                     </button>
                                                     <button 
                                                         onClick={() => setConnectingId(null)}

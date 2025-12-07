@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Document, Task, TaskPriority, TaskStatus } from '../types';
+import { Document, Task, TaskPriority, TaskStatus, Integration } from '../types';
 import { Wand2, ListChecks, RefreshCw, X, Check, User, Flag, AlignLeft, Tag as TagIcon, Sparkles, Edit3, Eye, SpellCheck, Scissors, Table as TableIcon, Link as LinkIcon, FileText, Maximize2, Minimize2, Heading1, Heading2, List, CheckSquare, Plus, Loader2, Trash2, Cloud, Info } from 'lucide-react';
 import { geminiService } from '../services/geminiService';
 
@@ -13,6 +13,7 @@ interface DocumentEditorProps {
   onNavigate?: (type: 'document' | 'task', id: string) => void;
   onDelete: () => void;
   onToggleContext?: () => void;
+  integrations?: Integration[];
 }
 
 const getCaretCoordinates = (element: HTMLTextAreaElement, position: number) => {
@@ -213,7 +214,8 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
     onExtractTasks,
     onNavigate,
     onDelete,
-    onToggleContext
+    onToggleContext,
+    integrations
 }) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [summary, setSummary] = useState<string | null>(null);
@@ -295,9 +297,34 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
   };
 
   const handleSyncToGoogle = async () => {
+      const googleInt = integrations?.find(i => i.id === 'google');
+      if (!googleInt?.connected) {
+          alert("Please connect Google Workspace in Settings first.");
+          return;
+      }
+
       setIsSyncing(true);
-      // Simulate API call to Google Docs
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // Use Webhook if available (n8n integration)
+      if (googleInt.config?.webhookUrl) {
+          try {
+              await fetch(googleInt.config.webhookUrl, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                      action: 'sync_doc',
+                      document: doc,
+                      timestamp: new Date().toISOString()
+                  })
+              });
+          } catch (e) {
+              console.error("Webhook failed", e);
+          }
+      } else {
+          // Simulation fallback
+          await new Promise(resolve => setTimeout(resolve, 1500));
+      }
+      
       setIsSyncing(false);
       handleUpdate({ ...doc, lastSyncedAt: new Date() });
   };
@@ -368,7 +395,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
                    {/* Google Corridor Status */}
                    {doc.lastSyncedAt ? (
                        <div className="flex items-center gap-1 text-[10px] text-gray-400 dark:text-gray-500 font-medium">
-                           <Cloud className="w-3 h-3" /> Synced to Drive
+                           <Cloud className="w-3 h-3" /> Synced
                        </div>
                    ) : (
                        <button onClick={handleSyncToGoogle} disabled={isSyncing} className="flex items-center gap-1 text-[10px] text-blue-500 dark:text-blue-400 font-bold hover:underline transition-all">
