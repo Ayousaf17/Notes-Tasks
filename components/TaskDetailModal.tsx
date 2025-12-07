@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { Task, TaskStatus, TaskPriority, AgentRole, Project } from '../types';
-import { X, Calendar, User, Flag, CheckSquare, AlignLeft, Trash2, Folder, Bell, Sparkles, Loader2 } from 'lucide-react';
+import { Task, TaskStatus, TaskPriority, AgentRole, Project, Document } from '../types';
+import { X, Calendar, User, Flag, CheckSquare, AlignLeft, Trash2, Folder, Bell, Sparkles, Loader2, Link, FileText, Layers } from 'lucide-react';
 import { geminiService } from '../services/geminiService';
 
 interface TaskDetailModalProps {
@@ -12,14 +12,23 @@ interface TaskDetailModalProps {
   onDelete: (taskId: string) => void;
   users: string[];
   projects: Project[]; 
+  allTasks: Task[]; 
+  allDocuments: Document[]; 
 }
 
-export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, isOpen, onClose, onUpdate, onDelete, users, projects }) => {
+export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, isOpen, onClose, onUpdate, onDelete, users, projects, allTasks, allDocuments }) => {
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description || '');
   const [assigneeInput, setAssigneeInput] = useState(task.assignee || '');
   const [isEnriching, setIsEnriching] = useState(false);
   
+  // Computed lists
+  const projectTasks = allTasks.filter(t => t.projectId === task.projectId && t.id !== task.id);
+  const projectDocs = allDocuments.filter(d => d.projectId === task.projectId);
+  
+  const currentDependencies = task.dependencies || [];
+  const resolvedDependencies = currentDependencies.map(depId => allTasks.find(t => t.id === depId)).filter(Boolean) as Task[];
+
   // Sync local state when task changes
   useEffect(() => {
     setTitle(task.title);
@@ -237,6 +246,72 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, isOpen, 
                             className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 text-sm rounded-lg px-3 py-2 pl-9 focus:ring-black dark:focus:ring-white focus:border-black dark:focus:border-white"
                         />
                         <Bell className="absolute left-3 top-2.5 w-4 h-4 text-gray-400 pointer-events-none" />
+                    </div>
+                </div>
+
+                {/* Linked Document */}
+                <div className="space-y-1">
+                    <label className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase flex items-center gap-2">
+                        <FileText className="w-3 h-3" /> Linked Document
+                    </label>
+                    <div className="relative">
+                        <select
+                            value={task.linkedDocumentId || ''}
+                            onChange={(e) => onUpdate(task.id, { linkedDocumentId: e.target.value || undefined })}
+                            className="w-full appearance-none bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 text-sm rounded-lg px-3 py-2 pr-8 focus:ring-black dark:focus:ring-white focus:border-black dark:focus:border-white cursor-pointer"
+                        >
+                            <option value="">No Document Linked</option>
+                            {projectDocs.map(d => (
+                                <option key={d.id} value={d.id}>{d.title}</option>
+                            ))}
+                        </select>
+                        <Link className="absolute right-3 top-2.5 w-4 h-4 text-gray-400 pointer-events-none" />
+                    </div>
+                </div>
+
+                {/* Dependencies */}
+                <div className="space-y-2">
+                    <label className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase flex items-center gap-2">
+                        <Layers className="w-3 h-3" /> Dependencies
+                    </label>
+                    
+                    {/* List of existing */}
+                    <div className="space-y-1">
+                        {resolvedDependencies.map(dep => (
+                            <div key={dep.id} className="flex items-center justify-between bg-gray-50 dark:bg-gray-800 px-3 py-2 rounded-lg border border-gray-100 dark:border-gray-700">
+                                <div className="flex items-center gap-2 overflow-hidden">
+                                    <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${dep.status === TaskStatus.DONE ? 'bg-green-500' : 'bg-gray-400'}`} />
+                                    <span className={`text-xs truncate ${dep.status === TaskStatus.DONE ? 'text-gray-400 line-through' : 'text-gray-700 dark:text-gray-200'}`}>{dep.title}</span>
+                                </div>
+                                <button 
+                                    onClick={() => {
+                                        const newDeps = currentDependencies.filter(d => d !== dep.id);
+                                        onUpdate(task.id, { dependencies: newDeps });
+                                    }}
+                                    className="text-gray-400 hover:text-red-500"
+                                >
+                                    <X className="w-3 h-3" />
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Add New */}
+                    <div className="relative">
+                        <select
+                            value=""
+                            onChange={(e) => {
+                                if (e.target.value) {
+                                    onUpdate(task.id, { dependencies: [...currentDependencies, e.target.value] });
+                                }
+                            }}
+                            className="w-full appearance-none bg-white dark:bg-gray-900 border border-dashed border-gray-300 dark:border-gray-700 text-gray-500 dark:text-gray-400 text-xs rounded-lg px-3 py-2 pr-8 focus:ring-black dark:focus:ring-white focus:border-black dark:focus:border-white cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
+                        >
+                            <option value="">+ Add Dependency</option>
+                            {projectTasks.filter(t => !currentDependencies.includes(t.id)).map(t => (
+                                <option key={t.id} value={t.id}>{t.title}</option>
+                            ))}
+                        </select>
                     </div>
                 </div>
 

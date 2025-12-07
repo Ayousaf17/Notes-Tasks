@@ -1,6 +1,23 @@
 
 import { supabase } from './supabase';
-import { Project, Task, Document, TaskStatus, TaskPriority, Client } from '../types';
+import { Project, Task, Document, TaskStatus, TaskPriority, Client, Goal, BusinessContext } from '../types';
+
+// Mock storage for local-only features (Context Engineering) if Supabase table doesn't exist yet
+const getLocalContext = (): BusinessContext => {
+    const stored = localStorage.getItem('aasani_business_context');
+    return stored ? JSON.parse(stored) : {
+        companyName: '',
+        coreOffer: '',
+        targetAudience: '',
+        brandVoice: '',
+        customInstructions: ''
+    };
+};
+
+const getLocalGoals = (): Goal[] => {
+    const stored = localStorage.getItem('aasani_goals');
+    return stored ? JSON.parse(stored) : [];
+};
 
 export const dataService = {
   async fetchAll() {
@@ -41,6 +58,8 @@ export const dataService = {
             agentStatus: t.agent_status,
             agentResult: t.agent_result,
             externalType: t.external_type,
+            relatedClientId: t.related_client_id, // Ensure this maps if added to DB schema
+            relatedGoalId: t.related_goal_id,
             createdAt: t.created_at ? new Date(t.created_at) : new Date(),
             updatedAt: t.updated_at ? new Date(t.updated_at) : new Date()
           })) as Task[],
@@ -51,7 +70,8 @@ export const dataService = {
             title: d.title,
             content: d.content,
             tags: d.tags || [],
-            updatedAt: d.updated_at ? new Date(d.updated_at) : new Date()
+            updatedAt: d.updated_at ? new Date(d.updated_at) : new Date(),
+            isSOP: d.tags?.includes('SOP') // Convention: Tag document as SOP
           })) as Document[],
 
           clients: (clients || []).map((c: any) => ({
@@ -73,6 +93,24 @@ export const dataService = {
     }
   },
 
+  // --- Context Engineering Data (Local for now, could be DB) ---
+  getBusinessContext(): BusinessContext {
+      return getLocalContext();
+  },
+
+  saveBusinessContext(context: BusinessContext) {
+      localStorage.setItem('aasani_business_context', JSON.stringify(context));
+  },
+
+  getGoals(): Goal[] {
+      return getLocalGoals();
+  },
+
+  saveGoals(goals: Goal[]) {
+      localStorage.setItem('aasani_goals', JSON.stringify(goals));
+  },
+
+  // ... (Existing Create/Update/Delete methods for Project, Task, Doc, Client remain unchanged)
   async createProject(project: Project) {
     try {
         await supabase.from('projects').insert({
@@ -168,7 +206,6 @@ export const dataService = {
     } catch (e) { console.error("Delete Document Failed", e); }
   },
 
-  // CLIENTS
   async createClient(client: Client) {
       try {
           await supabase.from('clients').insert({
@@ -213,8 +250,6 @@ export const dataService = {
     // Simulation
     const now = new Date();
     const tomorrow = new Date(now.getTime() + 86400000);
-    const nextWeek = new Date(now.getTime() + 7 * 86400000);
-
     return [
         { 
             id: 'g_cal_1', 

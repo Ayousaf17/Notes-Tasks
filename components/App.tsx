@@ -20,6 +20,7 @@ import { ConfirmationModal } from './ConfirmationModal';
 import { ClientsView } from './ClientsView';
 import { CreateClientModal } from './CreateClientModal';
 import { VoiceCommandOverlay } from './VoiceCommandOverlay';
+import { BrainView } from './BrainView'; 
 import { ViewMode, Document, Task, TaskStatus, ProjectPlan, TaskPriority, ChatMessage, Project, InboxItem, InboxAction, AgentRole, Integration, Client, Attachment, FocusItem } from '../types';
 import { Sparkles, Command, Plus, Menu, Cloud, MessageSquare, Home, Inbox, Search, CheckSquare, X, CheckCircle, AlertTriangle, Info, Mic } from 'lucide-react';
 import { geminiService } from '../services/geminiService';
@@ -64,7 +65,7 @@ interface ErrorBoundaryState {
   hasError: boolean;
 }
 
-class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = { hasError: false };
@@ -901,6 +902,12 @@ const AppContent: React.FC = () => {
                             integrations={integrations}
                             onToggleIntegration={handleManageIntegration}
                         />
+                    ) : currentView === ViewMode.BRAIN ? (
+                        <BrainView 
+                            documents={documents}
+                            onNavigate={(type, id) => handleNavigate(type, id)}
+                            onShowToast={addToast}
+                        /> 
                     ) : currentView === ViewMode.REVIEW ? (
                         <ReviewWizard inboxItems={inboxItems} tasks={tasks} projects={projects} onProcessInboxItem={handleProcessInboxItem} onDeleteInboxItem={handleDeleteInboxItem} onDeleteTask={handleDeleteTask} onUpdateTaskStatus={handleUpdateTaskStatus} onUpdateTaskAssignee={handleUpdateTaskAssignee} onClose={() => handleViewChange(ViewMode.HOME)} />
                     ) : currentView === ViewMode.DOCUMENTS && activeDocument ? (
@@ -1022,7 +1029,17 @@ const AppContent: React.FC = () => {
             <CreateClientModal isOpen={isCreateClientModalOpen} onClose={() => setIsCreateClientModalOpen(false)} onCreate={handleAddClient} />
             <IntegrationsModal isOpen={isIntegrationsOpen} onClose={() => setIsIntegrationsOpen(false)} integrations={integrations} onToggleIntegration={handleManageIntegration} />
             <ConfirmationModal isOpen={confirmationModal.isOpen} title={confirmationModal.title} message={confirmationModal.message} onClose={() => setConfirmationModal(prev => ({ ...prev, isOpen: false }))} onConfirm={confirmationModal.onConfirm} isDanger={confirmationModal.isDanger} confirmText={confirmationModal.confirmText} />
-            {selectedTask && <TaskDetailModal task={selectedTask} isOpen={!!selectedTask} onClose={() => setSelectedTaskId(null)} onUpdate={updateTask} onDelete={handleDeleteTask} users={teamMembers} projects={projects} />}
+            {selectedTask && <TaskDetailModal 
+                                task={selectedTask} 
+                                isOpen={!!selectedTask} 
+                                onClose={() => setSelectedTaskId(null)} 
+                                onUpdate={updateTask} 
+                                onDelete={handleDeleteTask} 
+                                users={teamMembers} 
+                                projects={projects} 
+                                allTasks={tasks}
+                                allDocuments={documents}
+                            />}
         </main>
 
         <MobileBottomNav currentView={currentView} onChangeView={handleViewChange} onOpenMenu={() => setIsMobileSidebarOpen(true)} onSearch={() => setIsCommandPaletteOpen(true)} />

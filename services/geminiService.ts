@@ -1,5 +1,7 @@
+
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { Task, TaskStatus, TaskPriority, ProjectPlan, Attachment, Project, InboxAction, AgentRole, AgentResult, Document, Source, Client } from "../types";
+import { dataService } from "./dataService";
 
 // SAFELY ACCESS API KEY
 const getApiKey = () => {
@@ -49,7 +51,6 @@ export interface VoiceIntent {
     feedback: string;
 }
 
-// REDEFINED: Daily Briefing Structure
 export interface DailyBriefing {
     greeting: string;
     narrative: string; // "You have a heavy meeting day..."
@@ -65,27 +66,32 @@ export interface DailyBriefing {
     }
 }
 
-// UNIVERSAL PROTOCOL FOR GLOBAL LLMS
-const EXECUTIVE_ASSISTANT_PROTOCOL = `
+// Helper to construct the dynamic brain context
+const getDynamicProtocol = (): string => {
+    const ctx = dataService.getBusinessContext();
+    
+    let base = `
 ### IDENTITY
 You are **Aasani**, a Chief of Staff and Hyper-Intelligent Workspace OS. 
 You do not just "chat"; you **orchestrate**. You analyze raw input, structure it, and execute system actions.
 
+### BUSINESS CONTEXT (CRITICAL)
+- **Company**: ${ctx.companyName || 'Not Set'}
+- **Core Offer**: ${ctx.coreOffer || 'Not Set'}
+- **Target Audience**: ${ctx.targetAudience || 'Not Set'}
+- **Brand Voice**: ${ctx.brandVoice || 'Professional, Efficient'}
+
+### USER CUSTOM INSTRUCTIONS
+${ctx.customInstructions || 'No custom instructions provided.'}
+
 ### OPERATIONAL DIRECTIVES
 1.  **Radical Proactivity**: Don't wait for permission to think. If the user mentions a client, assume we need a CRM entry. If they mention a date, assume a deadline.
 2.  **Context is King**: Always look at the "Current Focus" or "Selected Inbox Item" first. Your responses must be directly relevant to that data.
-3.  **Structured Handoffs**: When you identify a clear action (Task, Project, CRM), you **MUST** propose it using the \`propose_import\` tool. Do not just describe the plan; build the JSON payload.
+3.  **Structured Handoffs**: When you identify a clear action (Task, Project, CRM), you **MUST** propose it using the \`propose_import\` tool.
 4.  **Universal Management**: If the user is discussing an existing Task, Document, or Client, use \`update_entity\` or \`delete_entity\` to modify it based on their request.
-
-### DEEP REASONING
-When analyzing input, engage in a silent "thought process" to:
-- Identify implicit deadlines (e.g. "next Friday" -> Calculate ISO Date).
-- Match fuzzy project names to the specific Project ID provided in context.
-- Detect dependencies based on logical order of operations.
-
-### TOOL USAGE
-Use \`:::TOOL_CALL:::\` and \`:::END_TOOL_CALL:::\` to execute actions.
 `;
+    return base;
+};
 
 const TOOL_INSTRUCTIONS = `
 ### TOOL USAGE (JSON MODE)
@@ -145,8 +151,8 @@ export const geminiService = {
   async chatWithProvider(params: ChatParams): Promise<string> {
       const { provider, apiKey: userKey, model, history, message, attachments, systemContext } = params;
 
-      // Inject the Universal Protocol into the system context
-      const fullSystemContext = `${EXECUTIVE_ASSISTANT_PROTOCOL}\n\n${systemContext || ''}\n\n${TOOL_INSTRUCTIONS}`;
+      // Inject the Dynamic Protocol into the system context
+      const fullSystemContext = `${getDynamicProtocol()}\n\n${systemContext || ''}\n\n${TOOL_INSTRUCTIONS}`;
 
       // 1. GEMINI (Default)
       if (provider === 'gemini') {
@@ -171,7 +177,7 @@ export const geminiService = {
    */
   async callOpenRouter(key: string, model: string, history: any[], message: string, systemContext?: string): Promise<string> {
       const messages = [];
-      messages.push({ role: "system", content: systemContext || EXECUTIVE_ASSISTANT_PROTOCOL });
+      messages.push({ role: "system", content: systemContext || getDynamicProtocol() });
       history.forEach(h => {
           messages.push({ role: h.role === 'model' ? 'assistant' : 'user', content: h.parts[0]?.text || '' });
       });
@@ -213,7 +219,7 @@ export const geminiService = {
         model: MODEL_NAME,
         history: history.map(h => ({ role: h.role, parts: h.parts })),
         config: { 
-            systemInstruction: systemContext || EXECUTIVE_ASSISTANT_PROTOCOL,
+            systemInstruction: systemContext || getDynamicProtocol(),
             thinkingConfig: { thinkingBudget: 2048 } 
         }
       });
@@ -287,7 +293,7 @@ export const geminiService = {
       Classify into one of these intents and return JSON:
       1. 'create_task': User wants to add a task. Extract title, priority (High/Medium/Low), project (match closely or use 'default'), and dueDate (ISO string if mentioned).
       2. 'create_note': User wants to save a thought/note/idea to Inbox.
-      3. 'navigate': User wants to go to a view (Inbox, CRM, Calendar, Settings, Home, Projects).
+      3. 'navigate': User wants to go to a view (Inbox, CRM, Calendar, Settings, Home, Projects, Brain).
       
       Format:
       {
@@ -318,25 +324,26 @@ export const geminiService = {
       
       const urgentTasks = tasks.filter(t => t.priority === TaskPriority.HIGH && t.status !== TaskStatus.DONE);
       const todayTasks = tasks.filter(t => t.dueDate && new Date(t.dueDate).toDateString() === new Date().toDateString());
-      
+      const ctx = dataService.getBusinessContext();
+
       const context = `
       Current Time: ${new Date().toLocaleTimeString()}
       Total Tasks: ${tasks.length}
       High Priority Pending: ${urgentTasks.length}
       Tasks Due Today: ${todayTasks.length}
-      Sample Urgent Tasks: ${urgentTasks.slice(0,3).map(t => t.title).join(', ')}
       Projects: ${projects.map(p => p.title).join(', ')}
+      Business Goals: ${ctx.companyName} aims to ${ctx.coreOffer}.
       `;
 
       const prompt = `
-      You are Aasani, a high-end Chief of Staff. Generate a "Daily Briefing".
+      You are Aasani, a high-end Chief of Staff for ${ctx.companyName}. Generate a "Daily Briefing".
       
       Context:
       ${context}
       
       Instructions:
-      1. Narrative: A 2-sentence summary of the day's "vibe" (e.g., "Heavy administrative load today," or "Clear skies for deep work."). Be creative but professional.
-      2. Focus Task: Pick ONE task that is the most critical "Keystone" to complete today. If none, suggest "Review Plan".
+      1. Narrative: A 2-sentence summary of the day's "vibe" aligned with our business goals.
+      2. Focus Task: Pick ONE task that is the most critical "Keystone".
       3. Vibe: Categorize the day into one of: 'Deep Work', 'Meeting Heavy', 'Admin & Cleanup', 'Light'.
       
       Return JSON conforming to the DailyBriefing interface.
@@ -368,7 +375,7 @@ export const geminiService = {
 
       const prompt = `
       Generate a short, snappy 1-sentence "whisper" from a helpful mascot.
-      It should suggest a specific action based on the context (e.g. "You have 3 overdue tasks, want to tackle them?" or "Inbox looks clear, good job!").
+      It should suggest a specific action based on the context.
       Context: ${context}
       `;
 
@@ -399,30 +406,25 @@ export const geminiService = {
       const currentDate = new Date().toISOString();
       const currentDay = new Date().toLocaleDateString('en-US', { weekday: 'long' });
       
+      // Inject Dynamic Protocol here as well
       const prompt = `
-      ROLE: You are Aasani, Chief of Staff.
+      ${getDynamicProtocol()}
+      
       TASK: Perform a deep analysis of this inbox item and structure it.
       
       CONTEXT:
       - Current Time: ${currentDate} (${currentDay})
-      - Schedule Context (Reality Check Data):
-      ${scheduleContext}
-      - Available Projects: 
-      ${projectContext}
+      - Schedule Context: ${scheduleContext}
+      - Available Projects: ${projectContext}
       
       INPUT: "${content}"
       
-      ${DOCUMENT_STYLE_GUIDE}
-      
       THINKING PROCESS (DEEP REASONING):
       1. **Intent**: Task, Doc, or Lead?
-      2. **Enrichment**: Calculate precise ISO dates from relative terms ("next friday"). Associate vague project names to IDs.
-      3. **Reality Check**: 
-         - If a target date is identified, cross-reference with 'Schedule Context'.
-         - If the date already has > 2 existing tasks/meetings, populate "warning" with: "⚠️ Conflict on [Date]: [Count] existing items. Suggest moving to [Alternative Date]."
-         - If no specific date is mentioned but user implies urgency ("ASAP"), check today/tomorrow load.
-      4. **Role Assignment**: If the task involves research, analysis, or data gathering, assign to 'AI_RESEARCHER'. If it involves writing, drafting, or editing, assign to 'AI_WRITER'. If it involves planning, scheduling, or strategy, assign to 'AI_PLANNER'. Otherwise, leave assignee undefined (or 'Unassigned').
-      5. **Structure**: Build the JSON. If actionType is 'create_document', ensure the 'content' field follows the AUSTIN WEALTH STYLE GUIDE.
+      2. **Enrichment**: Calculate precise ISO dates.
+      3. **Reality Check**: Check schedule conflicts.
+      4. **Role Assignment**: Assign based on task type.
+      5. **Structure**: Build the JSON.
       
       OUTPUT FORMAT: JSON ONLY.
       

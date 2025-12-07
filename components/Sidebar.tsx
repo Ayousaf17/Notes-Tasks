@@ -1,5 +1,6 @@
+
 import React from 'react';
-import { FileText, Layout, Calendar, Settings, Plus, Inbox, Network, Home, X, Globe, Layers, User, Moon, Sun, Loader2, Folder, Trash2, CheckSquare, Users, Sparkles, LogOut, Pin, PinOff } from 'lucide-react';
+import { FileText, Layout, Calendar, Settings, Plus, Inbox, Network, Home, X, Globe, Layers, User, Moon, Sun, Loader2, Folder, Trash2, CheckSquare, Users, Sparkles, LogOut, Pin, PinOff, BrainCircuit } from 'lucide-react';
 import { ViewMode, Document, Project } from '../types';
 
 interface SidebarProps {
@@ -76,7 +77,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     </button>
   );
 
-  const isProjectContext = ![ViewMode.HOME, ViewMode.INBOX, ViewMode.GLOBAL_BOARD, ViewMode.GLOBAL_CALENDAR, ViewMode.SETTINGS, ViewMode.CLIENTS].includes(currentView);
+  const isProjectContext = ![ViewMode.HOME, ViewMode.INBOX, ViewMode.GLOBAL_BOARD, ViewMode.GLOBAL_CALENDAR, ViewMode.SETTINGS, ViewMode.CLIENTS, ViewMode.BRAIN].includes(currentView);
   const currentProject = projects.find(p => p.id === activeProjectId);
 
   return (
@@ -133,6 +134,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   label="Inbox" 
                   isActive={currentView === ViewMode.INBOX} 
                   onClick={() => { onChangeView(ViewMode.INBOX); onMobileClose(); }} 
+              />
+              <NavItem 
+                  icon={BrainCircuit} 
+                  label="Brain" 
+                  isActive={currentView === ViewMode.BRAIN} 
+                  onClick={() => { onChangeView(ViewMode.BRAIN); onMobileClose(); }} 
               />
           </div>
 

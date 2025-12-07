@@ -11,7 +11,34 @@ export enum ViewMode {
   GLOBAL_BOARD = 'GLOBAL_BOARD',
   GLOBAL_CALENDAR = 'GLOBAL_CALENDAR',
   PROJECT_OVERVIEW = 'PROJECT_OVERVIEW',
-  CLIENTS = 'CLIENTS' 
+  CLIENTS = 'CLIENTS',
+  BRAIN = 'BRAIN' // New View
+}
+
+export interface BusinessContext {
+  companyName: string;
+  coreOffer: string;
+  targetAudience: string;
+  brandVoice: string;
+  customInstructions: string; // The "System Prompt" overlay
+}
+
+export interface Goal {
+  id: string;
+  title: string; // Objective
+  metric: string; // Key Result (e.g., "$100k Revenue")
+  currentValue: number;
+  targetValue: number;
+  status: 'On Track' | 'At Risk' | 'Off Track';
+  quarter: string; // e.g. "Q4 2025"
+}
+
+export interface SOP {
+  id: string;
+  title: string;
+  trigger: string; // e.g., "New Client Signed"
+  steps: string[]; // The checklist
+  role: AgentRole; // Who executes this?
 }
 
 export interface Project {
@@ -53,6 +80,7 @@ export interface Document {
   updatedAt: Date;
   tags: string[];
   lastSyncedAt?: Date; 
+  isSOP?: boolean; // Flag for Context Engineering
 }
 
 export enum TaskStatus {
@@ -92,6 +120,7 @@ export interface Task {
   dependencies?: string[]; 
   linkedDocumentId?: string;
   relatedClientId?: string; // CRM Link
+  relatedGoalId?: string; // OKR Link
   
   createdAt: Date;
   updatedAt: Date;
