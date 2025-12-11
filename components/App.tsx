@@ -29,6 +29,7 @@ import { supabase } from '../services/supabase';
 import { analyticsService } from '../services/analyticsService';
 import { MascotProvider, useMascot } from '../contexts/MascotContext';
 import { AasaniMascot } from './AasaniMascot';
+import { GridPattern } from './ui/grid-pattern';
 
 export type ToastType = 'info' | 'success' | 'warning' | 'error';
 export interface Toast { id: string; message: string; type: ToastType; }
@@ -774,8 +775,21 @@ const AppContent: React.FC = () => {
             globalModelLabel={activeModelName}
         />
 
-        <main className={`flex-1 flex flex-col h-full relative w-full bg-white dark:bg-black transition-all duration-300 ease-in-out pb-20 md:pb-0 ${isSidebarExpanded ? 'md:pl-64' : 'md:pl-16'}`}>
-            <header className="h-14 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between px-6 bg-white dark:bg-black shrink-0 z-20">
+        <main className={`flex-1 flex flex-col h-full relative w-full bg-gray-50/40 dark:bg-black transition-all duration-300 ease-in-out pb-20 md:pb-0 ${isSidebarExpanded ? 'md:pl-64' : 'md:pl-16'}`}>
+            
+            {/* Global Grid Pattern */}
+            <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
+                <GridPattern 
+                    width={40} 
+                    height={40} 
+                    x={-1} 
+                    y={-1} 
+                    strokeDasharray={"2 2"} 
+                    className="opacity-40 [mask-image:linear-gradient(to_bottom,white,transparent)] text-gray-200 dark:text-zinc-800" 
+                />
+            </div>
+
+            <header className="h-14 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between px-6 bg-white/80 dark:bg-black/80 backdrop-blur-md shrink-0 z-20">
             <div className="flex items-center space-x-3 text-sm">
                 <span className="font-medium text-black dark:text-white inline">{currentView}</span>
             </div>
@@ -794,7 +808,7 @@ const AppContent: React.FC = () => {
             </div>
             </header>
 
-            <div className="flex-1 overflow-hidden relative flex">
+            <div className="flex-1 overflow-hidden relative flex z-10">
                 <div className="flex-1 flex flex-col overflow-hidden w-full">
                     <div key={currentView} className="flex-1 h-full w-full animate-page-slide flex flex-col overflow-hidden">
                     {currentView === ViewMode.HOME ? (

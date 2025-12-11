@@ -207,7 +207,7 @@ export const geminiService = {
       // Serialize pending items so AI knows what can be updated
       const pendingContext = pendingItems.map(item => {
           const draftTitle = item.processedResult?.data?.title || item.content;
-          return `ID: "${item.id}" | Current Draft Title: "${draftTitle}" | Created: ${item.createdAt}`;
+          return `Item ID: "${item.id}" | Current Draft Title: "${draftTitle}" | Created: ${item.createdAt}`;
       }).join('\n');
 
       const historyStr = history.map(h => `${h.role.toUpperCase()}: ${h.text}`).join('\n');
@@ -232,10 +232,11 @@ export const geminiService = {
       2. INTELLIGENTLY DECIDE between CREATING a new item or UPDATING a pending one.
       3. **UPDATE Logic:** If the user's input seems to be refining, correcting, or adding details to one of the "Pending Items" listed above (e.g. "make it 2pm", "assign to project X", "change title to..."), return an update instruction for that ID.
       4. **CREATE Logic:** If it's a completely new thought, extract it as a captured item.
+      5. **IMPORTANT:** When referring to a pending item in your 'response', **NEVER** use the ID. Refer to it by its title in quotes, e.g. "I've updated 'Meeting with Sam' for you." or "Regarding 'Project Alpha'...".
       
       RETURN JSON format:
       {
-        "response": "Your conversational reply here.",
+        "response": "Your conversational reply here. Remember: quote titles, hide IDs.",
         "capturedItems": [
            { "content": "The extracted task or note content", "type": "text" }
         ],

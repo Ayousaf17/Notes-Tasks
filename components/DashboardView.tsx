@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState, useMemo } from 'react';
 import { Task, Document, Project, TaskPriority, TaskStatus, Client, ViewMode } from '../types';
 import { geminiService, DailyBriefing } from '../services/geminiService';
@@ -107,7 +108,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   }, [tasks, projects]);
 
   return (
-    <div className="flex-1 h-full bg-background overflow-y-auto p-4 md:p-8 font-sans animate-in fade-in duration-300">
+    <div className="flex-1 h-full bg-transparent overflow-y-auto p-4 md:p-8 font-sans animate-in fade-in duration-300">
       <div className="max-w-5xl mx-auto space-y-8 pb-20">
         
         {/* RE-ENVISIONED: Morning Briefing Header */}

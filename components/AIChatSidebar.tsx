@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { ChatMessage, ProjectPlan, Document, Task, Integration, TaskStatus, TaskPriority, Project, Client, ActionProposal, Attachment, AgentRole, InboxAction, InboxItem, FocusItem } from '../types';
 import { Send, X, Bot, Paperclip, Loader2, Sparkles, User, ChevronDown, Lock, Settings, Search, CheckCircle2, Calendar, Briefcase, Flag, Plus, File, Folder, Layers, ArrowRight, Eye, Target, MessageSquare, Cpu, Globe, RefreshCw, Zap, ListChecks, CheckSquare, FileText, Mail } from 'lucide-react';
@@ -6,23 +5,23 @@ import { geminiService } from '../services/geminiService';
 import { analyticsService } from '../services/analyticsService';
 
 interface AIChatSidebarProps {
-  isOpen: boolean;
-  onClose: () => void;
-  contextData?: string;
-  focusItem?: FocusItem | null; // Universal Focus
-  messages: ChatMessage[];
-  setMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>;
-  allDocuments: Document[];
-  allTasks: Task[];
-  projects: Project[]; 
-  clients: Client[];   
-  teamMembers: string[]; 
-  integrations?: Integration[];
-  onProjectPlanCreated?: (plan: ProjectPlan) => void;
-  onSaveToInbox?: (action: InboxAction) => void;
-  onExecuteAction?: (id: string, action: InboxAction) => void;
-  onUpdateEntity?: (type: 'task'|'document'|'client'|'project', id: string, updates: any) => void;
-  onUpdateIntegration?: (id: string, action: 'update', config: any) => void;
+    isOpen: boolean;
+    onClose: () => void;
+    contextData?: string;
+    focusItem?: FocusItem | null;
+    messages: ChatMessage[];
+    setMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>;
+    allDocuments: Document[];
+    allTasks: Task[];
+    projects: Project[];
+    clients: Client[];
+    teamMembers: string[];
+    integrations?: Integration[];
+    onProjectPlanCreated?: (plan: ProjectPlan) => void;
+    onSaveToInbox?: (action: InboxAction) => void;
+    onExecuteAction?: (id: string, action: InboxAction) => void;
+    onUpdateEntity?: (type: string, id: string, updates: any) => void;
+    onUpdateIntegration?: (id: string, action: 'toggle' | 'connect' | 'disconnect' | 'update', config?: any) => void;
 }
 
 const MascotIcon = ({ className }: { className?: string }) => (
@@ -61,7 +60,6 @@ const ProposalCard = ({ proposal, onConfirm, onSaveToInbox, onCancel }: any) => 
     );
 };
 
-// New Component for Update Proposals (e.g. appending text to doc)
 const UpdateProposalCard = ({ updateData, onConfirm }: any) => {
     const [isApplied, setIsApplied] = useState(false);
     
@@ -169,7 +167,6 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
     const [input, setInput] = useState('');
     const [isThinking, setIsThinking] = useState(false);
     
-    // Model Selection Local State
     const [showModelList, setShowModelList] = useState(false);
     const [modelSearch, setModelSearch] = useState('');
     const [availableModels, setAvailableModels] = useState<{id: string, name: string}[]>([]);
@@ -178,7 +175,6 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const searchInputRef = useRef<HTMLInputElement>(null);
 
-    // Derive active provider/model from props
     const openRouterInt = integrations?.find(i => i.id === 'openrouter');
     const isUsingOpenRouter = openRouterInt?.connected;
     const currentModelName = isUsingOpenRouter 
@@ -188,7 +184,6 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
     useEffect(() => {
         if (isOpen) messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
         
-        // Fetch models if OpenRouter is connected and we haven't yet
         if (isOpen && isUsingOpenRouter && availableModels.length === 0) {
             geminiService.fetchOpenRouterModels().then(setAvailableModels);
         }
@@ -200,7 +195,6 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
         }
     }, [showModelList]);
 
-    // Initial Message on Focus Change
     useEffect(() => {
         if (isOpen && focusItem) {
             analyticsService.logEvent('chat_focus_session', { type: focusItem.type });
@@ -261,15 +255,11 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
             if (match && match[1]) {
                 const toolJson = JSON.parse(match[1]);
                 
-                // Direct Update Tool
                 if (toolJson.tool === 'update_entity') {
-                    // Check if it's an append operation or simple update
                     if (toolJson.args.updates.appendContent && onUpdateEntity) {
-                        // For append content, we might want user confirmation in the UI
                         updateProposal = toolJson.args;
                     } else if (onUpdateEntity) {
                         onUpdateEntity(toolJson.args.entityType, toolJson.args.id, toolJson.args.updates);
-                        // Auto-applied feedback
                         setMessages(prev => [...prev, {
                             id: Date.now().toString(),
                             role: 'model',
@@ -281,7 +271,6 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                     }
                 }
                 
-                // Import Proposal Tool
                 if (toolJson.tool === 'propose_import') {
                     proposal = {
                         action: {
@@ -296,9 +285,6 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                     };
                 }
             }
-
-            // If we have an update proposal (e.g. append content), we render a special card inside the message
-            // or just render the text and the card below it.
             
             const newMessage: any = {
                 id: Date.now().toString(),
@@ -308,8 +294,6 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                 timestamp: new Date()
             };
             
-            // Hacky way to store update proposal in message structure if needed, or just handle immediate
-            // For Append, we want UI confirmation.
             if (updateProposal) {
                 newMessage.updateProposal = updateProposal;
             }
@@ -343,13 +327,12 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
             <div className={`fixed right-0 top-0 h-[100dvh] w-full md:w-[450px] bg-card border-l border-border shadow-2xl z-[60] transform transition-transform duration-300 flex flex-col ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}>
                 
                 {/* Header */}
-                <div className="p-4 border-b border-border flex justify-between items-center bg-card relative z-50 pt-safe">
+                <div className="p-4 border-b border-border flex justify-between items-center bg-card relative z-50 pt-safe shrink-0">
                     <div className="flex flex-col">
                         <div className="flex items-center gap-2">
                             <MascotIcon className="w-5 h-5 text-primary" />
                             <span className="font-bold text-sm text-foreground">Aasani Chat</span>
                         </div>
-                        {/* Model Selector / Indicator */}
                         <div className="relative mt-1">
                             <button 
                                 onClick={() => isUsingOpenRouter && setShowModelList(!showModelList)}
@@ -360,7 +343,6 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                                 {isUsingOpenRouter && <ChevronDown className="w-3 h-3" />}
                             </button>
                             
-                            {/* Model Dropdown with Search */}
                             {showModelList && (
                                 <div className="absolute top-full left-0 mt-2 w-72 max-h-80 overflow-hidden bg-card border border-border rounded-lg shadow-2xl z-50 animate-in fade-in zoom-in-95 flex flex-col">
                                     <div className="p-2 border-b border-border bg-muted">
@@ -375,12 +357,9 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                                                 className="w-full bg-transparent text-xs outline-none text-foreground placeholder-muted-foreground"
                                             />
                                         </div>
-                                        <div className="text-[9px] text-muted-foreground mt-1 pl-1 flex items-center gap-1">
-                                            <Globe className="w-3 h-3" /> Global Model Selection
-                                        </div>
                                     </div>
                                     <div className="overflow-y-auto flex-1">
-                                        {filteredModels.length > 0 ? filteredModels.map(m => (
+                                        {filteredModels.map(m => (
                                             <button 
                                                 key={m.id} 
                                                 onClick={() => handleModelSelect(m.id)}
@@ -388,11 +367,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                                             >
                                                 {m.name}
                                             </button>
-                                        )) : (
-                                            <div className="p-4 text-center text-xs text-muted-foreground">
-                                                {availableModels.length === 0 ? "Loading models..." : "No matching models."}
-                                            </div>
-                                        )}
+                                        ))}
                                     </div>
                                 </div>
                             )}
@@ -403,15 +378,15 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
 
                 {/* Focus HUD */}
                 {focusItem && (
-                    <div className="bg-primary/10 border-b border-primary/20 px-4 py-2 flex items-center gap-2">
+                    <div className="bg-primary/10 border-b border-primary/20 px-4 py-2 flex items-center gap-2 shrink-0">
                         <Target className="w-3 h-3 text-primary animate-pulse" />
                         <span className="text-[10px] font-bold text-primary uppercase tracking-wide truncate">
-                            Focus: {focusItem.type} - {focusItem.type === 'task' ? (focusItem.data as Task).title : focusItem.type === 'document' ? (focusItem.data as Document).title : 'Item'}
+                            Focus: {focusItem.type}
                         </span>
                     </div>
                 )}
 
-                {/* Messages */}
+                {/* Messages (Scrollable Container) */}
                 <div className="flex-1 overflow-y-auto p-4 space-y-6 bg-muted/30">
                     {messages.map(msg => (
                         <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
@@ -441,9 +416,8 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                     <div ref={messagesEndRef} />
                 </div>
 
-                {/* Input Area */}
-                <div className="p-4 border-t border-border bg-card safe-area-bottom pb-[calc(1rem+env(safe-area-inset-bottom))]">
-                    {/* Quick Actions Panel */}
+                {/* Input Area (Fixed at bottom) */}
+                <div className="p-4 border-t border-border bg-card shrink-0 safe-area-bottom">
                     <QuickActions focusItem={focusItem} onAction={(text) => handleSendMessage(text)} />
                     
                     <div className="relative flex items-center gap-2">
