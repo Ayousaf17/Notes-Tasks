@@ -1,4 +1,3 @@
-
 "use client" 
 
 import * as React from "react"
@@ -6,7 +5,7 @@ import { useState, useRef } from "react";
 import { Button } from "./button";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "../../lib/utils";
-import type { ButtonProps } from "./button";
+import { ButtonProps } from "./button"; // Removed 'type' import to ensure full prop inheritance
 import { MousePointerClick, Send } from "lucide-react";
 
 interface ParticleButtonProps extends ButtonProps {

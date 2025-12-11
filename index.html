@@ -19,6 +19,9 @@
         darkMode: 'class',
         theme: {
           extend: {
+            backgroundImage: {
+              'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
+            },
             fontFamily: {
               sans: ['Inter', 'sans-serif'],
               serif: ['Playfair Display', 'serif'],
@@ -232,6 +235,7 @@
 {
   "imports": {
     "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-dom": "https://aistudiocdn.com/react-dom@^19.2.0",
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
     "react/": "https://aistudiocdn.com/react@^19.2.0/",
     "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0",
@@ -241,7 +245,10 @@
     "framer-motion": "https://esm.sh/framer-motion@11.1.7?external=react,react-dom",
     "@radix-ui/react-slot": "https://esm.sh/@radix-ui/react-slot@^1.1.0?external=react,react-dom",
     "tailwind-merge": "https://esm.sh/tailwind-merge@^2.5.2",
-    "class-variance-authority": "https://esm.sh/class-variance-authority@^0.7.0"
+    "class-variance-authority": "https://esm.sh/class-variance-authority@^0.7.0",
+    "next-themes": "https://esm.sh/next-themes@^0.4.4?external=react,react-dom",
+    "@radix-ui/react-switch": "https://esm.sh/@radix-ui/react-switch@^1.1.0?external=react,react-dom",
+    "@radix-ui/react-label": "https://esm.sh/@radix-ui/react-label@^2.1.0?external=react,react-dom"
   }
 }
 </script>
