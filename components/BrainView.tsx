@@ -156,7 +156,7 @@ export const BrainView: React.FC<BrainViewProps> = ({ documents, onNavigate, onS
             {/* IDENTITY TAB */}
             {activeTab === 'identity' && (
                 <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
                         <div className="space-y-6">
                             {/* Core DNA Card */}
                             <div className="bg-card p-6 rounded-2xl border border-border shadow-sm">
@@ -217,18 +217,18 @@ export const BrainView: React.FC<BrainViewProps> = ({ documents, onNavigate, onS
                         </div>
 
                         {/* System Instructions Card */}
-                        <div className="bg-card p-6 rounded-2xl border border-border shadow-sm flex flex-col h-full">
+                        <div className="bg-card p-6 rounded-2xl border border-border shadow-sm flex flex-col h-full overflow-hidden">
                             <h3 className="text-xs font-bold text-primary uppercase tracking-widest mb-4 flex items-center gap-2">
                                 <Edit3 className="w-4 h-4" /> System Prompt (The "Brain")
                             </h3>
                             <p className="text-sm text-muted-foreground mb-4 leading-relaxed">
                                 These rigid instructions are injected into <span className="font-bold text-foreground">every AI interaction</span>. Define your non-negotiables, formatting rules, and operational constraints here.
                             </p>
-                            <div className="flex-1 relative">
+                            <div className="flex-1 relative min-h-[300px] md:min-h-[400px]">
                                 <textarea 
                                     value={context.customInstructions}
                                     onChange={(e) => setContext({...context, customInstructions: e.target.value})}
-                                    className="w-full h-full min-h-[300px] bg-muted/50 border border-border rounded-xl px-5 py-4 text-sm focus:ring-2 focus:ring-primary outline-none resize-none font-mono leading-relaxed text-foreground"
+                                    className="absolute inset-0 w-full h-full bg-muted/50 border border-border rounded-xl px-5 py-4 text-sm focus:ring-2 focus:ring-primary outline-none resize-none font-mono leading-relaxed text-foreground"
                                     placeholder={`Example:\n- Always prioritize high-ticket clients.\n- Never schedule meetings on Fridays.\n- When proposing tasks, always include a deadline.\n- Keep email drafts under 150 words.`}
                                 />
                             </div>

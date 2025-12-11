@@ -187,6 +187,59 @@ export const geminiService = {
       }
   },
 
+  /**
+   * Process Inbox Chat (Hybrid Chat + Capture)
+   */
+  async processInboxChat(message: string, history: Array<{role: 'user'|'model', text: string}>, projects: Project[]): Promise<{ response: string, capturedItems: Array<{ content: string, type: 'text'|'file', fileName?: string }> }> {
+      if (!apiKey) return { response: "Please set your API Key.", capturedItems: [] };
+
+      const projectContext = projects.map(p => p.title).join(', ');
+      
+      // Construct history
+      const historyStr = history.map(h => `${h.role.toUpperCase()}: ${h.text}`).join('\n');
+
+      const prompt = `
+      You are Aasani, a helpful AI assistant inside a productivity app.
+      
+      CONTEXT:
+      User Projects: ${projectContext}
+      Conversation History:
+      ${historyStr}
+      
+      USER INPUT: "${message}"
+      
+      INSTRUCTIONS:
+      1. Act like a chat assistant (like ChatGPT). Answer questions, be helpful, be conversational.
+      2. SIMULTANEOUSLY, check if the user's input implies they want to SAVE a task, idea, or note to their Inbox.
+      3. If they do want to save something (e.g. "Remind me to...", "New idea: ...", or just a raw thought), extract it.
+      
+      RETURN JSON format:
+      {
+        "response": "Your conversational reply here.",
+        "capturedItems": [
+           { "content": "The extracted task or note content", "type": "text" }
+        ]
+      }
+      
+      If nothing needs to be captured (just a casual chat), return empty capturedItems array.
+      `;
+
+      try {
+          const result = await ai.models.generateContent({
+              model: MODEL_NAME,
+              contents: prompt,
+              config: { responseMimeType: "application/json" }
+          });
+          const json = JSON.parse(result.text || "{}");
+          return {
+              response: json.response || "I heard you.",
+              capturedItems: json.capturedItems || []
+          };
+      } catch (e) {
+          return { response: "I'm having trouble connecting.", capturedItems: [] };
+      }
+  },
+
   async analyzeKickoffDoc(content: string): Promise<InboxAction | null> {
       if (!apiKey) return null;
       try {

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { DocumentEditor } from './components/DocumentEditor';
@@ -66,6 +65,7 @@ const App: React.FC = () => {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(false); 
   const [isPinned, setIsPinned] = useState(false);
+  const [isContextSidebarOpen, setIsContextSidebarOpen] = useState(false);
   
   // Team Management State
   const [teamMembers, setTeamMembers] = useState<string[]>(() => {
@@ -703,9 +703,27 @@ const App: React.FC = () => {
             </div>
             
             {currentView === ViewMode.DOCUMENTS && activeDocument && (
-                <div className="hidden lg:block h-full border-l border-gray-100 dark:border-gray-800">
-                    <ContextSidebar currentDoc={activeDocument} allDocs={documents} allTasks={tasks} onNavigate={handleNavigate} />
-                </div>
+                <>
+                    <div className="hidden lg:block h-full border-l border-gray-100 dark:border-gray-800">
+                        <ContextSidebar currentDoc={activeDocument} allDocs={documents} allTasks={tasks} onNavigate={handleNavigate} onUpdateDocument={handleUpdateDocument} />
+                    </div>
+                    {isContextSidebarOpen && (
+                        <div className="lg:hidden fixed inset-0 z-[100] flex justify-end">
+                            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setIsContextSidebarOpen(false)} />
+                            <div className="relative w-[85vw] h-full bg-white dark:bg-black shadow-2xl animate-in slide-in-from-right duration-300">
+                                <ContextSidebar 
+                                    currentDoc={activeDocument} 
+                                    allDocs={documents} 
+                                    allTasks={tasks} 
+                                    onNavigate={(type, id) => { handleNavigate(type, id); setIsContextSidebarOpen(false); }} 
+                                    onUpdateDocument={handleUpdateDocument} 
+                                    isMobile
+                                    onClose={() => setIsContextSidebarOpen(false)}
+                                />
+                            </div>
+                        </div>
+                    )}
+                </>
             )}
         </div>
 

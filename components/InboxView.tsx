@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { InboxItem, Project, InboxAction, Integration, TaskPriority, TaskStatus, Attachment } from '../types';
-import { Mic, Sparkles, Loader2, FileText, Trash2, Paperclip, MessageSquare, Package, Calendar, CheckSquare, X, ArrowRight, Folder, Flag, ChevronDown, Edit3, AtSign, Cpu, Wand2, Rocket, Send } from 'lucide-react';
+import { Mic, Sparkles, Loader2, FileText, Trash2, Paperclip, MessageSquare, Package, Calendar, CheckSquare, X, ArrowRight, Folder, Flag, ChevronDown, Edit3, AtSign, Cpu, Wand2, Rocket, Send, User } from 'lucide-react';
 import { geminiService } from '../services/geminiService';
 import { analyticsService } from '../services/analyticsService';
 import { useMascot } from '../contexts/MascotContext';
@@ -42,6 +42,11 @@ export const InboxView: React.FC<InboxViewProps> = ({
   const [showPromptBuilder, setShowPromptBuilder] = useState(false);
   const [contextRef, setContextRef] = useState<string | null>(null); // e.g. "@Project A"
 
+  // Chat Interface State
+  const [chatHistory, setChatHistory] = useState<{role: 'user'|'model', text: string}[]>([]);
+  const [isChatProcessing, setIsChatProcessing] = useState(false);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
   const { say } = useMascot();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -53,6 +58,11 @@ export const InboxView: React.FC<InboxViewProps> = ({
       textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px';
     }
   }, [inputText]);
+
+  // Scroll to bottom of chat
+  useEffect(() => {
+      chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatHistory, isChatProcessing]);
 
   // Stale check logic
   useEffect(() => {
@@ -122,41 +132,63 @@ export const InboxView: React.FC<InboxViewProps> = ({
       setContextRef(`@${projectTitle}`);
   };
 
-  const handleSubmit = () => {
+  // --- HYBRID CHAT HANDLER ---
+  const handleSubmit = async () => {
       if (!inputText.trim() && inputAttachments.length === 0) return;
       
-      let finalContent = inputText;
+      const userInput = inputText;
+      let finalContent = userInput;
       if (contextRef) finalContent = `[Context: ${contextRef}] ${finalContent}`;
 
-      onAddItem(
-          finalContent || (inputAttachments.length > 0 ? `Attached File: ${inputAttachments[0].name}` : 'New Item'), 
-          inputAttachments.length > 0 ? 'file' : 'text', 
-          inputAttachments.length > 0 ? inputAttachments[0].name : undefined, 
-          inputAttachments
-      );
+      // Update UI immediately (Chat Interface)
+      setChatHistory(prev => [...prev, { role: 'user', text: userInput }]);
       setInputText('');
       setContextRef(null);
-      setInputAttachments([]);
-      analyticsService.logEvent('inbox_add_item', { hasAttachment: inputAttachments.length > 0, model: selectedModel });
-      say("Captured! Don't forget to process it later.", 3000, 'writing');
+      setIsChatProcessing(true);
+
+      // Call AI for Hybrid Processing
+      const result = await geminiService.processInboxChat(finalContent, chatHistory, projects);
+      
+      // Update Chat with AI Response
+      setChatHistory(prev => [...prev, { role: 'model', text: result.response }]);
+      setIsChatProcessing(false);
+
+      // Handle Captured Items (Side Effect)
+      if (result.capturedItems && result.capturedItems.length > 0) {
+          result.capturedItems.forEach(item => {
+              onAddItem(
+                  item.content, 
+                  item.type, 
+                  item.fileName, 
+                  inputAttachments // Attach files to the first captured item for simplicity
+              );
+          });
+          setInputAttachments([]);
+          analyticsService.logEvent('inbox_item_captured_via_chat', { count: result.capturedItems.length });
+          say("Captured to Inbox.", 2000, 'writing');
+      } else if (inputAttachments.length > 0) {
+          // If files attached but AI didn't explicitly capture, force capture as generic note
+          onAddItem(
+              finalContent || `Attached File: ${inputAttachments[0].name}`,
+              'file',
+              inputAttachments[0].name,
+              inputAttachments
+          );
+          setInputAttachments([]);
+      }
   };
 
-  // --- REASONING ENGINE INTEGRATION ---
   const handleSmartAnalyze = async (id: string, content: string, userReply?: string) => {
       setProcessingId(id);
       const item = items.find(i => i.id === id);
       if (!item) return;
 
-      // Update local conversation history with User's reply if exists
       let currentHistory = item.conversationHistory || [];
       if (userReply) {
           currentHistory = [...currentHistory, { role: 'user', text: userReply }];
-          // Update item state to reflect new history
           if (onUpdateItem) onUpdateItem(id, { conversationHistory: currentHistory });
       }
 
-      // If detecting Project Kickoff (Original logic preserved for direct documents)
-      // Only check on first pass (empty history)
       if (currentHistory.length === 0) {
           const kickoffResult = await geminiService.analyzeKickoffDoc(content);
           if (kickoffResult) {
@@ -166,16 +198,14 @@ export const InboxView: React.FC<InboxViewProps> = ({
           }
       }
 
-      // General Reasoning Loop
       const result = await geminiService.reasonAboutInboxItem(
-          userReply || content, // If replying, focus on that, but context includes original
+          userReply || content, 
           currentHistory,
           projects,
-          "" // TODO: Pass schedule context if needed
+          "" 
       );
 
       if (result.type === 'clarification') {
-          // AI wants to ask a question
           const newHistory = [...currentHistory, { role: 'model' as const, text: result.question }];
           if (onUpdateItem) {
               onUpdateItem(id, { 
@@ -184,7 +214,6 @@ export const InboxView: React.FC<InboxViewProps> = ({
               });
           }
       } else {
-          // AI is satisfied and returned an Action
           if (onProcessItem) {
               onProcessItem(id, result.action);
           }
@@ -221,11 +250,49 @@ export const InboxView: React.FC<InboxViewProps> = ({
 
         <div className="w-full max-w-3xl mb-6 mt-4 md:mt-0 relative">
             <h1 className="text-2xl md:text-3xl font-serif font-bold text-foreground mb-1 tracking-tight">Brain Dump</h1>
-            <p className="text-muted-foreground text-sm">Capture raw ideas. Aasani will structure them.</p>
+            <p className="text-muted-foreground text-sm">Chat with Aasani to capture ideas, or just think out loud.</p>
         </div>
 
+        {/* --- CHAT STREAM --- */}
+        {chatHistory.length > 0 && (
+            <div className="w-full max-w-3xl mb-6 space-y-4 px-2">
+                {chatHistory.map((msg, i) => (
+                    <div key={i} className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                        {msg.role === 'model' && (
+                            <div className="w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center shrink-0">
+                                <Sparkles className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                            </div>
+                        )}
+                        <div className={`p-3 rounded-2xl max-w-[80%] text-sm leading-relaxed ${
+                            msg.role === 'user' 
+                            ? 'bg-primary text-primary-foreground rounded-tr-none' 
+                            : 'bg-card border border-border text-foreground rounded-tl-none'
+                        }`}>
+                            {msg.text}
+                        </div>
+                        {msg.role === 'user' && (
+                            <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center shrink-0">
+                                <User className="w-4 h-4 text-gray-500" />
+                            </div>
+                        )}
+                    </div>
+                ))}
+                {isChatProcessing && (
+                    <div className="flex gap-3 justify-start">
+                        <div className="w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center shrink-0">
+                            <Sparkles className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                        </div>
+                        <div className="p-3 rounded-2xl bg-card border border-border rounded-tl-none">
+                            <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                        </div>
+                    </div>
+                )}
+                <div ref={chatEndRef} />
+            </div>
+        )}
+
         {/* --- SMART INPUT INTERFACE --- */}
-        <div className="w-full max-w-3xl bg-card rounded-2xl shadow-xl border border-border transition-shadow hover:shadow-2xl mb-12 relative group animate-in fade-in slide-in-from-bottom-2">
+        <div className="w-full max-w-3xl bg-card rounded-2xl shadow-xl border border-border transition-shadow hover:shadow-2xl mb-12 relative group animate-in fade-in slide-in-from-bottom-2 z-10">
             
             {/* Main Input Area */}
             <div className="p-4">
@@ -239,7 +306,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
                     ref={textareaRef}
                     value={inputText}
                     onChange={(e) => setInputText(e.target.value)}
-                    placeholder={contextRef ? "What about this project?" : "Reference @project, use prompt builder, or just type..."}
+                    placeholder={contextRef ? "What about this project?" : "Reference @project, ask a question, or dump thoughts..."}
                     className="w-full text-base bg-transparent border-none focus:ring-0 resize-none min-h-[60px] max-h-[300px] text-foreground placeholder-muted-foreground/60 p-0 leading-relaxed"
                     onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSubmit())}
                 />
@@ -345,6 +412,13 @@ export const InboxView: React.FC<InboxViewProps> = ({
             </div>
         </div>
 
+        {/* Inbox Items Stream - Title */}
+        {items.length > 0 && (
+            <div className="w-full max-w-3xl mb-4 text-xs font-bold text-muted-foreground uppercase tracking-widest px-2">
+                Pending Items
+            </div>
+        )}
+
         {/* Inbox Items Stream */}
         <div className="w-full max-w-3xl space-y-4 pb-20">
             {items.filter(i => i.status === 'pending').map(item => (
@@ -353,7 +427,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
                     item={item}
                     projects={projects}
                     onDelete={() => onDeleteItem(item.id)}
-                    onAnalyze={handleSmartAnalyze} // Updated to support reply
+                    onAnalyze={handleSmartAnalyze} 
                     onProcess={onProcessItem}
                     onDiscuss={() => onDiscussItem && onDiscussItem(item)}
                     onUpdate={onUpdateItem}
@@ -362,7 +436,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
             ))}
             {items.filter(i => i.status === 'pending').length === 0 && (
                 <div className="text-center text-muted-foreground mt-12 italic">
-                    All caught up. Great job!
+                    Inbox is clear.
                 </div>
             )}
         </div>
@@ -375,24 +449,20 @@ const InboxItemCard: React.FC<{
     item: InboxItem;
     projects: Project[];
     onDelete: () => void;
-    onAnalyze: (id: string, content: string, reply?: string) => void; // Updated signature
+    onAnalyze: (id: string, content: string, reply?: string) => void; 
     onProcess: (id: string, action: InboxAction) => void;
     onDiscuss: () => void;
     onUpdate?: (id: string, updates: Partial<InboxItem>) => void;
     isProcessing: boolean;
 }> = ({ item, projects, onDelete, onAnalyze, onProcess, onDiscuss, onUpdate, isProcessing }) => {
+    // ... (Existing implementation remains the same, included below for completeness)
     const result = item.processedResult;
-    
-    // Local state for the "Draft Workbench"
     const [draftTitle, setDraftTitle] = useState('');
     const [draftProjectId, setDraftProjectId] = useState('');
     const [draftPriority, setDraftPriority] = useState<TaskPriority>(TaskPriority.MEDIUM);
     const [draftType, setDraftType] = useState<'task' | 'document' | 'event' | 'project'>('task');
-    
-    // Chat state for clarification
     const [replyText, setReplyText] = useState('');
 
-    // Sync draft state when result arrives
     useEffect(() => {
         if (result) {
             setDraftTitle(result.data.title);
@@ -432,8 +502,6 @@ const InboxItemCard: React.FC<{
 
     return (
         <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden transition-all hover:border-foreground/20 group">
-            
-            {/* Top Bar: Raw Content */}
             <div className="p-5 border-b border-border bg-card/50">
                 <div className="flex justify-between items-start gap-4">
                     <div className="text-sm text-card-foreground whitespace-pre-wrap leading-relaxed font-medium">{item.content}</div>
@@ -451,10 +519,8 @@ const InboxItemCard: React.FC<{
                 )}
             </div>
 
-            {/* Conversation Mode (Clarification Needed) */}
             {item.isClarifying && (
                 <div className="p-4 bg-purple-50/50 dark:bg-purple-900/10 space-y-4">
-                    {/* Chat History Display */}
                     <div className="space-y-3">
                         {item.conversationHistory?.filter(m => m.role === 'model').map((msg, idx) => (
                             <div key={idx} className="flex gap-3">
@@ -467,8 +533,6 @@ const InboxItemCard: React.FC<{
                             </div>
                         ))}
                     </div>
-
-                    {/* Reply Input */}
                     <div className="flex items-center gap-2 mt-2">
                         <input 
                             type="text" 
@@ -490,32 +554,23 @@ const InboxItemCard: React.FC<{
                 </div>
             )}
 
-            {/* Smart Staging Workbench (Visible if PROPOSAL is ready) */}
             {result && !item.isClarifying ? (
                 <div className="bg-muted/30 p-5 space-y-4 animate-in slide-in-from-top-2 fade-in duration-300">
-                    
-                    {/* AI Reasoning / Warning */}
                     {result.warning && (
                         <div className="text-xs bg-destructive/10 text-destructive px-3 py-2 rounded-lg border border-destructive/20 flex items-center gap-2">
                             <span className="text-lg">⚠️</span> {result.warning}
                         </div>
                     )}
-                    
-                    {/* Special Project Kickoff UI */}
                     {draftType === 'project' && (
                         <div className="bg-purple-100 dark:bg-purple-900/30 p-3 rounded-lg flex items-center gap-2 mb-2 border border-purple-200 dark:border-purple-800">
                             <Rocket className="w-4 h-4 text-purple-600 dark:text-purple-400" />
                             <span className="text-xs font-bold text-purple-700 dark:text-purple-300 uppercase">New Project Kickoff Detected</span>
                         </div>
                     )}
-                    
-                    {/* Draft Editor Form */}
                     <div className="space-y-3">
                         <div className="flex items-center gap-2 text-[10px] font-bold text-primary uppercase tracking-widest">
                             <Sparkles className="w-3 h-3" /> AI Proposal
                         </div>
-
-                        {/* Title Edit */}
                         <input 
                             type="text" 
                             value={draftTitle}
@@ -523,10 +578,7 @@ const InboxItemCard: React.FC<{
                             className="w-full bg-transparent border-b border-border pb-1 text-sm font-semibold text-foreground focus:outline-none focus:border-primary transition-colors placeholder-muted-foreground"
                             placeholder="Title..."
                         />
-
-                        {/* Controls Grid */}
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                            {/* Project Selector */}
                             <div className="relative group">
                                 <div className="absolute left-2.5 top-2 pointer-events-none text-muted-foreground"><Folder className="w-3.5 h-3.5"/></div>
                                 <select 
@@ -540,8 +592,6 @@ const InboxItemCard: React.FC<{
                                 </select>
                                 <ChevronDown className="absolute right-2 top-2.5 w-3 h-3 text-muted-foreground pointer-events-none" />
                             </div>
-
-                            {/* Priority Selector */}
                             <div className="relative group">
                                 <div className="absolute left-2.5 top-2 pointer-events-none text-muted-foreground"><Flag className="w-3.5 h-3.5"/></div>
                                 <select 
@@ -555,8 +605,6 @@ const InboxItemCard: React.FC<{
                                 </select>
                                 <ChevronDown className="absolute right-2 top-2.5 w-3 h-3 text-muted-foreground pointer-events-none" />
                             </div>
-
-                            {/* Type Selector */}
                             <div className="relative group">
                                 <div className="absolute left-2.5 top-2 pointer-events-none text-muted-foreground">
                                     {draftType === 'task' ? <CheckSquare className="w-3.5 h-3.5"/> : draftType === 'project' ? <Rocket className="w-3.5 h-3.5"/> : <FileText className="w-3.5 h-3.5"/>}
@@ -574,8 +622,6 @@ const InboxItemCard: React.FC<{
                             </div>
                         </div>
                     </div>
-
-                    {/* Action Bar */}
                     <div className="flex items-center justify-between pt-2">
                         <div className="flex gap-2">
                             <button onClick={onDelete} className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors" title="Delete">
@@ -591,7 +637,6 @@ const InboxItemCard: React.FC<{
                     </div>
                 </div>
             ) : !item.isClarifying && (
-                /* Unprocessed State - "Analyze" Trigger */
                 <div className="bg-muted/10 px-4 py-3 border-t border-border flex justify-between items-center">
                     <button onClick={onDiscuss} className="text-xs font-bold text-muted-foreground hover:text-primary flex items-center gap-1.5 transition-colors">
                         <MessageSquare className="w-3.5 h-3.5"/> Discuss
