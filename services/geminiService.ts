@@ -1,6 +1,6 @@
 
 import { GoogleGenAI } from "@google/genai";
-import { Task, TaskStatus, TaskPriority, ProjectPlan, Attachment, Project, InboxAction, AgentRole, AgentResult, Document, Source, Client, Goal } from "../types";
+import { Task, TaskStatus, TaskPriority, ProjectPlan, Attachment, Project, InboxAction, AgentRole, AgentResult, Document, Source, Client, Goal, InboxItem } from "../types";
 import { dataService } from "./dataService";
 
 // Initialize AI Client with API Key from Environment
@@ -188,21 +188,40 @@ export const geminiService = {
   },
 
   /**
-   * Process Inbox Chat (Hybrid Chat + Capture)
+   * Process Inbox Chat (Hybrid Chat + Capture + Update)
    */
-  async processInboxChat(message: string, history: Array<{role: 'user'|'model', text: string}>, projects: Project[]): Promise<{ response: string, capturedItems: Array<{ content: string, type: 'text'|'file', fileName?: string }> }> {
-      if (!apiKey) return { response: "Please set your API Key.", capturedItems: [] };
+  async processInboxChat(
+      message: string, 
+      history: Array<{role: 'user'|'model', text: string}>, 
+      projects: Project[],
+      pendingItems: InboxItem[] = []
+  ): Promise<{ 
+      response: string, 
+      capturedItems: Array<{ content: string, type: 'text'|'file', fileName?: string }>,
+      updatedItems: Array<{ id: string, updates: { title?: string, priority?: string, type?: string, project?: string } }>
+  }> {
+      if (!apiKey) return { response: "Please set your API Key.", capturedItems: [], updatedItems: [] };
 
-      const projectContext = projects.map(p => p.title).join(', ');
+      const projectContext = projects.map(p => `ID: ${p.id}, Title: ${p.title}`).join('\n');
       
-      // Construct history
+      // Serialize pending items so AI knows what can be updated
+      const pendingContext = pendingItems.map(item => {
+          const draftTitle = item.processedResult?.data?.title || item.content;
+          return `ID: "${item.id}" | Current Draft Title: "${draftTitle}" | Created: ${item.createdAt}`;
+      }).join('\n');
+
       const historyStr = history.map(h => `${h.role.toUpperCase()}: ${h.text}`).join('\n');
 
       const prompt = `
       You are Aasani, a helpful AI assistant inside a productivity app.
       
       CONTEXT:
-      User Projects: ${projectContext}
+      Available Projects:
+      ${projectContext}
+      
+      CURRENT PENDING ITEMS (In Draft/Staging):
+      ${pendingContext}
+      
       Conversation History:
       ${historyStr}
       
@@ -210,18 +229,31 @@ export const geminiService = {
       
       INSTRUCTIONS:
       1. Act like a chat assistant (like ChatGPT). Answer questions, be helpful, be conversational.
-      2. SIMULTANEOUSLY, check if the user's input implies they want to SAVE a task, idea, or note to their Inbox.
-      3. If they do want to save something (e.g. "Remind me to...", "New idea: ...", or just a raw thought), extract it.
+      2. INTELLIGENTLY DECIDE between CREATING a new item or UPDATING a pending one.
+      3. **UPDATE Logic:** If the user's input seems to be refining, correcting, or adding details to one of the "Pending Items" listed above (e.g. "make it 2pm", "assign to project X", "change title to..."), return an update instruction for that ID.
+      4. **CREATE Logic:** If it's a completely new thought, extract it as a captured item.
       
       RETURN JSON format:
       {
         "response": "Your conversational reply here.",
         "capturedItems": [
            { "content": "The extracted task or note content", "type": "text" }
+        ],
+        "updatedItems": [
+           { 
+             "id": "ID of the pending item to update", 
+             "updates": { 
+                "title": "New Title (if changed)",
+                "priority": "High" | "Medium" | "Low",
+                "type": "task" | "document" | "project",
+                "project": "project_id_or_name"
+             } 
+           }
         ]
       }
       
-      If nothing needs to be captured (just a casual chat), return empty capturedItems array.
+      If nothing needs to be captured or updated, return empty arrays.
+      Prioritize UPDATING the most recent pending item if the context implies continuity.
       `;
 
       try {
@@ -233,10 +265,11 @@ export const geminiService = {
           const json = JSON.parse(result.text || "{}");
           return {
               response: json.response || "I heard you.",
-              capturedItems: json.capturedItems || []
+              capturedItems: json.capturedItems || [],
+              updatedItems: json.updatedItems || []
           };
       } catch (e) {
-          return { response: "I'm having trouble connecting.", capturedItems: [] };
+          return { response: "I'm having trouble connecting.", capturedItems: [], updatedItems: [] };
       }
   },
 

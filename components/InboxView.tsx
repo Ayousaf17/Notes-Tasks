@@ -146,21 +146,60 @@ export const InboxView: React.FC<InboxViewProps> = ({
       setContextRef(null);
       setIsChatProcessing(true);
 
+      // Get pending items to allow AI to see context for updates
+      const pendingItems = items.filter(i => i.status === 'pending');
+
       // Call AI for Hybrid Processing
-      const result = await geminiService.processInboxChat(finalContent, chatHistory, projects);
+      const result = await geminiService.processInboxChat(finalContent, chatHistory, projects, pendingItems);
       
       // Update Chat with AI Response
       setChatHistory(prev => [...prev, { role: 'model', text: result.response }]);
       setIsChatProcessing(false);
 
-      // Handle Captured Items (Side Effect)
+      // 1. Handle Updates to Existing Items
+      if (result.updatedItems && result.updatedItems.length > 0 && onUpdateItem) {
+          result.updatedItems.forEach(update => {
+              const item = pendingItems.find(p => p.id === update.id);
+              if (item) {
+                  // Merge updates into the processedResult (which holds the draft state)
+                  const currentDraft = item.processedResult || {
+                      actionType: 'create_task',
+                      targetProjectId: 'default',
+                      data: { title: item.content, priority: TaskPriority.MEDIUM },
+                      reasoning: 'Auto-draft'
+                  };
+
+                  const updatedDraft = {
+                      ...currentDraft,
+                      targetProjectId: update.updates.project || currentDraft.targetProjectId,
+                      actionType: (update.updates.type === 'document' ? 'create_document' : 
+                                   update.updates.type === 'project' ? 'create_project' : 'create_task') as any,
+                      data: {
+                          ...currentDraft.data,
+                          title: update.updates.title || currentDraft.data.title,
+                          priority: (update.updates.priority as TaskPriority) || currentDraft.data.priority
+                      }
+                  };
+
+                  onUpdateItem(update.id, { processedResult: updatedDraft });
+                  say(`Updated "${updatedDraft.data.title}"`, 2000, 'writing');
+              }
+          });
+      }
+
+      // 2. Handle Newly Captured Items
       if (result.capturedItems && result.capturedItems.length > 0) {
           result.capturedItems.forEach(item => {
+              // Immediately create item with a basic draft so controls appear
+              // Note: onAddItem usually generates an ID. We can rely on it to just add it to list.
+              // But for immediate "Draft Mode", we might want to inject the draft state in onAddItem if we could.
+              // Since we can't easily change onAddItem signature everywhere, we add it, and then potentially update it?
+              // Better: onAddItem adds it as pending. The default render for pending items should SHOW the draft controls if it came from chat.
               onAddItem(
                   item.content, 
                   item.type, 
                   item.fileName, 
-                  inputAttachments // Attach files to the first captured item for simplicity
+                  inputAttachments
               );
           });
           setInputAttachments([]);
@@ -179,6 +218,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
   };
 
   const handleSmartAnalyze = async (id: string, content: string, userReply?: string) => {
+      // This legacy method is kept for direct "Analyze" button clicks on cards
       setProcessingId(id);
       const item = items.find(i => i.id === id);
       if (!item) return;
@@ -215,10 +255,11 @@ export const InboxView: React.FC<InboxViewProps> = ({
           }
       } else {
           if (onProcessItem) {
-              onProcessItem(id, result.action);
-          }
-          if (onUpdateItem) {
-              onUpdateItem(id, { isClarifying: false });
+              // Instead of processing immediately, we set the Result so the UI shows the "Confirm" card
+              // This aligns with the HITL requirement
+              if (onUpdateItem) {
+                  onUpdateItem(id, { processedResult: result.action, isClarifying: false });
+              }
           }
       }
       setProcessingId(null);
@@ -455,14 +496,18 @@ const InboxItemCard: React.FC<{
     onUpdate?: (id: string, updates: Partial<InboxItem>) => void;
     isProcessing: boolean;
 }> = ({ item, projects, onDelete, onAnalyze, onProcess, onDiscuss, onUpdate, isProcessing }) => {
-    // ... (Existing implementation remains the same, included below for completeness)
+    
+    // We treat any pending item as "Draftable" if we have chat history or a processed result
+    const isDraftMode = !!item.processedResult || (item.conversationHistory && item.conversationHistory.length > 0);
     const result = item.processedResult;
-    const [draftTitle, setDraftTitle] = useState('');
-    const [draftProjectId, setDraftProjectId] = useState('');
+    
+    const [draftTitle, setDraftTitle] = useState(item.content); // Default to content
+    const [draftProjectId, setDraftProjectId] = useState('default');
     const [draftPriority, setDraftPriority] = useState<TaskPriority>(TaskPriority.MEDIUM);
     const [draftType, setDraftType] = useState<'task' | 'document' | 'event' | 'project'>('task');
     const [replyText, setReplyText] = useState('');
 
+    // Sync draft state from processed result if available, otherwise defaults
     useEffect(() => {
         if (result) {
             setDraftTitle(result.data.title);
@@ -470,16 +515,23 @@ const InboxItemCard: React.FC<{
                 setDraftProjectId('new');
                 setDraftType('project');
             } else {
-                setDraftProjectId(result.targetProjectId === 'default' ? projects[0]?.id : result.targetProjectId);
+                setDraftProjectId(result.targetProjectId === 'default' ? (projects[0]?.id || 'default') : result.targetProjectId);
                 setDraftType(result.actionType === 'create_document' ? 'document' : 'task');
             }
             setDraftPriority(result.data.priority || TaskPriority.MEDIUM);
+        } else {
+            // No AI result yet, but we are in draft mode -> use defaults or existing content
+            setDraftTitle(item.content);
         }
-    }, [result, projects]);
+    }, [result, projects, item.content]);
 
     const handleConfirm = () => {
-        if (!result) return;
-        let finalAction: InboxAction = { ...result };
+        let finalAction: InboxAction = result ? { ...result } : {
+            actionType: 'create_task',
+            targetProjectId: 'default',
+            data: { title: draftTitle },
+            reasoning: 'User confirmed draft'
+        };
         
         if (draftType === 'project') {
             finalAction.actionType = 'create_project';
@@ -500,29 +552,38 @@ const InboxItemCard: React.FC<{
         setReplyText('');
     };
 
+    // If item is being clarified, show chat history + Draft Controls (HITL)
+    // If just pending without chat, show simple card with "Analyze"
+    const showControls = isDraftMode || item.isClarifying;
+
     return (
         <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden transition-all hover:border-foreground/20 group">
-            <div className="p-5 border-b border-border bg-card/50">
-                <div className="flex justify-between items-start gap-4">
-                    <div className="text-sm text-card-foreground whitespace-pre-wrap leading-relaxed font-medium">{item.content}</div>
-                    <div className="text-[10px] text-muted-foreground whitespace-nowrap">{new Date(item.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
-                </div>
-                {item.attachments && item.attachments.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mt-3">
-                        {item.attachments.map((att, idx) => (
-                            <div key={idx} className="flex items-center gap-1.5 bg-muted text-xs px-2 py-1.5 rounded-lg text-muted-foreground border border-border">
-                                <Paperclip className="w-3 h-3" />
-                                <span className="truncate max-w-[200px]">{att.name || 'File'}</span>
-                            </div>
-                        ))}
+            
+            {/* Header / Content Display */}
+            {!showControls && (
+                <div className="p-5 border-b border-border bg-card/50">
+                    <div className="flex justify-between items-start gap-4">
+                        <div className="text-sm text-card-foreground whitespace-pre-wrap leading-relaxed font-medium">{item.content}</div>
+                        <div className="text-[10px] text-muted-foreground whitespace-nowrap">{new Date(item.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
                     </div>
-                )}
-            </div>
+                    {item.attachments && item.attachments.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mt-3">
+                            {item.attachments.map((att, idx) => (
+                                <div key={idx} className="flex items-center gap-1.5 bg-muted text-xs px-2 py-1.5 rounded-lg text-muted-foreground border border-border">
+                                    <Paperclip className="w-3 h-3" />
+                                    <span className="truncate max-w-[200px]">{att.name || 'File'}</span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
 
+            {/* Conversation Mode (Clarification Needed) */}
             {item.isClarifying && (
-                <div className="p-4 bg-purple-50/50 dark:bg-purple-900/10 space-y-4">
+                <div className="p-4 bg-purple-50/50 dark:bg-purple-900/10 space-y-4 border-b border-purple-100 dark:border-purple-800">
                     <div className="space-y-3">
-                        {item.conversationHistory?.filter(m => m.role === 'model').map((msg, idx) => (
+                        {item.conversationHistory?.filter(m => m.role === 'model').slice(-2).map((msg, idx) => (
                             <div key={idx} className="flex gap-3">
                                 <div className="w-6 h-6 rounded-full bg-purple-600 flex items-center justify-center shrink-0">
                                     <Sparkles className="w-3 h-3 text-white" />
@@ -533,30 +594,15 @@ const InboxItemCard: React.FC<{
                             </div>
                         ))}
                     </div>
-                    <div className="flex items-center gap-2 mt-2">
-                        <input 
-                            type="text" 
-                            value={replyText}
-                            onChange={(e) => setReplyText(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleReply()}
-                            placeholder="Type your reply..."
-                            className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-sm focus:ring-1 focus:ring-purple-500 outline-none"
-                            autoFocus
-                        />
-                        <button 
-                            onClick={handleReply}
-                            disabled={isProcessing || !replyText.trim()}
-                            className="p-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
-                        >
-                            {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                        </button>
-                    </div>
+                    {/* Reply Input inside card */}
+                    {/* <div className="flex items-center gap-2 mt-2"> ... (Removed to encourage main chat usage for updates) ... </div> */}
                 </div>
             )}
 
-            {result && !item.isClarifying ? (
+            {/* Draft Workbench (HITL Controls) - ALWAYS VISIBLE if in Draft Mode */}
+            {showControls ? (
                 <div className="bg-muted/30 p-5 space-y-4 animate-in slide-in-from-top-2 fade-in duration-300">
-                    {result.warning && (
+                    {result?.warning && (
                         <div className="text-xs bg-destructive/10 text-destructive px-3 py-2 rounded-lg border border-destructive/20 flex items-center gap-2">
                             <span className="text-lg">⚠️</span> {result.warning}
                         </div>
@@ -567,10 +613,16 @@ const InboxItemCard: React.FC<{
                             <span className="text-xs font-bold text-purple-700 dark:text-purple-300 uppercase">New Project Kickoff Detected</span>
                         </div>
                     )}
+                    
                     <div className="space-y-3">
-                        <div className="flex items-center gap-2 text-[10px] font-bold text-primary uppercase tracking-widest">
-                            <Sparkles className="w-3 h-3" /> AI Proposal
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2 text-[10px] font-bold text-primary uppercase tracking-widest">
+                                <Sparkles className="w-3 h-3" /> Draft Workbench
+                            </div>
+                            <span className="text-[10px] text-muted-foreground">{new Date(item.createdAt).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
                         </div>
+
+                        {/* Title Edit */}
                         <input 
                             type="text" 
                             value={draftTitle}
@@ -578,69 +630,79 @@ const InboxItemCard: React.FC<{
                             className="w-full bg-transparent border-b border-border pb-1 text-sm font-semibold text-foreground focus:outline-none focus:border-primary transition-colors placeholder-muted-foreground"
                             placeholder="Title..."
                         />
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                            <div className="relative group">
-                                <div className="absolute left-2.5 top-2 pointer-events-none text-muted-foreground"><Folder className="w-3.5 h-3.5"/></div>
-                                <select 
-                                    value={draftProjectId}
-                                    onChange={(e) => setDraftProjectId(e.target.value)}
-                                    className="w-full bg-card border border-border rounded-lg py-1.5 pl-8 pr-2 text-xs font-medium text-card-foreground appearance-none focus:ring-1 focus:ring-primary outline-none cursor-pointer hover:border-foreground/20"
-                                    disabled={draftType === 'project'}
-                                >
-                                    <option value="new">New Project...</option>
-                                    {projects.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
-                                </select>
-                                <ChevronDown className="absolute right-2 top-2.5 w-3 h-3 text-muted-foreground pointer-events-none" />
-                            </div>
-                            <div className="relative group">
-                                <div className="absolute left-2.5 top-2 pointer-events-none text-muted-foreground"><Flag className="w-3.5 h-3.5"/></div>
-                                <select 
-                                    value={draftPriority}
-                                    onChange={(e) => setDraftPriority(e.target.value as TaskPriority)}
-                                    className="w-full bg-card border border-border rounded-lg py-1.5 pl-8 pr-2 text-xs font-medium text-card-foreground appearance-none focus:ring-1 focus:ring-primary outline-none cursor-pointer hover:border-foreground/20"
-                                >
-                                    <option value={TaskPriority.HIGH}>High Priority</option>
-                                    <option value={TaskPriority.MEDIUM}>Medium Priority</option>
-                                    <option value={TaskPriority.LOW}>Low Priority</option>
-                                </select>
-                                <ChevronDown className="absolute right-2 top-2.5 w-3 h-3 text-muted-foreground pointer-events-none" />
-                            </div>
-                            <div className="relative group">
-                                <div className="absolute left-2.5 top-2 pointer-events-none text-muted-foreground">
-                                    {draftType === 'task' ? <CheckSquare className="w-3.5 h-3.5"/> : draftType === 'project' ? <Rocket className="w-3.5 h-3.5"/> : <FileText className="w-3.5 h-3.5"/>}
-                                </div>
+
+                        {/* Controls Grid - Tablet Dropdowns */}
+                        <div className="flex flex-wrap gap-2">
+                            {/* Type Selector */}
+                            <div className="relative group inline-block">
                                 <select 
                                     value={draftType}
                                     onChange={(e) => setDraftType(e.target.value as any)}
-                                    className="w-full bg-card border border-border rounded-lg py-1.5 pl-8 pr-2 text-xs font-medium text-card-foreground appearance-none focus:ring-1 focus:ring-primary outline-none cursor-pointer hover:border-foreground/20"
+                                    className="appearance-none pl-8 pr-8 py-1.5 bg-card border border-border rounded-full text-xs font-medium text-card-foreground focus:ring-1 focus:ring-primary outline-none cursor-pointer hover:border-foreground/20 shadow-sm"
                                 >
-                                    <option value="task">Create Task</option>
-                                    <option value="document">Create Doc</option>
-                                    <option value="project">Create Project</option>
+                                    <option value="task">Task</option>
+                                    <option value="document">Doc</option>
+                                    <option value="project">Project</option>
                                 </select>
-                                <ChevronDown className="absolute right-2 top-2.5 w-3 h-3 text-muted-foreground pointer-events-none" />
+                                <div className="absolute left-2.5 top-2 pointer-events-none text-muted-foreground">
+                                    {draftType === 'task' ? <CheckSquare className="w-3 h-3"/> : draftType === 'project' ? <Rocket className="w-3 h-3"/> : <FileText className="w-3 h-3"/>}
+                                </div>
+                                <ChevronDown className="absolute right-2.5 top-2 w-3 h-3 text-muted-foreground pointer-events-none" />
+                            </div>
+
+                            {/* Project Selector */}
+                            <div className="relative group inline-block">
+                                <select 
+                                    value={draftProjectId}
+                                    onChange={(e) => setDraftProjectId(e.target.value)}
+                                    className="appearance-none pl-8 pr-8 py-1.5 bg-card border border-border rounded-full text-xs font-medium text-card-foreground focus:ring-1 focus:ring-primary outline-none cursor-pointer hover:border-foreground/20 shadow-sm max-w-[150px] truncate"
+                                    disabled={draftType === 'project'}
+                                >
+                                    <option value="default">Default Project</option>
+                                    <option value="new">New Project...</option>
+                                    {projects.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
+                                </select>
+                                <Folder className="absolute left-2.5 top-2 w-3 h-3 text-muted-foreground pointer-events-none" />
+                                <ChevronDown className="absolute right-2.5 top-2 w-3 h-3 text-muted-foreground pointer-events-none" />
+                            </div>
+
+                            {/* Priority Selector */}
+                            <div className="relative group inline-block">
+                                <select 
+                                    value={draftPriority}
+                                    onChange={(e) => setDraftPriority(e.target.value as TaskPriority)}
+                                    className={`appearance-none pl-8 pr-8 py-1.5 border border-border rounded-full text-xs font-medium focus:ring-1 focus:ring-primary outline-none cursor-pointer hover:border-foreground/20 shadow-sm
+                                        ${draftPriority === TaskPriority.HIGH ? 'bg-red-50 text-red-600 border-red-200 dark:bg-red-900/20' : 
+                                          draftPriority === TaskPriority.MEDIUM ? 'bg-orange-50 text-orange-600 border-orange-200 dark:bg-orange-900/20' : 
+                                          'bg-card text-card-foreground'}
+                                    `}
+                                >
+                                    <option value={TaskPriority.HIGH}>High</option>
+                                    <option value={TaskPriority.MEDIUM}>Medium</option>
+                                    <option value={TaskPriority.LOW}>Low</option>
+                                </select>
+                                <Flag className={`absolute left-2.5 top-2 w-3 h-3 pointer-events-none ${draftPriority === TaskPriority.HIGH ? 'text-red-500' : draftPriority === TaskPriority.MEDIUM ? 'text-orange-500' : 'text-muted-foreground'}`} />
+                                <ChevronDown className="absolute right-2.5 top-2 w-3 h-3 text-muted-foreground pointer-events-none" />
                             </div>
                         </div>
                     </div>
+
+                    {/* Action Bar */}
                     <div className="flex items-center justify-between pt-2">
                         <div className="flex gap-2">
                             <button onClick={onDelete} className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors" title="Delete">
                                 <Trash2 className="w-4 h-4"/>
                             </button>
-                            <button onClick={onDiscuss} className="p-2 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg transition-colors animate-pulse" title="Discuss with AI">
-                                <MessageSquare className="w-4 h-4"/>
-                            </button>
                         </div>
-                        <button onClick={handleConfirm} className="bg-primary text-primary-foreground px-6 py-2 rounded-lg text-xs font-bold hover:opacity-90 transition-all shadow-lg flex items-center gap-2">
-                            Confirm Action <ArrowRight className="w-3 h-3" />
+                        <button onClick={handleConfirm} className="bg-primary text-primary-foreground px-4 py-2 rounded-lg text-xs font-bold hover:opacity-90 transition-all shadow-lg flex items-center gap-2">
+                            Check & Save <ArrowRight className="w-3 h-3" />
                         </button>
                     </div>
                 </div>
-            ) : !item.isClarifying && (
+            ) : (
+                // Simple View (Not yet processed/drafted)
                 <div className="bg-muted/10 px-4 py-3 border-t border-border flex justify-between items-center">
-                    <button onClick={onDiscuss} className="text-xs font-bold text-muted-foreground hover:text-primary flex items-center gap-1.5 transition-colors">
-                        <MessageSquare className="w-3.5 h-3.5"/> Discuss
-                    </button>
+                    <span className="text-xs text-muted-foreground italic">Pending analysis...</span>
                     <div className="flex gap-2">
                         <button onClick={onDelete} className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded transition-colors opacity-0 group-hover:opacity-100">
                             <Trash2 className="w-4 h-4"/>
@@ -648,7 +710,7 @@ const InboxItemCard: React.FC<{
                         <button 
                             onClick={() => onAnalyze(item.id, item.content)} 
                             disabled={isProcessing}
-                            className="text-xs bg-card border border-border px-4 py-1.5 rounded-lg shadow-sm hover:bg-muted flex items-center gap-2 text-card-foreground transition-all font-medium"
+                            className="text-xs bg-card border border-border px-3 py-1.5 rounded-lg shadow-sm hover:bg-muted flex items-center gap-2 text-card-foreground transition-all font-medium"
                         >
                             {isProcessing ? <Loader2 className="w-3 h-3 animate-spin"/> : <Sparkles className="w-3 h-3 text-purple-500"/>} 
                             Analyze
