@@ -139,6 +139,9 @@ export interface InboxItem {
   attachments?: Attachment[]; 
   status: 'pending' | 'processed';
   createdAt: Date;
+  // State for the Reasoning Loop
+  conversationHistory?: Array<{ role: 'user' | 'model', text: string }>;
+  isClarifying?: boolean;
   processedResult?: InboxAction; 
 }
 

@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { ChatMessage, ProjectPlan, Document, Task, Integration, TaskStatus, TaskPriority, Project, Client, ActionProposal, Attachment, AgentRole, InboxAction, InboxItem, FocusItem } from '../types';
-import { Send, X, Bot, Paperclip, Loader2, Sparkles, User, ChevronDown, Lock, Settings, Search, CheckCircle2, Calendar, Briefcase, Flag, Plus, File, Folder, Layers, ArrowRight, Eye, Target, MessageSquare, Cpu, Globe, RefreshCw } from 'lucide-react';
+import { Send, X, Bot, Paperclip, Loader2, Sparkles, User, ChevronDown, Lock, Settings, Search, CheckCircle2, Calendar, Briefcase, Flag, Plus, File, Folder, Layers, ArrowRight, Eye, Target, MessageSquare, Cpu, Globe, RefreshCw, Zap, ListChecks, CheckSquare, FileText, Mail } from 'lucide-react';
 import { geminiService } from '../services/geminiService';
 import { analyticsService } from '../services/analyticsService';
 
@@ -18,6 +18,7 @@ interface AIChatSidebarProps {
   clients: Client[];   
   teamMembers: string[]; 
   integrations?: Integration[];
+  onProjectPlanCreated?: (plan: ProjectPlan) => void;
   onSaveToInbox?: (action: InboxAction) => void;
   onExecuteAction?: (id: string, action: InboxAction) => void;
   onUpdateEntity?: (type: 'task'|'document'|'client'|'project', id: string, updates: any) => void;
@@ -84,6 +85,62 @@ const UpdateProposalCard = ({ updateData, onConfirm }: any) => {
     );
 }
 
+const QuickActions = ({ focusItem, onAction }: { focusItem: FocusItem | null | undefined, onAction: (prompt: string) => void }) => {
+    const actions = useMemo(() => {
+        if (!focusItem) {
+            return [
+                { label: 'Briefing', prompt: 'Generate a morning briefing based on my tasks.', icon: <Zap className="w-3 h-3"/> },
+                { label: 'Pending', prompt: 'What are my high priority pending tasks?', icon: <ListChecks className="w-3 h-3"/> },
+                { label: 'New Project', prompt: 'Help me plan a new project.', icon: <Folder className="w-3 h-3"/> }
+            ];
+        }
+        if (focusItem.type === 'task') {
+            return [
+                { label: 'Breakdown', prompt: 'Break this task down into subtasks.', icon: <ListChecks className="w-3 h-3"/> },
+                { label: 'Enrich', prompt: 'Enrich this task description with more details.', icon: <Sparkles className="w-3 h-3"/> },
+                { label: 'Draft Email', prompt: 'Draft an email related to this task.', icon: <Mail className="w-3 h-3"/> }
+            ];
+        }
+        if (focusItem.type === 'document') {
+            return [
+                { label: 'Summarize', prompt: 'Summarize this document.', icon: <FileText className="w-3 h-3"/> },
+                { label: 'Action Items', prompt: 'Extract action items from this document.', icon: <CheckSquare className="w-3 h-3"/> },
+                { label: 'Improve', prompt: 'Improve the writing tone and clarity.', icon: <Sparkles className="w-3 h-3"/> }
+            ];
+        }
+        if (focusItem.type === 'inbox') {
+            return [
+                { label: 'Analyze', prompt: 'Analyze this inbox item and suggest where it belongs.', icon: <Sparkles className="w-3 h-3"/> },
+                { label: 'To Task', prompt: 'Convert this into a task.', icon: <CheckSquare className="w-3 h-3"/> }
+            ];
+        }
+        if (focusItem.type === 'client') {
+            return [
+                { label: 'Draft Outreach', prompt: 'Draft an outreach email for this client.', icon: <Mail className="w-3 h-3"/> },
+                { label: 'Research', prompt: 'Research this company and suggest talking points.', icon: <Globe className="w-3 h-3"/> }
+            ];
+        }
+        return [];
+    }, [focusItem]);
+
+    if (actions.length === 0) return null;
+
+    return (
+        <div className="flex gap-2 overflow-x-auto p-2 pb-0 no-scrollbar mb-2">
+            {actions.map((action, i) => (
+                <button 
+                    key={i} 
+                    onClick={() => onAction(action.prompt)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-secondary hover:bg-secondary/80 rounded-full text-[10px] font-medium whitespace-nowrap transition-colors border border-border"
+                >
+                    {action.icon}
+                    {action.label}
+                </button>
+            ))}
+        </div>
+    );
+};
+
 const FormattedMessage: React.FC<{ text: string }> = ({ text }) => {
     const cleanText = text.replace(/:::TOOL_CALL:::[\s\S]*?:::END_TOOL_CALL:::/g, '').trim();
     if (!cleanText) return null;
@@ -103,6 +160,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
     clients,
     teamMembers,
     integrations,
+    onProjectPlanCreated,
     onSaveToInbox,
     onExecuteAction,
     onUpdateEntity,
@@ -163,11 +221,12 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
         }
     }, [isOpen, focusItem]);
 
-    const handleSendMessage = async () => {
-        if (!input.trim() && attachments.length === 0) return;
+    const handleSendMessage = async (textOverride?: string) => {
+        const textToSend = textOverride || input;
+        if (!textToSend.trim() && attachments.length === 0) return;
         analyticsService.logEvent('chat_message_sent', { provider: isUsingOpenRouter ? 'openrouter' : 'gemini', hasAttachment: attachments.length > 0 });
 
-        const userMsg: ChatMessage = { id: Date.now().toString(), role: 'user', text: input, timestamp: new Date(), attachments: [...attachments] };
+        const userMsg: ChatMessage = { id: Date.now().toString(), role: 'user', text: textToSend, timestamp: new Date(), attachments: [...attachments] };
         setMessages(prev => [...prev, userMsg]);
         setInput('');
         setAttachments([]);
@@ -189,7 +248,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                 apiKey: openRouterInt?.config?.apiKey,
                 model: openRouterInt?.config?.model,
                 history,
-                message: input,
+                message: textToSend,
                 attachments: userMsg.attachments || [],
                 systemContext
             });
@@ -384,6 +443,9 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
 
                 {/* Input Area */}
                 <div className="p-4 border-t border-border bg-card safe-area-bottom pb-[calc(1rem+env(safe-area-inset-bottom))]">
+                    {/* Quick Actions Panel */}
+                    <QuickActions focusItem={focusItem} onAction={(text) => handleSendMessage(text)} />
+                    
                     <div className="relative flex items-center gap-2">
                         <input
                             type="text"
@@ -393,7 +455,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                             placeholder="Type a message..."
                             className="flex-1 bg-muted border-none rounded-full px-4 py-3 md:py-2 text-base md:text-sm focus:ring-2 focus:ring-primary text-foreground placeholder-muted-foreground"
                         />
-                        <button onClick={handleSendMessage} className="p-3 md:p-2 bg-primary text-primary-foreground rounded-full">
+                        <button onClick={() => handleSendMessage()} className="p-3 md:p-2 bg-primary text-primary-foreground rounded-full">
                             <Send className="w-4 h-4" />
                         </button>
                     </div>

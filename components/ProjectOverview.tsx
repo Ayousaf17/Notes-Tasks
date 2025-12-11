@@ -1,7 +1,10 @@
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Project, Task, Document, TaskStatus, TaskPriority, ViewMode } from '../types';
-import { Activity, Users, Target, Zap, AlertCircle, CheckCircle, Clock } from 'lucide-react';
+import { Activity, Users, Target, Zap, AlertCircle, CheckCircle, Clock, FileText, Sparkles, Loader2 } from 'lucide-react';
+import { geminiService } from '../services/geminiService';
+import { dataService } from '../services/dataService';
+import { useToast } from './App'; // Import the hook context if possible, or just pass as prop. Assuming prop for now.
 
 interface ProjectOverviewProps {
   project: Project;
@@ -12,6 +15,7 @@ interface ProjectOverviewProps {
 }
 
 export const ProjectOverview: React.FC<ProjectOverviewProps> = ({ project, tasks, onNavigate, onChangeView }) => {
+  const [isDraftingProposal, setIsDraftingProposal] = useState(false);
   
   const stats = useMemo(() => {
     const total = tasks.length;
@@ -30,6 +34,37 @@ export const ProjectOverview: React.FC<ProjectOverviewProps> = ({ project, tasks
       return Array.from(members);
   }, [tasks]);
 
+  const handleDraftProposal = async () => {
+      setIsDraftingProposal(true);
+      // Gather context
+      const goals = dataService.getGoals(); // Ideally filter by project if relation exists
+      
+      const content = await geminiService.draftProposalFromContext(
+          project.title,
+          tasks,
+          goals,
+          "Client" // Placeholder or fetch from linked client
+      );
+
+      const newDoc: Document = {
+          id: crypto.randomUUID(),
+          projectId: project.id,
+          title: `${project.title} - Formal Proposal`,
+          content: content,
+          updatedAt: new Date(),
+          tags: ['Proposal', 'Formal'],
+          isSOP: false
+      };
+
+      await dataService.createDocument(newDoc);
+      // We would ideally navigate to it, but without onNavigate supporting doc ID injection easily here
+      // we can rely on data service and maybe a toast. 
+      // For now, let's assume onNavigate handles it or we refresh.
+      
+      setIsDraftingProposal(false);
+      onNavigate('document', newDoc.id);
+  };
+
   return (
     <div className="flex-1 h-full bg-white dark:bg-black overflow-y-auto font-sans p-6 md:p-10 animate-in fade-in duration-300">
       <div className="max-w-full mx-auto space-y-12 pb-24">
@@ -42,9 +77,19 @@ export const ProjectOverview: React.FC<ProjectOverviewProps> = ({ project, tasks
                 </div>
                 <h1 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white tracking-tight leading-tight">{project.title}</h1>
             </div>
-            <button onClick={() => onChangeView(ViewMode.BOARD)} className="px-6 py-3 bg-black dark:bg-white text-white dark:text-black rounded-xl text-sm font-bold shadow-lg hover:opacity-90 transition-opacity">
-                Open Board
-            </button>
+            <div className="flex gap-3">
+                <button 
+                    onClick={handleDraftProposal} 
+                    disabled={isDraftingProposal}
+                    className="px-6 py-3 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white rounded-xl text-sm font-bold shadow-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition-all flex items-center gap-2"
+                >
+                    {isDraftingProposal ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
+                    {isDraftingProposal ? 'Generating...' : 'Draft Proposal'}
+                </button>
+                <button onClick={() => onChangeView(ViewMode.BOARD)} className="px-6 py-3 bg-black dark:bg-white text-white dark:text-black rounded-xl text-sm font-bold shadow-lg hover:opacity-90 transition-opacity">
+                    Open Board
+                </button>
+            </div>
         </div>
 
         {/* Metrics Grid */}

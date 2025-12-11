@@ -30,22 +30,46 @@ import { analyticsService } from '../services/analyticsService';
 import { MascotProvider, useMascot } from '../contexts/MascotContext';
 import { AasaniMascot } from './AasaniMascot';
 
-type ToastType = 'success' | 'error' | 'info' | 'warning';
-interface Toast {
-  id: string;
-  message: string;
-  type: ToastType;
-}
+export type ToastType = 'info' | 'success' | 'warning' | 'error';
+export interface Toast { id: string; message: string; type: ToastType; }
+export const ToastContext = createContext<{ addToast: (msg: string, type: ToastType) => void }>({ addToast: () => {} });
+export const useToast = () => useContext(ToastContext);
 
-const ToastContext = createContext<{ addToast: (msg: string, type: ToastType) => void } | null>(null);
+const MobileBottomNav = ({ currentView, onChangeView, onOpenMenu, onSearch }: { currentView: ViewMode, onChangeView: (v: ViewMode) => void, onOpenMenu: () => void, onSearch: () => void }) => (
+  <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-black/90 backdrop-blur-xl border-t border-gray-100 dark:border-gray-800 z-50 px-6 py-2 safe-area-bottom flex items-center justify-between transition-transform duration-300 shadow-2xl">
+    <div className="flex items-center gap-8">
+      <button onClick={() => onChangeView(ViewMode.HOME)} className={`flex flex-col items-center gap-1 transition-colors ${currentView === ViewMode.HOME ? 'text-black dark:text-white' : 'text-gray-400 dark:text-gray-500'}`}>
+         <Home className="w-6 h-6" />
+         <span className="text-[9px] font-medium">Home</span>
+      </button>
+      <button onClick={onSearch} className="flex flex-col items-center gap-1 text-gray-400 dark:text-gray-500 active:text-black dark:active:text-white transition-colors">
+         <Search className="w-6 h-6" />
+         <span className="text-[9px] font-medium">Search</span>
+      </button>
+    </div>
 
-export const useToast = () => {
-  const context = useContext(ToastContext);
-  if (!context) throw new Error("useToast must be used within a ToastProvider");
-  return context;
-};
+    <div className="relative -top-6 group">
+      <button
+          onClick={() => onChangeView(ViewMode.GLOBAL_BOARD)}
+          className={`flex items-center justify-center w-14 h-14 rounded-full shadow-xl shadow-black/20 dark:shadow-white/10 border-4 border-gray-50 dark:border-black transition-all duration-300 active:scale-95 group-hover:-translate-y-1 ${currentView === ViewMode.GLOBAL_BOARD ? 'bg-black dark:bg-white text-white dark:text-black' : 'bg-black dark:bg-white text-white dark:text-black'}`}
+      >
+         <CheckSquare className="w-6 h-6" />
+      </button>
+    </div>
 
-// Mascot SVG Component for Header
+    <div className="flex items-center gap-8">
+      <button onClick={() => onChangeView(ViewMode.INBOX)} className={`flex flex-col items-center gap-1 transition-colors ${currentView === ViewMode.INBOX ? 'text-black dark:text-white' : 'text-gray-400 dark:text-gray-500'}`}>
+         <Inbox className="w-6 h-6" />
+         <span className="text-[9px] font-medium">Inbox</span>
+      </button>
+      <button onClick={onOpenMenu} className="flex flex-col items-center gap-1 text-gray-400 dark:text-gray-500 active:text-black dark:active:text-white transition-colors">
+         <Menu className="w-6 h-6" />
+         <span className="text-[9px] font-medium">Menu</span>
+      </button>
+    </div>
+  </div>
+);
+
 const MascotIcon = ({ className }: { className?: string }) => (
     <svg viewBox="0 0 48 48" className={className} fill="none">
         <path d="M24 4 C10 4, 4 14, 4 26 C4 38, 14 44, 24 44 C34 44, 44 38, 44 26 C44 14, 38 4, 24 4 Z" fill="currentColor" className="text-black dark:text-white transition-colors"/>
@@ -56,22 +80,13 @@ const MascotIcon = ({ className }: { className?: string }) => (
     </svg>
 );
 
-// Error Boundary Component
-interface ErrorBoundaryProps {
-  children?: ReactNode;
-}
-
-interface ErrorBoundaryState {
-  hasError: boolean;
-}
-
-class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  constructor(props: ErrorBoundaryProps) {
+class ErrorBoundary extends Component<{children: ReactNode}, {hasError: boolean}> {
+  constructor(props: {children: ReactNode}) {
     super(props);
     this.state = { hasError: false };
   }
 
-  static getDerivedStateFromError(_: Error): ErrorBoundaryState {
+  static getDerivedStateFromError(_: Error) {
     return { hasError: true };
   }
 
@@ -82,12 +97,10 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
   render() {
     if (this.state.hasError) {
       return (
-        <div className="flex items-center justify-center h-screen bg-background text-center p-4 text-foreground">
-          <div>
+        <div className="flex flex-col items-center justify-center min-h-screen bg-white dark:bg-black text-black dark:text-white p-6 text-center">
             <h1 className="text-2xl font-bold mb-2">Something went wrong.</h1>
-            <p className="text-muted-foreground mb-4">The application encountered a critical error.</p>
-            <button onClick={() => window.location.reload()} className="text-primary hover:underline">Reload Application</button>
-          </div>
+            <p className="text-sm text-gray-500 mb-4">A critical error occurred. Please refresh the page.</p>
+            <button onClick={() => window.location.reload()} className="px-4 py-2 bg-black dark:bg-white text-white dark:text-black rounded-lg text-sm font-bold">Refresh</button>
         </div>
       );
     }
@@ -96,47 +109,9 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
   }
 }
 
-const MobileBottomNav = ({ currentView, onChangeView, onOpenMenu, onSearch }: { currentView: ViewMode, onChangeView: (v: ViewMode) => void, onOpenMenu: () => void, onSearch: () => void }) => (
-  <div className="md:hidden fixed bottom-0 left-0 right-0 bg-background/90 backdrop-blur-xl border-t border-border z-50 px-6 py-2 safe-area-bottom flex items-center justify-between transition-transform duration-300 shadow-2xl">
-    {/* Left Group */}
-    <div className="flex items-center gap-8">
-      <button onClick={() => onChangeView(ViewMode.HOME)} className={`flex flex-col items-center gap-1 transition-colors ${currentView === ViewMode.HOME ? 'text-foreground' : 'text-muted-foreground'}`}>
-         <Home className="w-6 h-6" />
-         <span className="text-[9px] font-medium">Home</span>
-      </button>
-      <button onClick={onSearch} className="flex flex-col items-center gap-1 text-muted-foreground active:text-foreground transition-colors">
-         <Search className="w-6 h-6" />
-         <span className="text-[9px] font-medium">Search</span>
-      </button>
-    </div>
-
-    {/* Center Hero Button (Tasks) */}
-    <div className="relative -top-6 group">
-      <button
-          onClick={() => onChangeView(ViewMode.GLOBAL_BOARD)}
-          className={`flex items-center justify-center w-14 h-14 rounded-full shadow-xl border-4 border-background transition-all duration-300 active:scale-95 group-hover:-translate-y-1 ${currentView === ViewMode.GLOBAL_BOARD ? 'bg-primary text-primary-foreground' : 'bg-primary text-primary-foreground'}`}
-      >
-         <CheckSquare className="w-6 h-6" />
-      </button>
-    </div>
-
-    {/* Right Group */}
-    <div className="flex items-center gap-8">
-      <button onClick={() => onChangeView(ViewMode.INBOX)} className={`flex flex-col items-center gap-1 transition-colors ${currentView === ViewMode.INBOX ? 'text-foreground' : 'text-muted-foreground'}`}>
-         <Inbox className="w-6 h-6" />
-         <span className="text-[9px] font-medium">Inbox</span>
-      </button>
-      <button onClick={onOpenMenu} className="flex flex-col items-center gap-1 text-muted-foreground active:text-foreground transition-colors">
-         <Menu className="w-6 h-6" />
-         <span className="text-[9px] font-medium">Menu</span>
-      </button>
-    </div>
-  </div>
-);
-
 const AppContent: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewMode>(ViewMode.HOME); 
-  const [viewHistory, setViewHistory] = useState<ViewMode[]>([]); // History Stack for Navigation
+  const [viewHistory, setViewHistory] = useState<ViewMode[]>([]); 
   
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isSidebarHovered, setIsSidebarHovered] = useState(false); 
@@ -145,12 +120,10 @@ const AppContent: React.FC = () => {
       return false;
   });
 
-  const [isContextSidebarOpen, setIsContextSidebarOpen] = useState(false); // Mobile Context Sidebar State
+  const [isContextSidebarOpen, setIsContextSidebarOpen] = useState(false); 
   
-  // Touch Gesture Refs
   const touchStartRef = useRef<{x: number, y: number} | null>(null);
 
-  // Toast State
   const [toasts, setToasts] = useState<Toast[]>([]);
 
   const addToast = (message: string, type: ToastType = 'info') => {
@@ -274,7 +247,6 @@ const AppContent: React.FC = () => {
   const [activeInboxItemId, setActiveInboxItemId] = useState<string | null>(null);
   const [activeFocusItem, setActiveFocusItem] = useState<FocusItem | null>(null);
 
-  // Mascot Context to trigger whisper
   const { say } = useMascot();
 
   useEffect(() => {
@@ -319,7 +291,6 @@ const AppContent: React.FC = () => {
       return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // --- NAVIGATION & HISTORY LOGIC ---
   const handleViewChange = (newView: ViewMode) => {
       if (currentView !== newView) {
           setViewHistory(prev => [...prev, currentView]);
@@ -336,7 +307,6 @@ const AppContent: React.FC = () => {
       }
   };
 
-  // --- GESTURE HANDLING ---
   useEffect(() => {
       const handleTouchStart = (e: TouchEvent) => {
           touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
@@ -349,15 +319,10 @@ const AppContent: React.FC = () => {
           const deltaX = endX - startX;
           const windowWidth = window.innerWidth;
 
-          // 1. Edge Swipe Left-to-Right (Open Sidebar)
-          // Must start from very left edge (0-40px)
           if (startX < 40 && deltaX > 100) {
               setIsMobileSidebarOpen(true);
           }
 
-          // 2. Edge Swipe Right-to-Left (Go Back)
-          // Must start from right edge
-          // Simulate "Back" navigation for app history
           if (startX > windowWidth - 40 && deltaX < -100) {
               handleBackNavigation();
           }
@@ -372,17 +337,6 @@ const AppContent: React.FC = () => {
           window.removeEventListener('touchend', handleTouchEnd);
       };
   }, [viewHistory, currentView]);
-
-  const [enrichmentCandidates, setEnrichmentCandidates] = useState<Task[]>([]);
-  
-  useEffect(() => {
-      const candidates = tasks.filter(t => 
-          (t.status === TaskStatus.TODO) && 
-          (!t.description || t.description.length < 10) &&
-          !t.agentStatus 
-      ).slice(0, 3);
-      setEnrichmentCandidates(candidates);
-  }, [tasks]);
 
   const activeProject = projects.find(p => p.id === activeProjectId) || projects[0];
   const projectDocs = documents.filter(d => d.projectId === activeProjectId);
@@ -460,7 +414,6 @@ const AppContent: React.FC = () => {
 
   const handleCreateProjectConfirm = async (title: string) => { await createNewProject(title); addToast(`Project "${title}" created`, 'success'); };
   
-  // Updated Project Deletion Logic
   const handleDeleteProject = (id: string) => {
       setConfirmationModal({
           isOpen: true,
@@ -569,7 +522,6 @@ const AppContent: React.FC = () => {
   const handleDeleteInboxItem = (id: string) => setInboxItems(prev => prev.filter(i => i.id !== id));
   const handleUpdateInboxItem = (id: string, updates: Partial<InboxItem>) => setInboxItems(prev => prev.map(i => i.id === id ? { ...i, ...updates } : i));
   const handleProcessInboxItem = async (itemId: string, action: InboxAction) => {
-      // FIX: Robustly handle potential null targetProjectId from AI
       let targetProjectId = action.targetProjectId || 'default';
       
       if (typeof targetProjectId === 'string' && targetProjectId.startsWith('NEW:')) {
@@ -585,7 +537,6 @@ const AppContent: React.FC = () => {
           targetProjectId = newProject.id;
       }
 
-      // Fallback for default or empty project ID
       if (!targetProjectId || targetProjectId === 'default') {
           targetProjectId = activeProjectId || projects[0]?.id || 'p1';
       }
@@ -620,11 +571,10 @@ const AppContent: React.FC = () => {
            dataService.createDocument(newDoc);
            addToast('Document Created', 'success');
       }
-      setInboxItems(prev => prev.map(item => item.id === itemId ? { ...item, status: 'processed' } : item).filter(i => i.status !== 'processed'));
+      setInboxItems(prev => prev.map(item => item.id === itemId ? { ...item, status: 'processed' as const } : item).filter(i => i.status !== 'processed'));
   };
   const handleStoreInboxSuggestion = (id: string, action: InboxAction) => setInboxItems(prev => prev.map(i => i.id === id ? { ...i, processedResult: action } : i));
   const handleAnalyzeInboxItem = async (id: string, content: string, attachments: Attachment[]) => { 
-      // Construct detailed schedule context for "Reality Check"
       const now = new Date();
       const nextMonth = new Date();
       nextMonth.setDate(now.getDate() + 30);
@@ -660,8 +610,6 @@ const AppContent: React.FC = () => {
   const handleDiscussTask = (task: Task) => { setActiveFocusItem({ type: 'task', data: task }); setIsChatOpen(true); };
   
   const executeInboxAction = async (action: InboxAction) => { 
-      // Reuse logic from handleProcessInboxItem but without item ID context
-       // FIX: Robustly handle potential null targetProjectId from AI
        let targetProjectId = action.targetProjectId || 'default';
 
       if (typeof targetProjectId === 'string' && targetProjectId.startsWith('NEW:')) {
@@ -672,7 +620,6 @@ const AppContent: React.FC = () => {
           targetProjectId = newProject.id;
       }
 
-      // Fallback for default or empty project ID
       if (!targetProjectId || targetProjectId === 'default') {
           targetProjectId = activeProjectId || projects[0]?.id || 'p1';
       }
@@ -766,7 +713,6 @@ const AppContent: React.FC = () => {
   const activeDocument = documents.find(d => d.id === activeDocId);
   const selectedTask = tasks.find(t => t.id === selectedTaskId);
 
-  // Helper Functions for Context
   const getContextForTaskBoard = () => {
     let context = `Project Context: ${activeProject?.title || 'General'}\n`;
     if (activeDocument && activeDocument.content.trim()) context += `Active Document Content:\n${activeDocument.content}\n\n`;
@@ -788,7 +734,6 @@ const AppContent: React.FC = () => {
     <ToastContext.Provider value={{ addToast }}>
         <div className="flex h-[100dvh] w-full bg-white dark:bg-black overflow-hidden font-sans text-gray-900 dark:text-gray-100 transition-colors duration-200">
         
-        {/* TOAST CONTAINER */}
         <div className="fixed bottom-20 md:bottom-6 right-6 z-[200] flex flex-col gap-2 pointer-events-none">
             {toasts.map(toast => (
                 <div key={toast.id} className={`pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-lg shadow-xl border animate-in slide-in-from-bottom-5 fade-in duration-300 max-w-sm ${
@@ -802,7 +747,6 @@ const AppContent: React.FC = () => {
             ))}
         </div>
 
-        {/* Global Sticker Mascot - Updated with Drag & Chat Toggle */}
         <AasaniMascot onClick={() => setIsChatOpen(true)} />
 
         <Sidebar
@@ -836,17 +780,14 @@ const AppContent: React.FC = () => {
                 <span className="font-medium text-black dark:text-white inline">{currentView}</span>
             </div>
             <div className="flex items-center space-x-3">
-                {/* Voice Command Button */}
                 <button onClick={() => setIsVoiceCommandOpen(true)} className="p-2 rounded-full bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors group" title="Voice Command">
                     <Mic className="w-4 h-4 text-gray-600 dark:text-gray-300 group-hover:text-purple-500" />
                 </button>
                 
-                {/* Search Button with Magnifying Glass */}
                 <button onClick={() => setIsCommandPaletteOpen(true)} className="text-gray-400 hover:text-black dark:hover:text-white transition-colors">
                     <Search className="w-4 h-4" />
                 </button>
                 
-                {/* Chat Button with Mascot Icon */}
                 <button onClick={() => setIsChatOpen(!isChatOpen)} className={`transition-colors flex items-center justify-center ${isChatOpen ? 'text-purple-600 dark:text-purple-400' : 'text-gray-400 hover:text-black dark:hover:text-white'}`}>
                     <MascotIcon className="w-5 h-5" />
                 </button>
@@ -907,6 +848,7 @@ const AppContent: React.FC = () => {
                             documents={documents}
                             onNavigate={(type, id) => handleNavigate(type, id)}
                             onShowToast={addToast}
+                            projects={projects} 
                         /> 
                     ) : currentView === ViewMode.REVIEW ? (
                         <ReviewWizard inboxItems={inboxItems} tasks={tasks} projects={projects} onProcessInboxItem={handleProcessInboxItem} onDeleteInboxItem={handleDeleteInboxItem} onDeleteTask={handleDeleteTask} onUpdateTaskStatus={handleUpdateTaskStatus} onUpdateTaskAssignee={handleUpdateTaskAssignee} onClose={() => handleViewChange(ViewMode.HOME)} />
@@ -965,7 +907,6 @@ const AppContent: React.FC = () => {
                 
                 {currentView === ViewMode.DOCUMENTS && activeDocument && (
                     <>
-                        {/* Desktop View: Always Visible (managed inside ContextSidebar for resizing) */}
                         <div className="hidden lg:block h-full">
                             <ContextSidebar 
                                 currentDoc={activeDocument} 
@@ -975,7 +916,6 @@ const AppContent: React.FC = () => {
                                 onUpdateDocument={handleUpdateDocument} 
                             />
                         </div>
-                        {/* Mobile View: Slide Over */}
                         {isContextSidebarOpen && (
                             <div className="lg:hidden fixed inset-0 z-[100] flex justify-end">
                                 <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setIsContextSidebarOpen(false)} />
@@ -1016,7 +956,6 @@ const AppContent: React.FC = () => {
                 onUpdateIntegration={handleManageIntegration}
             />
 
-            {/* Voice Command Overlay */}
             <VoiceCommandOverlay 
                 isOpen={isVoiceCommandOpen} 
                 onClose={() => setIsVoiceCommandOpen(false)} 
@@ -1024,7 +963,6 @@ const AppContent: React.FC = () => {
                 onExecute={handleVoiceExecution}
             />
 
-            {/* Other Modals */}
             <CommandPalette isOpen={isCommandPaletteOpen} onClose={() => setIsCommandPaletteOpen(false)} documents={documents} tasks={tasks} projects={projects} onNavigate={handleNavigate} onCreateDocument={handleCreateDocument} onChangeView={handleViewChange} onSelectProject={handleSelectProject} />
             <CreateProjectModal isOpen={isCreateProjectModalOpen} onClose={() => setIsCreateProjectModalOpen(false)} onCreate={handleCreateProjectConfirm} />
             <CreateClientModal isOpen={isCreateClientModalOpen} onClose={() => setIsCreateClientModalOpen(false)} onCreate={handleAddClient} />

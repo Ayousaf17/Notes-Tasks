@@ -1,9 +1,11 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { InboxItem, Project, InboxAction, Integration, TaskPriority, TaskStatus, Attachment } from '../types';
-import { Mic, Sparkles, Loader2, FileText, Trash2, Paperclip, MessageSquare, Package, Calendar, CheckSquare, X, ArrowRight, Folder, Flag, ChevronDown, Edit3 } from 'lucide-react';
+import { Mic, Sparkles, Loader2, FileText, Trash2, Paperclip, MessageSquare, Package, Calendar, CheckSquare, X, ArrowRight, Folder, Flag, ChevronDown, Edit3, AtSign, Cpu, Wand2, Rocket, Send } from 'lucide-react';
 import { geminiService } from '../services/geminiService';
 import { analyticsService } from '../services/analyticsService';
 import { useMascot } from '../contexts/MascotContext';
+import { dataService } from '../services/dataService';
 
 interface InboxViewProps {
   items: InboxItem[];
@@ -34,10 +36,24 @@ export const InboxView: React.FC<InboxViewProps> = ({
   const [inputAttachments, setInputAttachments] = useState<Attachment[]>([]);
   const [staleBundleProposal, setStaleBundleProposal] = useState<{ title: string, itemIds: string[] } | null>(null);
   const [isBundling, setIsBundling] = useState(false);
-  const { say } = useMascot();
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
   
+  // Smart Input State
+  const [selectedModel, setSelectedModel] = useState<'flash' | 'pro'>('flash');
+  const [showPromptBuilder, setShowPromptBuilder] = useState(false);
+  const [contextRef, setContextRef] = useState<string | null>(null); // e.g. "@Project A"
+
+  const { say } = useMascot();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  
+  // Auto-resize textarea
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px';
+    }
+  }, [inputText]);
+
   // Stale check logic
   useEffect(() => {
       const checkStale = async () => {
@@ -56,7 +72,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
 
   useEffect(() => {
       const pendingCount = items.filter(i => i.status === 'pending').length;
-      if (pendingCount === 0) {
+      if (pendingCount === 0 && items.length > 0) {
           say("Inbox Zero achieved! Great work.", 4000, 'surprised');
       }
   }, [items]);
@@ -96,18 +112,87 @@ export const InboxView: React.FC<InboxViewProps> = ({
 
   const removeAttachment = (index: number) => setInputAttachments(prev => prev.filter((_, i) => i !== index));
 
+  const handlePromptSelect = (prompt: string) => {
+      setInputText(prev => prev ? `${prev}\n${prompt}` : prompt);
+      setShowPromptBuilder(false);
+      textareaRef.current?.focus();
+  };
+
+  const handleProjectRefSelect = (projectTitle: string) => {
+      setContextRef(`@${projectTitle}`);
+  };
+
   const handleSubmit = () => {
       if (!inputText.trim() && inputAttachments.length === 0) return;
+      
+      let finalContent = inputText;
+      if (contextRef) finalContent = `[Context: ${contextRef}] ${finalContent}`;
+
       onAddItem(
-          inputText || (inputAttachments.length > 0 ? `Attached File: ${inputAttachments[0].name}` : 'New Item'), 
+          finalContent || (inputAttachments.length > 0 ? `Attached File: ${inputAttachments[0].name}` : 'New Item'), 
           inputAttachments.length > 0 ? 'file' : 'text', 
           inputAttachments.length > 0 ? inputAttachments[0].name : undefined, 
           inputAttachments
       );
       setInputText('');
+      setContextRef(null);
       setInputAttachments([]);
-      analyticsService.logEvent('inbox_add_item', { hasAttachment: inputAttachments.length > 0 });
+      analyticsService.logEvent('inbox_add_item', { hasAttachment: inputAttachments.length > 0, model: selectedModel });
       say("Captured! Don't forget to process it later.", 3000, 'writing');
+  };
+
+  // --- REASONING ENGINE INTEGRATION ---
+  const handleSmartAnalyze = async (id: string, content: string, userReply?: string) => {
+      setProcessingId(id);
+      const item = items.find(i => i.id === id);
+      if (!item) return;
+
+      // Update local conversation history with User's reply if exists
+      let currentHistory = item.conversationHistory || [];
+      if (userReply) {
+          currentHistory = [...currentHistory, { role: 'user', text: userReply }];
+          // Update item state to reflect new history
+          if (onUpdateItem) onUpdateItem(id, { conversationHistory: currentHistory });
+      }
+
+      // If detecting Project Kickoff (Original logic preserved for direct documents)
+      // Only check on first pass (empty history)
+      if (currentHistory.length === 0) {
+          const kickoffResult = await geminiService.analyzeKickoffDoc(content);
+          if (kickoffResult) {
+              onProcessItem(id, kickoffResult);
+              setProcessingId(null);
+              return;
+          }
+      }
+
+      // General Reasoning Loop
+      const result = await geminiService.reasonAboutInboxItem(
+          userReply || content, // If replying, focus on that, but context includes original
+          currentHistory,
+          projects,
+          "" // TODO: Pass schedule context if needed
+      );
+
+      if (result.type === 'clarification') {
+          // AI wants to ask a question
+          const newHistory = [...currentHistory, { role: 'model' as const, text: result.question }];
+          if (onUpdateItem) {
+              onUpdateItem(id, { 
+                  conversationHistory: newHistory,
+                  isClarifying: true
+              });
+          }
+      } else {
+          // AI is satisfied and returned an Action
+          if (onProcessItem) {
+              onProcessItem(id, result.action);
+          }
+          if (onUpdateItem) {
+              onUpdateItem(id, { isClarifying: false });
+          }
+      }
+      setProcessingId(null);
   };
 
   return (
@@ -115,7 +200,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
         
         {/* Stale Bundle Suggestion */}
         {staleBundleProposal && (
-            <div className="w-full max-w-2xl mb-6 bg-accent border border-accent-foreground/10 rounded-xl p-4 flex items-center justify-between animate-in slide-in-from-top-4">
+            <div className="w-full max-w-3xl mb-6 bg-accent border border-accent-foreground/10 rounded-xl p-4 flex items-center justify-between animate-in slide-in-from-top-4">
                 <div className="flex items-center gap-3">
                     <div className="p-2 bg-background rounded-full text-accent-foreground">
                         <Package className="w-5 h-5" />
@@ -134,54 +219,141 @@ export const InboxView: React.FC<InboxViewProps> = ({
             </div>
         )}
 
-        <div className="w-full max-w-2xl mb-8 mt-4 md:mt-0 text-center relative">
-            <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-2 tracking-tight">Brain Dump</h1>
-            <p className="text-muted-foreground text-sm">Capture raw ideas. Aasani will help you structure them.</p>
+        <div className="w-full max-w-3xl mb-6 mt-4 md:mt-0 relative">
+            <h1 className="text-2xl md:text-3xl font-serif font-bold text-foreground mb-1 tracking-tight">Brain Dump</h1>
+            <p className="text-muted-foreground text-sm">Capture raw ideas. Aasani will structure them.</p>
         </div>
 
-        {/* Input Box */}
-        <div className="w-full max-w-2xl bg-card rounded-2xl shadow-xl p-4 mb-12 border border-border transition-shadow hover:shadow-2xl">
-            <textarea
-                value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
-                placeholder="What's on your mind?"
-                className="w-full text-base bg-transparent border-none focus:ring-0 resize-none max-h-40 min-h-[80px] text-card-foreground placeholder-muted-foreground"
-                onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSubmit())}
-            />
-            {/* Attachments */}
-            {inputAttachments.length > 0 && (
-                <div className="flex flex-wrap gap-2 mb-3 px-1">
-                    {inputAttachments.map((att, idx) => (
-                        <div key={idx} className="flex items-center gap-1 bg-muted text-xs px-2 py-1 rounded-md text-muted-foreground border border-border">
-                            <Paperclip className="w-3 h-3" />
-                            <span className="max-w-[150px] truncate">{att.name || 'Attachment'}</span>
-                            <button onClick={() => removeAttachment(idx)} className="hover:text-destructive"><X className="w-3 h-3"/></button>
+        {/* --- SMART INPUT INTERFACE --- */}
+        <div className="w-full max-w-3xl bg-card rounded-2xl shadow-xl border border-border transition-shadow hover:shadow-2xl mb-12 relative group animate-in fade-in slide-in-from-bottom-2">
+            
+            {/* Main Input Area */}
+            <div className="p-4">
+                {contextRef && (
+                    <div className="inline-flex items-center gap-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 px-2 py-0.5 rounded text-xs font-medium mb-2">
+                        {contextRef} <button onClick={() => setContextRef(null)}><X className="w-3 h-3"/></button>
+                    </div>
+                )}
+                
+                <textarea
+                    ref={textareaRef}
+                    value={inputText}
+                    onChange={(e) => setInputText(e.target.value)}
+                    placeholder={contextRef ? "What about this project?" : "Reference @project, use prompt builder, or just type..."}
+                    className="w-full text-base bg-transparent border-none focus:ring-0 resize-none min-h-[60px] max-h-[300px] text-foreground placeholder-muted-foreground/60 p-0 leading-relaxed"
+                    onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSubmit())}
+                />
+
+                {/* Attachments Preview */}
+                {inputAttachments.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-3">
+                        {inputAttachments.map((att, idx) => (
+                            <div key={idx} className="flex items-center gap-2 bg-muted/50 text-xs px-3 py-1.5 rounded-lg text-foreground border border-border">
+                                <Paperclip className="w-3 h-3 text-primary" />
+                                <span className="max-w-[150px] truncate font-medium">{att.name || 'Attachment'}</span>
+                                <button onClick={() => removeAttachment(idx)} className="hover:text-destructive transition-colors"><X className="w-3 h-3"/></button>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+
+            {/* Bottom Toolbar */}
+            <div className="flex items-center justify-between px-3 py-2 border-t border-border/50 bg-muted/20 rounded-b-2xl">
+                
+                {/* Left Tools */}
+                <div className="flex items-center gap-2">
+                    
+                    {/* Prompt Builder */}
+                    <div className="relative">
+                        <button 
+                            onClick={() => setShowPromptBuilder(!showPromptBuilder)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-background hover:bg-muted border border-border rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground transition-all shadow-sm"
+                        >
+                            <Wand2 className="w-3.5 h-3.5" />
+                            Prompt Builder
+                        </button>
+                        {showPromptBuilder && (
+                            <div className="absolute top-full left-0 mt-2 w-48 bg-popover border border-border rounded-xl shadow-xl z-20 overflow-hidden animate-in fade-in zoom-in-95">
+                                <div className="p-1">
+                                    {['Summarize this doc', 'Create a project plan', 'Draft an email', 'Extract action items'].map(p => (
+                                        <button 
+                                            key={p} 
+                                            onClick={() => handlePromptSelect(p)}
+                                            className="w-full text-left px-3 py-2 text-xs text-popover-foreground hover:bg-muted rounded-lg transition-colors"
+                                        >
+                                            {p}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Model Selector */}
+                    <div className="relative group/model">
+                        <button className="flex items-center gap-1.5 px-3 py-1.5 bg-background hover:bg-muted border border-border rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground transition-all shadow-sm">
+                            <Sparkles className="w-3.5 h-3.5 text-purple-500" />
+                            {selectedModel === 'flash' ? 'Gemini Flash' : 'Gemini Pro'}
+                            <ChevronDown className="w-3 h-3 opacity-50" />
+                        </button>
+                        <div className="absolute top-full left-0 mt-2 w-40 bg-popover border border-border rounded-xl shadow-xl z-20 overflow-hidden hidden group-hover/model:block animate-in fade-in zoom-in-95">
+                            <div className="p-1">
+                                <button onClick={() => setSelectedModel('flash')} className={`w-full text-left px-3 py-2 text-xs rounded-lg transition-colors ${selectedModel === 'flash' ? 'bg-muted font-bold' : 'hover:bg-muted'}`}>Gemini Flash (Fast)</button>
+                                <button onClick={() => setSelectedModel('pro')} className={`w-full text-left px-3 py-2 text-xs rounded-lg transition-colors ${selectedModel === 'pro' ? 'bg-muted font-bold' : 'hover:bg-muted'}`}>Gemini Pro (Smart)</button>
+                            </div>
                         </div>
-                    ))}
-                </div>
-            )}
-            <div className="flex justify-between items-center mt-2 border-t border-border pt-3">
-                <div className="flex items-center gap-1">
-                    <button className="p-2 rounded-full text-muted-foreground hover:bg-muted"><Mic className="w-5 h-5"/></button>
-                    <button onClick={() => fileInputRef.current?.click()} className="p-2 rounded-full text-muted-foreground hover:bg-muted transition-colors"><Paperclip className="w-5 h-5"/></button>
+                    </div>
+
+                    {/* Context @ */}
+                    <div className="relative group/ctx">
+                        <button className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors">
+                            <AtSign className="w-4 h-4" />
+                        </button>
+                        <div className="absolute top-full left-0 mt-2 w-56 bg-popover border border-border rounded-xl shadow-xl z-20 overflow-hidden hidden group-hover/ctx:block animate-in fade-in zoom-in-95">
+                            <div className="px-3 py-2 text-[10px] font-bold text-muted-foreground uppercase bg-muted/50 border-b border-border">Link to Project</div>
+                            <div className="max-h-40 overflow-y-auto p-1">
+                                {projects.map(p => (
+                                    <button 
+                                        key={p.id}
+                                        onClick={() => handleProjectRefSelect(p.title)}
+                                        className="w-full text-left px-3 py-2 text-xs text-popover-foreground hover:bg-muted rounded-lg truncate transition-colors"
+                                    >
+                                        {p.title}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Attachments */}
+                    <button onClick={() => fileInputRef.current?.click()} className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors">
+                        <Paperclip className="w-4 h-4" />
+                    </button>
                     <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileChange} />
+
                 </div>
-                <button onClick={handleSubmit} disabled={!inputText.trim() && inputAttachments.length === 0} className="bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity shadow-lg">Capture</button>
+
+                {/* Submit Button */}
+                <button 
+                    onClick={handleSubmit} 
+                    disabled={!inputText.trim() && inputAttachments.length === 0} 
+                    className="p-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 disabled:opacity-50 transition-all shadow-md active:scale-95"
+                >
+                    <ArrowRight className="w-4 h-4" />
+                </button>
             </div>
         </div>
 
         {/* Inbox Items Stream */}
-        <div className="w-full max-w-2xl space-y-6 pb-20">
+        <div className="w-full max-w-3xl space-y-4 pb-20">
             {items.filter(i => i.status === 'pending').map(item => (
                 <InboxItemCard 
                     key={item.id}
                     item={item}
                     projects={projects}
                     onDelete={() => onDeleteItem(item.id)}
-                    onAnalyze={(id) => { 
-                        setProcessingId(id);
-                        if (onAnalyzeItem) onAnalyzeItem(id, item.content, item.attachments || []);
-                    }}
+                    onAnalyze={handleSmartAnalyze} // Updated to support reply
                     onProcess={onProcessItem}
                     onDiscuss={() => onDiscussItem && onDiscussItem(item)}
                     onUpdate={onUpdateItem}
@@ -203,7 +375,7 @@ const InboxItemCard: React.FC<{
     item: InboxItem;
     projects: Project[];
     onDelete: () => void;
-    onAnalyze: (id: string) => void;
+    onAnalyze: (id: string, content: string, reply?: string) => void; // Updated signature
     onProcess: (id: string, action: InboxAction) => void;
     onDiscuss: () => void;
     onUpdate?: (id: string, updates: Partial<InboxItem>) => void;
@@ -211,52 +383,66 @@ const InboxItemCard: React.FC<{
 }> = ({ item, projects, onDelete, onAnalyze, onProcess, onDiscuss, onUpdate, isProcessing }) => {
     const result = item.processedResult;
     
-    // Local state for the "Draft Workbench" to allow editing before confirming
+    // Local state for the "Draft Workbench"
     const [draftTitle, setDraftTitle] = useState('');
     const [draftProjectId, setDraftProjectId] = useState('');
     const [draftPriority, setDraftPriority] = useState<TaskPriority>(TaskPriority.MEDIUM);
-    const [draftType, setDraftType] = useState<'task' | 'document' | 'event'>('task');
+    const [draftType, setDraftType] = useState<'task' | 'document' | 'event' | 'project'>('task');
+    
+    // Chat state for clarification
+    const [replyText, setReplyText] = useState('');
 
     // Sync draft state when result arrives
     useEffect(() => {
         if (result) {
             setDraftTitle(result.data.title);
-            setDraftProjectId(result.targetProjectId === 'default' ? projects[0]?.id : result.targetProjectId);
+            if (result.actionType === 'create_project') {
+                setDraftProjectId('new');
+                setDraftType('project');
+            } else {
+                setDraftProjectId(result.targetProjectId === 'default' ? projects[0]?.id : result.targetProjectId);
+                setDraftType(result.actionType === 'create_document' ? 'document' : 'task');
+            }
             setDraftPriority(result.data.priority || TaskPriority.MEDIUM);
-            setDraftType(result.actionType === 'create_document' ? 'document' : 'task');
         }
     }, [result, projects]);
 
     const handleConfirm = () => {
         if (!result) return;
+        let finalAction: InboxAction = { ...result };
         
-        // Construct final action from local draft state
-        const finalAction: InboxAction = {
-            ...result,
-            actionType: draftType === 'document' ? 'create_document' : 'create_task',
-            targetProjectId: draftProjectId,
-            data: {
-                ...result.data,
-                title: draftTitle,
-                priority: draftPriority
-            }
-        };
+        if (draftType === 'project') {
+            finalAction.actionType = 'create_project';
+            finalAction.targetProjectId = `NEW:${draftTitle}`; 
+        } else {
+            finalAction.actionType = draftType === 'document' ? 'create_document' : 'create_task';
+            finalAction.targetProjectId = draftProjectId;
+        }
+        finalAction.data.title = draftTitle;
+        finalAction.data.priority = draftPriority;
+
         onProcess(item.id, finalAction);
     };
 
+    const handleReply = () => {
+        if (!replyText.trim()) return;
+        onAnalyze(item.id, item.content, replyText);
+        setReplyText('');
+    };
+
     return (
-        <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden transition-all hover:border-foreground/20">
+        <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden transition-all hover:border-foreground/20 group">
             
             {/* Top Bar: Raw Content */}
-            <div className="p-5 border-b border-border">
+            <div className="p-5 border-b border-border bg-card/50">
                 <div className="flex justify-between items-start gap-4">
-                    <div className="text-sm text-card-foreground whitespace-pre-wrap leading-relaxed">{item.content}</div>
+                    <div className="text-sm text-card-foreground whitespace-pre-wrap leading-relaxed font-medium">{item.content}</div>
                     <div className="text-[10px] text-muted-foreground whitespace-nowrap">{new Date(item.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
                 </div>
                 {item.attachments && item.attachments.length > 0 && (
                     <div className="flex flex-wrap gap-2 mt-3">
                         {item.attachments.map((att, idx) => (
-                            <div key={idx} className="flex items-center gap-1.5 bg-muted text-xs px-2 py-1.5 rounded text-muted-foreground">
+                            <div key={idx} className="flex items-center gap-1.5 bg-muted text-xs px-2 py-1.5 rounded-lg text-muted-foreground border border-border">
                                 <Paperclip className="w-3 h-3" />
                                 <span className="truncate max-w-[200px]">{att.name || 'File'}</span>
                             </div>
@@ -265,14 +451,61 @@ const InboxItemCard: React.FC<{
                 )}
             </div>
 
-            {/* Smart Staging Workbench (Only visible if analyzed) */}
-            {result ? (
-                <div className="bg-muted/50 p-5 space-y-4 animate-in slide-in-from-top-2 fade-in duration-300">
+            {/* Conversation Mode (Clarification Needed) */}
+            {item.isClarifying && (
+                <div className="p-4 bg-purple-50/50 dark:bg-purple-900/10 space-y-4">
+                    {/* Chat History Display */}
+                    <div className="space-y-3">
+                        {item.conversationHistory?.filter(m => m.role === 'model').map((msg, idx) => (
+                            <div key={idx} className="flex gap-3">
+                                <div className="w-6 h-6 rounded-full bg-purple-600 flex items-center justify-center shrink-0">
+                                    <Sparkles className="w-3 h-3 text-white" />
+                                </div>
+                                <div className="text-sm text-foreground bg-background border border-border p-3 rounded-lg rounded-tl-none shadow-sm">
+                                    {msg.text}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Reply Input */}
+                    <div className="flex items-center gap-2 mt-2">
+                        <input 
+                            type="text" 
+                            value={replyText}
+                            onChange={(e) => setReplyText(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleReply()}
+                            placeholder="Type your reply..."
+                            className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-sm focus:ring-1 focus:ring-purple-500 outline-none"
+                            autoFocus
+                        />
+                        <button 
+                            onClick={handleReply}
+                            disabled={isProcessing || !replyText.trim()}
+                            className="p-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
+                        >
+                            {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Smart Staging Workbench (Visible if PROPOSAL is ready) */}
+            {result && !item.isClarifying ? (
+                <div className="bg-muted/30 p-5 space-y-4 animate-in slide-in-from-top-2 fade-in duration-300">
                     
                     {/* AI Reasoning / Warning */}
                     {result.warning && (
-                        <div className="text-xs bg-destructive/10 text-destructive px-3 py-2 rounded border border-destructive/20 flex items-center gap-2">
+                        <div className="text-xs bg-destructive/10 text-destructive px-3 py-2 rounded-lg border border-destructive/20 flex items-center gap-2">
                             <span className="text-lg">⚠️</span> {result.warning}
+                        </div>
+                    )}
+                    
+                    {/* Special Project Kickoff UI */}
+                    {draftType === 'project' && (
+                        <div className="bg-purple-100 dark:bg-purple-900/30 p-3 rounded-lg flex items-center gap-2 mb-2 border border-purple-200 dark:border-purple-800">
+                            <Rocket className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                            <span className="text-xs font-bold text-purple-700 dark:text-purple-300 uppercase">New Project Kickoff Detected</span>
                         </div>
                     )}
                     
@@ -288,7 +521,7 @@ const InboxItemCard: React.FC<{
                             value={draftTitle}
                             onChange={(e) => setDraftTitle(e.target.value)}
                             className="w-full bg-transparent border-b border-border pb-1 text-sm font-semibold text-foreground focus:outline-none focus:border-primary transition-colors placeholder-muted-foreground"
-                            placeholder="Task Title..."
+                            placeholder="Title..."
                         />
 
                         {/* Controls Grid */}
@@ -300,7 +533,9 @@ const InboxItemCard: React.FC<{
                                     value={draftProjectId}
                                     onChange={(e) => setDraftProjectId(e.target.value)}
                                     className="w-full bg-card border border-border rounded-lg py-1.5 pl-8 pr-2 text-xs font-medium text-card-foreground appearance-none focus:ring-1 focus:ring-primary outline-none cursor-pointer hover:border-foreground/20"
+                                    disabled={draftType === 'project'}
                                 >
+                                    <option value="new">New Project...</option>
                                     {projects.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
                                 </select>
                                 <ChevronDown className="absolute right-2 top-2.5 w-3 h-3 text-muted-foreground pointer-events-none" />
@@ -324,7 +559,7 @@ const InboxItemCard: React.FC<{
                             {/* Type Selector */}
                             <div className="relative group">
                                 <div className="absolute left-2.5 top-2 pointer-events-none text-muted-foreground">
-                                    {draftType === 'task' ? <CheckSquare className="w-3.5 h-3.5"/> : <FileText className="w-3.5 h-3.5"/>}
+                                    {draftType === 'task' ? <CheckSquare className="w-3.5 h-3.5"/> : draftType === 'project' ? <Rocket className="w-3.5 h-3.5"/> : <FileText className="w-3.5 h-3.5"/>}
                                 </div>
                                 <select 
                                     value={draftType}
@@ -333,6 +568,7 @@ const InboxItemCard: React.FC<{
                                 >
                                     <option value="task">Create Task</option>
                                     <option value="document">Create Doc</option>
+                                    <option value="project">Create Project</option>
                                 </select>
                                 <ChevronDown className="absolute right-2 top-2.5 w-3 h-3 text-muted-foreground pointer-events-none" />
                             </div>
@@ -354,22 +590,22 @@ const InboxItemCard: React.FC<{
                         </button>
                     </div>
                 </div>
-            ) : (
-                /* Unprocessed State */
-                <div className="bg-muted/30 px-4 py-3 border-t border-border flex justify-between items-center">
+            ) : !item.isClarifying && (
+                /* Unprocessed State - "Analyze" Trigger */
+                <div className="bg-muted/10 px-4 py-3 border-t border-border flex justify-between items-center">
                     <button onClick={onDiscuss} className="text-xs font-bold text-muted-foreground hover:text-primary flex items-center gap-1.5 transition-colors">
                         <MessageSquare className="w-3.5 h-3.5"/> Discuss
                     </button>
                     <div className="flex gap-2">
-                        <button onClick={onDelete} className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded transition-colors">
+                        <button onClick={onDelete} className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded transition-colors opacity-0 group-hover:opacity-100">
                             <Trash2 className="w-4 h-4"/>
                         </button>
                         <button 
-                            onClick={() => onAnalyze(item.id)} 
+                            onClick={() => onAnalyze(item.id, item.content)} 
                             disabled={isProcessing}
                             className="text-xs bg-card border border-border px-4 py-1.5 rounded-lg shadow-sm hover:bg-muted flex items-center gap-2 text-card-foreground transition-all font-medium"
                         >
-                            {isProcessing ? <Loader2 className="w-3 h-3 animate-spin"/> : <Sparkles className="w-3 h-3 text-primary"/>} 
+                            {isProcessing ? <Loader2 className="w-3 h-3 animate-spin"/> : <Sparkles className="w-3 h-3 text-purple-500"/>} 
                             Analyze
                         </button>
                     </div>

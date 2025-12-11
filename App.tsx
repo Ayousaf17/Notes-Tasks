@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { DocumentEditor } from './components/DocumentEditor';
-import { TaskBoard } from './components/TaskBoard';
+import { TaskBoard } from './TaskBoard';
 import { AIChatSidebar } from './components/AIChatSidebar';
 import { CalendarView } from './components/CalendarView';
 import { CommandPalette } from './components/CommandPalette';
@@ -17,7 +17,7 @@ import { IntegrationsModal } from './components/IntegrationsModal';
 import { SettingsView } from './components/SettingsView';
 import { CreateProjectModal } from './components/CreateProjectModal';
 import { ConfirmationModal } from './components/ConfirmationModal';
-import { ViewMode, Document, Task, TaskStatus, ProjectPlan, TaskPriority, ChatMessage, Project, InboxItem, InboxAction, AgentRole, Integration } from './types';
+import { ViewMode, Document, Task, TaskStatus, ProjectPlan, TaskPriority, ChatMessage, Project, InboxItem, InboxAction, AgentRole, Integration, Attachment, FocusItem } from './types';
 import { Sparkles, Command, Plus, Menu, Cloud, MessageSquare, Home, Inbox, Search, CheckSquare } from 'lucide-react';
 import { geminiService } from './services/geminiService';
 import { dataService } from './services/dataService';
@@ -65,6 +65,7 @@ const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewMode>(ViewMode.HOME); 
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(false); 
+  const [isPinned, setIsPinned] = useState(false);
   
   // Team Management State
   const [teamMembers, setTeamMembers] = useState<string[]>(() => {
@@ -527,7 +528,7 @@ const App: React.FC = () => {
            setDocuments(prev => [...prev, newDoc]);
            dataService.createDocument(newDoc);
       }
-      setInboxItems(prev => prev.map(item => item.id === itemId ? { ...item, status: 'processed' } : item).filter(i => i.status !== 'processed'));
+      setInboxItems(prev => prev.map(item => item.id === itemId ? { ...item, status: 'processed' as const } : item).filter(i => i.status !== 'processed'));
   };
   
   const handleStoreInboxSuggestion = (itemId: string, action: InboxAction) => {
@@ -569,6 +570,8 @@ const App: React.FC = () => {
         onToggleDarkMode={() => setIsDarkMode(!isDarkMode)}
         isExpanded={isSidebarExpanded}
         onHover={setIsSidebarExpanded}
+        isPinned={isPinned}
+        onTogglePin={() => setIsPinned(!isPinned)}
       />
 
       <main className={`flex-1 flex flex-col h-full relative w-full bg-white dark:bg-black transition-all duration-300 ease-in-out pb-20 md:pb-0 ${isSidebarExpanded ? 'md:pl-64' : 'md:pl-16'}`}>
@@ -609,6 +612,7 @@ const App: React.FC = () => {
                           projects={projects} 
                           userName="User" 
                           onNavigate={handleNavigate} 
+                          onChangeView={setCurrentView}
                           onStartReview={() => setCurrentView(ViewMode.REVIEW)} 
                           onCreateProject={handleOpenCreateProject}
                           teamMembers={teamMembers}
@@ -653,6 +657,8 @@ const App: React.FC = () => {
                         onExtractTasks={handleExtractTasks} 
                         onNavigate={handleNavigate} 
                         onDelete={() => handleDeleteDocument(activeDocument.id)}
+                        onToggleContext={() => setIsContextSidebarOpen(prev => !prev)}
+                        integrations={integrations}
                       />
                   ) : currentView === ViewMode.DOCUMENTS && !activeDocument ? (
                       <button 
@@ -690,6 +696,7 @@ const App: React.FC = () => {
                         tasks={tasksToDisplay} 
                         onSelectTask={setSelectedTaskId} 
                         onUpdateTaskDueDate={handleUpdateTaskDueDate}
+                        projects={projects}
                       />
                   )}
                 </div>
@@ -711,6 +718,9 @@ const App: React.FC = () => {
             setMessages={setChatMessages}
             allDocuments={documents}
             allTasks={tasks}
+            projects={projects}
+            clients={[]}
+            teamMembers={teamMembers}
         />
 
         <CommandPalette isOpen={isCommandPaletteOpen} onClose={() => setIsCommandPaletteOpen(false)} documents={documents} tasks={tasks} projects={projects} onNavigate={handleNavigate} onCreateDocument={handleCreateDocument} onChangeView={setCurrentView} onSelectProject={handleSelectProject} />
@@ -748,6 +758,8 @@ const App: React.FC = () => {
                 onDelete={handleDeleteTask}
                 users={teamMembers}
                 projects={projects}
+                allTasks={tasks}
+                allDocuments={documents}
             />
         )}
       </main>
